@@ -1,5 +1,8 @@
 export function resolveApiListenHost(
-  environment: Pick<NodeJS.ProcessEnv, 'NODE_ENV' | 'API_HOST'>,
+  environment: {
+    NODE_ENV?: string
+    API_HOST?: string
+  },
 ) {
   const configuredHost = environment.API_HOST?.trim()
   if (configuredHost) return configuredHost
