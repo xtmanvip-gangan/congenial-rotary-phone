@@ -16,6 +16,7 @@ import { LoginPage } from './pages/LoginPage'
 import { MyRecordsPage } from './pages/MyRecordsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { OperatorAnchorsPage } from './pages/OperatorAnchorsPage'
+import { OperatorOnboardingPage } from './pages/OperatorOnboardingPage'
 import { RuleManagementPage } from './pages/RuleManagementPage'
 import { StaffHomePage } from './pages/StaffHomePage'
 import { StaffManagementPage } from './pages/StaffManagementPage'
@@ -189,6 +190,14 @@ function App() {
               element={
                 <AuthGate allowRoles={['operator']}>
                   <OperatorAnchorsPage />
+                </AuthGate>
+              }
+            />
+            <Route
+              path="/operator/anchors/:anchorId/onboarding"
+              element={
+                <AuthGate allowRoles={['operator']}>
+                  <OperatorOnboardingPage />
                 </AuthGate>
               }
             />

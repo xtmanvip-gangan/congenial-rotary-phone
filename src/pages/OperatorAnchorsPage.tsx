@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiJson } from '../lib/api'
 import { formatDateTime } from '../lib/dateTime'
+import { Link } from 'react-router-dom'
 
 type AnchorItem = {
   id: string
@@ -9,6 +10,11 @@ type AnchorItem = {
   assignmentStatus: string
   status: string
   activatedAt: string
+  onboarding: {
+    completedCount: number
+    totalCount: number
+    nextMilestone: string | null
+  } | null
 }
 
 type PendingAssignment = {
@@ -113,6 +119,16 @@ export function OperatorAnchorsPage() {
               <p className="mt-1 text-xs text-slate-400">
                 激活：{formatDateTime(item.activatedAt)}
               </p>
+              <p className="mt-3 text-sm text-slate-600">
+                岗前进度：{item.onboarding?.completedCount ?? 0} /{' '}
+                {item.onboarding?.totalCount ?? 8}
+              </p>
+              <Link
+                className="app-btn-primary mt-3 inline-flex"
+                to={`/operator/anchors/${item.id}/onboarding`}
+              >
+                管理岗前进度
+              </Link>
             </article>
           ))}
           {!anchorsQuery.isLoading && !anchorsQuery.data?.items.length ? (
