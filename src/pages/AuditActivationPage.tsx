@@ -69,6 +69,12 @@ export function AuditActivationPage() {
 
   function submit(event: FormEvent) {
     event.preventDefault()
+
+    if (!membershipCompletedAt || !deviceReadyAt) {
+      setMessage('请填写入会完成时间和设备调试完成时间')
+      return
+    }
+
     createMutation.mutate({
       expectedWecomUserId,
       wecomDisplayName,
@@ -82,11 +88,12 @@ export function AuditActivationPage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
         <p className="text-sm font-medium text-brand-600">审核老师</p>
         <h2 className="mt-2 text-2xl font-semibold text-slate-900">主播档案激活</h2>
-        <form className="mt-6 space-y-4" onSubmit={submit}>
+        <form className="mt-6 space-y-4" noValidate onSubmit={submit}>
           <label className="block text-sm font-medium text-slate-700">
             企微展示名
             <input
               className="mt-2 app-field"
+              required
               value={wecomDisplayName}
               onChange={(event) => setWecomDisplayName(event.target.value)}
             />
@@ -95,6 +102,7 @@ export function AuditActivationPage() {
             企微UID
             <input
               className="mt-2 app-field"
+              required
               value={expectedWecomUserId}
               onChange={(event) => setExpectedWecomUserId(event.target.value)}
             />
@@ -104,6 +112,7 @@ export function AuditActivationPage() {
             <input
               type="datetime-local"
               className="mt-2 app-field"
+              required
               value={membershipCompletedAt}
               onChange={(event) => setMembershipCompletedAt(event.target.value)}
             />
@@ -113,6 +122,7 @@ export function AuditActivationPage() {
             <input
               type="datetime-local"
               className="mt-2 app-field"
+              required
               value={deviceReadyAt}
               onChange={(event) => setDeviceReadyAt(event.target.value)}
             />
