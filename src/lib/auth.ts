@@ -68,7 +68,15 @@ export function getRoleHomePath(role: AppRole) {
     return '/admin/staff'
   }
 
-  if (role === 'audit_teacher' || role === 'training_admin') {
+  if (role === 'training_admin') {
+    return '/training/sessions'
+  }
+
+  if (role === 'training_teacher') {
+    return '/training/sessions'
+  }
+
+  if (role === 'audit_teacher') {
     return '/audit/activations'
   }
 

@@ -20,6 +20,9 @@ import { OperatorOnboardingPage } from './pages/OperatorOnboardingPage'
 import { RuleManagementPage } from './pages/RuleManagementPage'
 import { StaffHomePage } from './pages/StaffHomePage'
 import { StaffManagementPage } from './pages/StaffManagementPage'
+import { TrainingCoursesPage } from './pages/TrainingCoursesPage'
+import { TrainingSessionsPage } from './pages/TrainingSessionsPage'
+import { OperatorTrainingPage } from './pages/OperatorTrainingPage'
 import type { AppRole } from './lib/auth'
 
 function App() {
@@ -217,6 +220,30 @@ function App() {
               }
             />
             <Route
+              path="/training/courses"
+              element={
+                <AuthGate allowRoles={['training_admin']}>
+                  <TrainingCoursesPage />
+                </AuthGate>
+              }
+            />
+            <Route
+              path="/training/sessions"
+              element={
+                <AuthGate allowRoles={['training_teacher', 'training_admin']}>
+                  <TrainingSessionsPage />
+                </AuthGate>
+              }
+            />
+            <Route
+              path="/operator/training"
+              element={
+                <AuthGate allowRoles={['operator']}>
+                  <OperatorTrainingPage />
+                </AuthGate>
+              }
+            />
+            <Route
               path="/admin/exports"
               element={
                 <AuthGate allowRoles={['operator', 'super_admin']}>
@@ -294,13 +321,30 @@ function getNavigationItems(role: AppRole): NavigationItem[] {
   if (role === 'operator') {
     return [
       { label: '我的主播', to: '/operator/anchors' },
+      { label: '培训代报名', to: '/operator/training' },
       { label: '活动记录', to: '/admin/records' },
       { label: '规则管理', to: '/admin/rules' },
       { label: '导出中心', to: '/admin/exports' },
     ]
   }
 
-  if (role === 'audit_teacher' || role === 'training_admin') {
+  if (role === 'training_admin') {
+    return [
+      { label: '课程管理', to: '/training/courses' },
+      { label: '排课与场次', to: '/training/sessions' },
+      { label: '主播激活', to: '/audit/activations' },
+      { label: '工作台', to: '/staff/home' },
+    ]
+  }
+
+  if (role === 'training_teacher') {
+    return [
+      { label: '场次执行', to: '/training/sessions' },
+      { label: '工作台', to: '/staff/home' },
+    ]
+  }
+
+  if (role === 'audit_teacher') {
     return [
       { label: '主播激活', to: '/audit/activations' },
       { label: '工作台', to: '/staff/home' },
