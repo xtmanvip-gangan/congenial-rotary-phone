@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { AppModule } from './app.module.js'
 import { PrismaService } from './prisma/prisma.service.js'
 import { securityHeaders } from './common/security/security-headers.middleware.js'
+import { resolveApiListenHost } from './common/security/network-config.js'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
@@ -50,7 +51,7 @@ async function bootstrap() {
   await prismaService.enableShutdownHooks(app)
 
   const port = Number(process.env.API_PORT ?? 3000)
-  await app.listen(port)
+  await app.listen(port, resolveApiListenHost(process.env))
 }
 
 void bootstrap()
