@@ -219,6 +219,25 @@ enum NotificationStatus {
   failed
 }
 
+enum SystemJobRunStatus {
+  running
+  succeeded
+  partial
+  failed
+}
+
+enum IntegrationIncidentStatus {
+  open
+  recovered
+  closed
+}
+
+enum IntegrationIncidentSeverity {
+  warning
+  error
+  critical
+}
+
 model WecomUser {
   id            String         @id @default(uuid()) @db.Uuid
   wecomUserId   String         @unique @map("wecom_user_id") @db.VarChar(64)
@@ -935,4 +954,70 @@ model NotificationLog {
   @@index([businessType, businessId], map: "idx_notification_logs_business")
   @@index([status, scheduledAt], map: "idx_notification_logs_retry")
   @@map("notification_logs")
+}
+
+model SystemJobRun {
+  id             String             @id @default(uuid()) @db.Uuid
+  jobCode        String             @map("job_code") @db.VarChar(100)
+  idempotencyKey String             @map("idempotency_key") @db.VarChar(180)
+  status         SystemJobRunStatus @default(running)
+  triggeredBy    String?            @map("triggered_by") @db.VarChar(64)
+  attemptCount   Int                @default(1) @map("attempt_count")
+  scannedCount   Int                @default(0) @map("scanned_count")
+  successCount   Int                @default(0) @map("success_count")
+  failureCount   Int                @default(0) @map("failure_count")
+  resultSummary  Json?              @map("result_summary")
+  lastError      String?            @map("last_error")
+  startedAt      DateTime           @default(now()) @map("started_at")
+  finishedAt     DateTime?          @map("finished_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  @@unique([jobCode, idempotencyKey])
+  @@index([status, startedAt])
+  @@map("system_job_runs")
+}
+
+model IntegrationIncident {
+  id             String                      @id @default(uuid()) @db.Uuid
+  provider       String                      @db.VarChar(50)
+  operation      String                      @db.VarChar(100)
+  businessType   String?                     @map("business_type") @db.VarChar(50)
+  businessId     String?                     @map("business_id") @db.VarChar(100)
+  dedupeKey      String                      @unique @map("dedupe_key") @db.VarChar(180)
+  status         IntegrationIncidentStatus   @default(open)
+  severity       IntegrationIncidentSeverity @default(error)
+  occurrenceCount Int                        @default(1) @map("occurrence_count")
+  errorCode      String?                     @map("error_code") @db.VarChar(80)
+  errorMessage   String                      @map("error_message")
+  firstOccurredAt DateTime                   @default(now()) @map("first_occurred_at")
+  lastOccurredAt DateTime                    @default(now()) @map("last_occurred_at")
+  resolvedAt     DateTime?                   @map("resolved_at")
+  resolvedBy     String?                     @map("resolved_by") @db.VarChar(64)
+  resolutionNote String?                     @map("resolution_note")
+  createdAt      DateTime                    @default(now()) @map("created_at")
+  updatedAt      DateTime                    @updatedAt @map("updated_at")
+
+  @@index([status, severity, lastOccurredAt])
+  @@index([provider, operation, lastOccurredAt])
+  @@map("integration_incidents")
+}
+
+model SystemAuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  actorId       String?  @map("actor_id") @db.VarChar(64)
+  actorRole     String   @map("actor_role") @db.VarChar(40)
+  loginType     String   @map("login_type") @db.VarChar(40)
+  action        String   @db.VarChar(100)
+  objectType    String   @map("object_type") @db.VarChar(80)
+  objectId      String?  @map("object_id") @db.VarChar(100)
+  beforeSnapshot Json?   @map("before_snapshot")
+  afterSnapshot Json?    @map("after_snapshot")
+  reason        String?
+  requestTraceId String? @map("request_trace_id") @db.VarChar(100)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([objectType, objectId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("system_audit_logs")
 }
