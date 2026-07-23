@@ -89,3 +89,35 @@
 - 现在提交前会明确提示填写两个完成时间，不再出现无请求、无反馈的失败。
 - 上线前 Web 备份：`/www/backups/shouji/20260723-activation-8c1149c/ac.ydwy.net-before-activation-fix.tar.gz`
 - 线上静态资源：`index-o2TA3fno.js`
+
+## 主播一键开通与企微提醒
+
+- 部署版本：`730d384`
+- 部署时间：2026-07-23（Asia/Shanghai）
+- API release：`/www/wwwroot/shouji-releases/730d384`
+- Web 静态资源：`index-BOV3p7gM.js`
+- 小程序编译产物：`miniapp-anchor/dist`
+- 上线前备份：`/www/backups/shouji/20260723-211523-before-one-click-activation`
+- 数据库迁移：`202607230006_anchor_one_click_activation.sql`
+
+本次上线内容：
+
+- 审核老师创建档案开通任务时预填主播昵称、企微 UID、固定运营和入会时间。
+- 移除设备调试时间；主播不能在小程序中填写昵称或选择运营。
+- 审核老师可在主播开通前编辑资料，并在运营驳回后重新分配运营。
+- “发送提醒”改为人工触发，并正式复用企业微信自建应用消息通道；仅实际发送成功时累计提醒次数。
+- 主播小程序只读展示主播昵称、所属运营和入会时间，主播本人一键开通档案。
+- 保留运营确认归属和后续八个岗前孵化节点。
+
+迁移和验证结果：
+
+- 数据库副本迁移演练成功，迁移前后激活任务均为 1 条。
+- 正式库迁移已写入 `deployment_migrations`。
+- `operator_id` 字段及外键已建立，`device_ready_at` 已删除。
+- 现有 1 条旧激活任务未分配运营，需审核老师在页面中编辑并补选运营后再发送提醒。
+- 本地 Web 2 项测试通过；API 23 个测试文件、67 项测试通过。
+- 服务器 API 23 个测试文件、67 项测试通过，构建成功。
+- Web、小程序生产构建成功；小程序 `app.json` 与 `project.config.json` 均已生成。
+- `https://ac.ydwy.net/api/health` 返回成功；PM2 新进程在线、重启次数为 0、错误日志为空。
+- 未登录访问激活任务接口返回 401。
+- 实际企微提醒未自动发送，需由审核老师补全旧任务运营后点击“发送提醒”完成真实账号验收。
