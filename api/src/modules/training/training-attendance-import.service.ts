@@ -247,6 +247,19 @@ export class TrainingAttendanceImportService {
     if (!file.originalname.toLowerCase().endsWith('.xlsx')) {
       throw new BadRequestException('仅支持.xlsx格式的参会表')
     }
+    const allowedMimeTypes = new Set([
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/octet-stream',
+    ])
+    const hasZipSignature =
+      file.buffer.length >= 4 &&
+      file.buffer[0] === 0x50 &&
+      file.buffer[1] === 0x4b &&
+      (file.buffer[2] === 0x03 || file.buffer[2] === 0x05) &&
+      (file.buffer[3] === 0x04 || file.buffer[3] === 0x06)
+    if (!allowedMimeTypes.has(file.mimetype) || !hasZipSignature) {
+      throw new BadRequestException('文件类型与.xlsx格式不一致')
+    }
   }
 
   private async requireImportAccess(currentUser: AuthenticatedUser) {

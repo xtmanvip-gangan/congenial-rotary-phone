@@ -1,6 +1,9 @@
 import ExcelJS from 'exceljs'
-import { describe, expect, it } from 'vitest'
-import { parseTencentAttendanceWorkbook } from './training-attendance-import.service.js'
+import { describe, expect, it, vi } from 'vitest'
+import {
+  parseTencentAttendanceWorkbook,
+  TrainingAttendanceImportService,
+} from './training-attendance-import.service.js'
 
 async function workbookBuffer(rows: unknown[][]) {
   const workbook = new ExcelJS.Workbook()
@@ -54,5 +57,34 @@ describe('parseTencentAttendanceWorkbook', () => {
     await expect(parseTencentAttendanceWorkbook(buffer)).rejects.toThrow(
       '缺少“成员名称”列',
     )
+  })
+})
+
+describe('TrainingAttendanceImportService', () => {
+  it('拒绝扩展名、MIME或ZIP签名不一致的伪造Excel', async () => {
+    const service = new TrainingAttendanceImportService(
+      {} as never,
+      { requireAnyRole: vi.fn() } as never,
+      {} as never,
+    )
+
+    await expect(
+      service.previewImport(
+        {
+          accountId: 'training-admin-1',
+          wecomUserId: 'training-admin-uid',
+          role: 'training_admin',
+          roles: ['training_admin'],
+          loginType: 'wecom_staff',
+        } as never,
+        'session-1',
+        {
+          originalname: 'attendance.xlsx',
+          mimetype: 'text/plain',
+          size: 12,
+          buffer: Buffer.from('not-an-xlsx'),
+        },
+      ),
+    ).rejects.toThrow('文件类型与.xlsx格式不一致')
   })
 })
