@@ -48,6 +48,10 @@ export function TrainingSessionsPage() {
   const [weekParity, setWeekParity] = useState('every')
   const [startTime, setStartTime] = useState('18:30')
   const isAdmin = authSession?.user.roles.includes('training_admin') ?? false
+  const canEditMeeting =
+    (authSession?.user.roles.includes('training_admin') ||
+      authSession?.user.roles.includes('training_teacher')) ??
+    false
 
   const sessionsQuery = useQuery({
     queryKey: ['training-sessions'],
@@ -142,7 +146,8 @@ export function TrainingSessionsPage() {
           排课与课堂执行
         </h2>
         <p className="mt-2 text-sm text-slate-500">
-          发布场次时自动创建独立腾讯会议；失败会保留原因，可直接重试。
+          在系统内自建并发布场次；腾讯会议请在腾讯侧人工创建后，回填会议号与入会链接（可后补）。
+          参会明细与观看时长请从腾讯导出后，在「参会处理」页导入；观看时长达到计划时长 80% 自动记为已学。
         </p>
         {isAdmin ? (
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -275,16 +280,8 @@ export function TrainingSessionsPage() {
                   {item.waitlistCount}
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
-                  腾讯会议：
-                  {item.meeting?.meetingCode
-                    ? `${item.meeting.meetingCode} · ${item.meeting.createStatus}`
-                    : item.meeting?.createStatus ?? '尚未创建'}
+                  会议号：{item.meeting?.meetingCode || '待回填'}
                 </p>
-                {item.meeting?.lastError ? (
-                  <p className="mt-1 text-sm text-rose-600">
-                    {item.meeting.lastError}
-                  </p>
-                ) : null}
                 {item.meeting?.joinUrl ? (
                   <a
                     className="mt-2 inline-block text-sm text-brand-700 underline"
@@ -294,7 +291,9 @@ export function TrainingSessionsPage() {
                   >
                     打开会议入口
                   </a>
-                ) : null}
+                ) : (
+                  <p className="mt-1 text-sm text-amber-700">入会链接待回填</p>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -304,6 +303,35 @@ export function TrainingSessionsPage() {
                 >
                   查看名单
                 </button>
+                {canEditMeeting &&
+                !['cancelled'].includes(item.status) ? (
+                  <button
+                    type="button"
+                    className="app-btn-secondary"
+                    onClick={() => {
+                      const meetingCode = window.prompt(
+                        '请输入腾讯会议号（可留空表示清空）',
+                        item.meeting?.meetingCode ?? '',
+                      )
+                      if (meetingCode === null) return
+                      const joinUrl = window.prompt(
+                        '请输入入会链接（可留空表示清空）',
+                        item.meeting?.joinUrl ?? '',
+                      )
+                      if (joinUrl === null) return
+                      action.mutate({
+                        path: `/training/sessions/${item.id}/meeting`,
+                        method: 'PATCH',
+                        payload: {
+                          meetingCode: meetingCode.trim() || null,
+                          joinUrl: joinUrl.trim() || null,
+                        },
+                      })
+                    }}
+                  >
+                    填写会议信息
+                  </button>
+                ) : null}
                 {isAdmin &&
                 ['draft', 'rescheduled', 'publish_failed'].includes(
                   item.status,
@@ -317,7 +345,7 @@ export function TrainingSessionsPage() {
                       })
                     }
                   >
-                    {item.status === 'publish_failed' ? '重试发布' : '发布'}
+                    发布
                   </button>
                 ) : null}
                 {isAdmin &&

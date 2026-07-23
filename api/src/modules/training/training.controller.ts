@@ -25,6 +25,7 @@ import {
 } from './dto/register-session.dto.js'
 import { UpdateCourseDto } from './dto/update-course.dto.js'
 import { RescheduleSessionDto } from './dto/reschedule-session.dto.js'
+import { UpdateSessionMeetingDto } from './dto/update-session-meeting.dto.js'
 import { CreateTrainingRecommendationDto } from './dto/create-recommendation.dto.js'
 import {
   BulkUpdateTrainingFeedbackDto,
@@ -131,6 +132,19 @@ export class TrainingController {
     return this.trainingService.publishSession(
       this.user(authorization),
       sessionId,
+    )
+  }
+
+  @Patch('sessions/:sessionId/meeting')
+  updateSessionMeeting(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('sessionId') sessionId: string,
+    @Body() dto: UpdateSessionMeetingDto,
+  ) {
+    return this.trainingService.updateSessionMeeting(
+      this.user(authorization),
+      sessionId,
+      dto,
     )
   }
 

@@ -208,8 +208,32 @@ export default function TrainingPage() {
                     老师：{item.teacher?.displayName || '待安排'}
                   </Text>
                   <Text className="chip">候补：{item.waitlistCount}人</Text>
+                  {item.meeting?.meetingCode ? (
+                    <Text className="chip">
+                      会议号：{item.meeting.meetingCode}
+                    </Text>
+                  ) : (
+                    <Text className="chip">会议信息待发布</Text>
+                  )}
                 </View>
                 <View className={styles.actionRow}>
+                  {item.meeting?.joinUrl ? (
+                    <Button
+                      className="secondaryButton"
+                      onClick={() => {
+                        void Taro.setClipboardData({
+                          data: item.meeting!.joinUrl as string,
+                        }).then(() => {
+                          Taro.showToast({
+                            title: '入会链接已复制',
+                            icon: 'success',
+                          })
+                        })
+                      }}
+                    >
+                      复制入会链接
+                    </Button>
+                  ) : null}
                   {item.myRegistration &&
                   ['registered', 'waitlisted'].includes(
                     item.myRegistration.status,

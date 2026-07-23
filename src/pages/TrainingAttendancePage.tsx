@@ -96,13 +96,6 @@ export function TrainingAttendancePage() {
     queryClient.invalidateQueries({
       queryKey: ['training-attendance', sessionId],
     })
-  const sync = useMutation({
-    mutationFn: () =>
-      apiJson(`/training/sessions/${sessionId}/attendance/sync`, {
-        method: 'POST',
-      }),
-    onSuccess: refresh,
-  })
   const upload = useMutation({
     mutationFn: async () => {
       if (!file) throw new Error('请选择.xlsx参会表')
@@ -161,7 +154,6 @@ export function TrainingAttendancePage() {
   })
 
   const mutationError =
-    sync.error ||
     upload.error ||
     confirmImport.error ||
     resolveMatch.error ||
@@ -172,10 +164,11 @@ export function TrainingAttendancePage() {
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
         <p className="text-sm font-medium text-brand-600">参会处理</p>
         <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-          腾讯会议同步与人工确认
+          参会导入与人工确认
         </h2>
         <p className="mt-2 text-sm text-slate-500">
-          UID优先、企微名称唯一才自动匹配；同名冲突不会自动归到任何主播。
+          主路径：从腾讯会议导出参会明细/观看时长（保持腾讯表头）上传导入。
+          观看时长达到计划时长 80% 自动记为已学；UID 优先匹配，同名冲突需人工确认。
         </p>
         <select
           className="app-select mt-5"
@@ -195,15 +188,7 @@ export function TrainingAttendancePage() {
         {selectedSession ? (
           <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
             <p>
-              会议状态：
-              {selectedSession.meeting?.createStatus ?? '尚未创建'} · 会议号：
-              {selectedSession.meeting?.meetingCode ?? '-'}
-            </p>
-            <p className="mt-1">
-              最近同步：
-              {selectedSession.meeting?.lastSyncAt
-                ? formatDateTime(selectedSession.meeting.lastSyncAt)
-                : '尚未同步'}
+              会议号：{selectedSession.meeting?.meetingCode || '待回填'}
             </p>
             {selectedSession.meeting?.joinUrl ? (
               <a
@@ -214,35 +199,22 @@ export function TrainingAttendancePage() {
               >
                 打开腾讯会议
               </a>
-            ) : null}
+            ) : (
+              <p className="mt-1 text-amber-700">入会链接待回填（可在场次页填写）</p>
+            )}
           </div>
         ) : null}
       </section>
 
       {sessionId ? (
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section className="grid gap-4 lg:grid-cols-1">
           <div className="rounded-3xl border border-slate-200 bg-white p-6">
             <h3 className="text-lg font-semibold text-slate-900">
-              自动接口同步
+              导入腾讯导出的参会明细
             </h3>
             <p className="mt-2 text-sm text-slate-500">
-              课程结束后拉取腾讯会议参会明细，并累计多次进出时长。
-            </p>
-            <button
-              type="button"
-              className="app-btn-primary mt-4"
-              disabled={sync.isPending}
-              onClick={() => sync.mutate()}
-            >
-              {sync.isPending ? '正在同步…' : '同步腾讯会议记录'}
-            </button>
-          </div>
-          <div className="rounded-3xl border border-slate-200 bg-white p-6">
-            <h3 className="text-lg font-semibold text-slate-900">
-              Excel备用导入
-            </h3>
-            <p className="mt-2 text-sm text-slate-500">
-              仅支持5MB以内.xlsx；先预览，确认后才形成学习结论。
+              请直接使用腾讯会议导出的 .xlsx（表头如：成员名称/参会者、用户ID、观看时长/参会时长、入会时间、离会时间）。
+              仅支持 5MB 以内；先预览匹配结果，确认后写入学习结论（≥80% 自动已学）。
             </p>
             <input
               className="app-field mt-4"
@@ -254,7 +226,7 @@ export function TrainingAttendancePage() {
             />
             <button
               type="button"
-              className="app-btn-secondary mt-3"
+              className="app-btn-primary mt-3"
               disabled={!file || upload.isPending}
               onClick={() => upload.mutate()}
             >

@@ -48,6 +48,26 @@ describe('parseTencentAttendanceWorkbook', () => {
     })
   })
 
+  it('支持腾讯导出“观看时长”表头', async () => {
+    const buffer = await workbookBuffer([
+      ['参会者', '用户ID', '观看时长'],
+      ['主播甲', 'uid-a', '00:50:00'],
+      ['主播乙', 'uid-b', '45分钟'],
+    ])
+
+    const rows = await parseTencentAttendanceWorkbook(buffer)
+
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toMatchObject({
+      displayName: '主播甲',
+      durationSeconds: 3_000,
+    })
+    expect(rows[1]).toMatchObject({
+      displayName: '主播乙',
+      durationSeconds: 2_700,
+    })
+  })
+
   it('缺少成员名称列时拒绝导入', async () => {
     const buffer = await workbookBuffer([
       ['用户ID', '参会时长'],

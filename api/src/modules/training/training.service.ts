@@ -302,10 +302,15 @@ export class TrainingService {
     ) {
       throw new BadRequestException('当前场次不能发布')
     }
-    if (!this.meetings) {
-      throw new BadRequestException('腾讯会议服务不可用')
+    // 发布不依赖腾讯会议 API；会议号/链接可后补
+    if (this.meetings) {
+      await this.meetings.publishSession(sessionId)
+    } else {
+      await this.prisma.trainingSession.update({
+        where: { id: sessionId },
+        data: { status: 'published', publishedAt: new Date() },
+      })
     }
-    await this.meetings.publishSession(sessionId)
     const updated = await this.prisma.trainingSession.findUnique({
       where: { id: sessionId },
       include: sessionInclude,
@@ -318,6 +323,27 @@ export class TrainingService {
         '场次时间已调整，请以最新通知为准',
       )
     }
+    return { item: this.formatSession(updated) }
+  }
+
+  async updateSessionMeeting(
+    currentUser: AuthenticatedUser,
+    sessionId: string,
+    dto: { meetingCode?: string | null; joinUrl?: string | null },
+  ) {
+    await this.access.requireAnyRole(currentUser, [
+      'training_teacher',
+      'training_admin',
+    ])
+    if (!this.meetings) {
+      throw new BadRequestException('会议服务不可用')
+    }
+    await this.meetings.saveManualMeeting(sessionId, dto)
+    const updated = await this.prisma.trainingSession.findUnique({
+      where: { id: sessionId },
+      include: sessionInclude,
+    })
+    if (!updated) throw new NotFoundException('未找到培训场次')
     return { item: this.formatSession(updated) }
   }
 
@@ -1121,16 +1147,6 @@ export class TrainingService {
         : [],
       faq: Array.isArray(item.faq) ? item.faq : [],
       status: item.status,
-      meeting: item.meeting
-        ? {
-            meetingCode: item.meeting.meetingCode,
-            joinUrl: item.meeting.joinUrl,
-            createStatus: item.meeting.createStatus,
-            createAttempts: item.meeting.createAttempts,
-            lastError: item.meeting.lastError,
-            lastSyncAt: item.meeting.lastSyncAt?.toISOString() ?? null,
-          }
-        : null,
       materialLinks: item.materialLinks ?? [],
     }
   }
@@ -1159,6 +1175,16 @@ export class TrainingService {
       registeredCount,
       waitlistCount,
       remainingSeats: Math.max(0, item.capacity - registeredCount),
+      meeting: item.meeting
+        ? {
+            meetingCode: item.meeting.meetingCode,
+            joinUrl: item.meeting.joinUrl,
+            createStatus: item.meeting.createStatus,
+            createAttempts: item.meeting.createAttempts,
+            lastError: item.meeting.lastError,
+            lastSyncAt: item.meeting.lastSyncAt?.toISOString() ?? null,
+          }
+        : null,
       myRegistration: myRegistration
         ? this.formatRegistration(myRegistration)
         : null,

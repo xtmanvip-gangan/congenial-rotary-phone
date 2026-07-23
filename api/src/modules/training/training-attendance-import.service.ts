@@ -16,12 +16,39 @@ import {
   TrainingAttendanceService,
 } from './training-attendance.service.js'
 
+/** 按腾讯会议导出参会明细常见中文表头解析（含观看时长列） */
 const HEADER_ALIASES = {
-  displayName: ['成员名称', '参会成员名称', '入会名称', '用户名称', '姓名'],
-  userId: ['用户ID', '用户 ID', '成员ID', '成员 ID', 'userid'],
-  joinedAt: ['入会时间', '加入时间', '首次入会时间'],
-  leftAt: ['离会时间', '退出时间', '最后离会时间'],
-  duration: ['参会时长', '累计参会时长', '会议时长', '时长'],
+  displayName: [
+    '成员名称',
+    '参会成员名称',
+    '参会者',
+    '参会人',
+    '入会名称',
+    '用户名称',
+    '昵称',
+    '姓名',
+  ],
+  userId: [
+    '用户ID',
+    '用户 ID',
+    '用户id',
+    '成员ID',
+    '成员 ID',
+    '成员id',
+    'userid',
+    'User ID',
+  ],
+  joinedAt: ['入会时间', '加入时间', '首次入会时间', '进入时间'],
+  leftAt: ['离会时间', '退出时间', '最后离会时间', '离开时间'],
+  duration: [
+    '观看时长',
+    '累计观看时长',
+    '参会时长',
+    '累计参会时长',
+    '会议时长',
+    '时长',
+    '在线时长',
+  ],
 } as const
 
 type UploadFile = {
@@ -54,7 +81,7 @@ export async function parseTencentAttendanceWorkbook(
   const durationColumn = findHeader(headers, HEADER_ALIASES.duration)
   if (!durationColumn && (!joinedAtColumn || !leftAtColumn)) {
     throw new BadRequestException(
-      '参会表必须包含“参会时长”，或同时包含“入会时间”和“离会时间”',
+      '参会表必须包含“观看时长/参会时长”，或同时包含“入会时间”和“离会时间”（请使用腾讯会议导出的参会明细）',
     )
   }
 

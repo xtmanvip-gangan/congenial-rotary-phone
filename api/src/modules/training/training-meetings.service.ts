@@ -1,206 +1,160 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
-  Optional,
 } from '@nestjs/common'
-import { Prisma } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service.js'
-import {
-  TENCENT_MEETING_GATEWAY,
-  type TencentMeetingGateway,
-} from '../integrations/tencent-meeting/tencent-meeting.types.js'
-import { NotificationsService } from '../notifications/notifications.service.js'
-import { IncidentsService } from '../operations/incidents.service.js'
 
+/**
+ * 腾讯会议无开放 API 权限时的会议管理：
+ * - 场次在系统内自建并发布
+ * - 会议号 + 入会链接由培训老师在腾讯侧建会后手工回填（可后补）
+ * - 参会认定走腾讯导出 Excel 导入，不依赖会议 API
+ */
 @Injectable()
 export class TrainingMeetingsService {
-  constructor(
-    private readonly prisma: PrismaService,
-    @Inject(TENCENT_MEETING_GATEWAY)
-    private readonly gateway: TencentMeetingGateway,
-    @Optional() private readonly notifications?: NotificationsService,
-    @Optional() private readonly incidents?: IncidentsService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async publishSession(sessionId: string) {
     const session = await this.prisma.trainingSession.findUnique({
       where: { id: sessionId },
-      include: {
-        course: { select: { title: true } },
-        meeting: true,
-      },
+      include: { meeting: true },
     })
     if (!session) throw new NotFoundException('未找到培训场次')
 
-    const input = {
-      subject: `主播培训｜${session.course.title}`,
-      startAt: session.scheduledStartAt,
-      endAt: session.scheduledEndAt,
-    }
-
-    if (
-      session.meeting?.createStatus === 'created' &&
-      session.meeting.externalMeetingId
-    ) {
-      try {
-        await this.gateway.updateMeeting(
-          session.meeting.externalMeetingId,
-          input,
-        )
-        await this.prisma.$transaction([
-          this.prisma.trainingMeeting.update({
-            where: { sessionId },
-            data: {
-              createStatus: 'created',
-              lastError: null,
-            },
-          }),
-          this.prisma.trainingSession.update({
-            where: { id: sessionId },
-            data: { status: 'published', publishedAt: new Date() },
-          }),
-        ])
-        return
-      } catch (error) {
-        await this.markFailure(sessionId, error)
-      }
-    }
-
-    await this.prisma.trainingMeeting.upsert({
-      where: { sessionId },
-      create: {
-        sessionId,
-        createStatus: 'pending',
-        createAttempts: 1,
-      },
-      update: {
-        createStatus: 'pending',
-        createAttempts: { increment: 1 },
-        lastError: null,
+    await this.prisma.trainingSession.update({
+      where: { id: sessionId },
+      data: {
+        status: 'published',
+        publishedAt: new Date(),
       },
     })
 
-    try {
-      const meeting = await this.gateway.createMeeting(input)
-      await this.prisma.$transaction([
-        this.prisma.trainingMeeting.update({
-          where: { sessionId },
-          data: {
-            externalMeetingId: meeting.meetingId,
-            meetingCode: meeting.meetingCode,
-            joinUrl: meeting.joinUrl,
-            createStatus: 'created',
-            responseSummary: meeting.raw as Prisma.InputJsonValue,
-            lastError: null,
-          },
-        }),
-        this.prisma.trainingSession.update({
-          where: { id: sessionId },
-          data: { status: 'published', publishedAt: new Date() },
-        }),
-      ])
-    } catch (error) {
-      await this.markFailure(sessionId, error)
-    }
-  }
-
-  async cancelSession(sessionId: string, reason: string) {
-    const meeting = await this.prisma.trainingMeeting.findUnique({
-      where: { sessionId },
-    })
-    if (
-      !meeting?.externalMeetingId ||
-      meeting.createStatus !== 'created'
-    ) {
-      return
-    }
-    try {
-      await this.gateway.cancelMeeting(meeting.externalMeetingId, reason)
-      await this.prisma.trainingMeeting.update({
-        where: { sessionId },
+    // 发布不强制建会；若尚无会议记录则预建空壳，便于后续回填会议号/链接
+    if (!session.meeting) {
+      await this.prisma.trainingMeeting.create({
         data: {
-          createStatus: 'cancelled',
+          sessionId,
+          createStatus: 'pending',
+          createAttempts: 0,
           lastError: null,
         },
       })
-      await this.incidents?.recover({
-        provider: 'tencent_meeting',
-        operation: 'cancel_meeting',
-        businessType: 'training_session',
-        businessId: sessionId,
-      })
-    } catch (error) {
-      const message = this.errorMessage(error)
+    } else if (session.meeting.createStatus === 'failed') {
       await this.prisma.trainingMeeting.update({
         where: { sessionId },
-        data: { lastError: message },
+        data: {
+          createStatus:
+            session.meeting.meetingCode || session.meeting.joinUrl
+              ? 'created'
+              : 'pending',
+          lastError: null,
+        },
       })
-      await this.incidents?.capture({
-        provider: 'tencent_meeting',
-        operation: 'cancel_meeting',
-        businessType: 'training_session',
-        businessId: sessionId,
-        error,
-      })
-      throw new BadRequestException(`腾讯会议取消失败：${message}`)
     }
   }
 
-  private async markFailure(sessionId: string, error: unknown): Promise<never> {
-    const message = this.errorMessage(error)
+  async saveManualMeeting(
+    sessionId: string,
+    input: { meetingCode?: string | null; joinUrl?: string | null },
+  ) {
+    const session = await this.prisma.trainingSession.findUnique({
+      where: { id: sessionId },
+    })
+    if (!session) throw new NotFoundException('未找到培训场次')
+    if (session.status === 'cancelled') {
+      throw new BadRequestException('已取消场次不能维护会议信息')
+    }
+
+    const meetingCode =
+      input.meetingCode === undefined
+        ? undefined
+        : normalizeOptionalText(input.meetingCode, 64)
+    const joinUrl =
+      input.joinUrl === undefined
+        ? undefined
+        : normalizeOptionalText(input.joinUrl, 1000)
+
+    if (joinUrl !== undefined && joinUrl) {
+      if (!isLikelyHttpUrl(joinUrl)) {
+        throw new BadRequestException('入会链接需为 http(s) 地址')
+      }
+    }
+
+    const existing = await this.prisma.trainingMeeting.findUnique({
+      where: { sessionId },
+    })
+
+    const nextCode =
+      meetingCode !== undefined ? meetingCode : existing?.meetingCode ?? null
+    const nextUrl =
+      joinUrl !== undefined ? joinUrl : existing?.joinUrl ?? null
+    const hasInfo = Boolean(nextCode || nextUrl)
+
+    const data = {
+      ...(meetingCode !== undefined ? { meetingCode } : {}),
+      ...(joinUrl !== undefined ? { joinUrl } : {}),
+      createStatus: hasInfo ? ('created' as const) : ('pending' as const),
+      // 手工回填不再依赖外部 meeting id
+      externalMeetingId: existing?.externalMeetingId ?? null,
+      lastError: null,
+      responseSummary: {
+        source: 'manual',
+        updatedAt: new Date().toISOString(),
+      },
+    }
+
+    if (existing) {
+      return this.prisma.trainingMeeting.update({
+        where: { sessionId },
+        data,
+      })
+    }
+
+    return this.prisma.trainingMeeting.create({
+      data: {
+        sessionId,
+        meetingCode: nextCode,
+        joinUrl: nextUrl,
+        createStatus: hasInfo ? 'created' : 'pending',
+        createAttempts: 0,
+        lastError: null,
+        responseSummary: data.responseSummary,
+      },
+    })
+  }
+
+  async cancelSession(sessionId: string, _reason: string) {
+    const meeting = await this.prisma.trainingMeeting.findUnique({
+      where: { sessionId },
+    })
+    if (!meeting) return
+
     await this.prisma.trainingMeeting.update({
       where: { sessionId },
       data: {
-        createStatus: 'failed',
-        externalMeetingId: null,
-        meetingCode: null,
-        joinUrl: null,
-        lastError: message,
+        createStatus: 'cancelled',
+        lastError: null,
       },
     })
-    await this.prisma.trainingSession.update({
-      where: { id: sessionId },
-      data: { status: 'publish_failed' },
-    })
-    await this.notifyMeetingFailure(sessionId, message)
-    await this.incidents?.capture({
-      provider: 'tencent_meeting',
-      operation: 'publish_meeting',
-      businessType: 'training_session',
-      businessId: sessionId,
-      error,
-    })
-    throw new BadRequestException(`腾讯会议创建或更新失败：${message}`)
   }
+}
 
-  private async notifyMeetingFailure(sessionId: string, message: string) {
-    if (!this.notifications) return
-    const admins = await this.prisma.operatorAccount.findMany({
-      where: {
-        status: 'active',
-        wecomUserId: { not: null },
-        staffRoles: { some: { role: 'training_admin' } },
-      },
-      select: { id: true, wecomUserId: true },
-    })
-    for (const admin of admins) {
-      if (!admin.wecomUserId) continue
-      await this.notifications.sendBusinessNotification({
-        businessType: 'training_meeting',
-        businessId: sessionId,
-        templateCode: 'training_meeting_publish_failed',
-        dedupeKey: `training_meeting_publish_failed:${sessionId}:${admin.id}`,
-        receiverWecomUserId: admin.wecomUserId,
-        receiverRole: 'training_admin',
-        messageTitle: '【培训中心】腾讯会议创建失败',
-        messageContent: `场次：${sessionId}\n错误：${message}\n请在场次页检查配置后重试。`,
-      })
-    }
+function normalizeOptionalText(value: string | null, maxLength: number) {
+  if (value == null) return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (trimmed.length > maxLength) {
+    throw new BadRequestException(`内容过长，最多 ${maxLength} 个字符`)
   }
+  return trimmed
+}
 
-  private errorMessage(error: unknown) {
-    return error instanceof Error ? error.message : '未知错误'
+function isLikelyHttpUrl(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
   }
 }

@@ -30,6 +30,12 @@ export type TrainingRegistrationSummary = {
   learningType: 'first_learning' | 'review' | 'makeup'
 }
 
+export type TrainingSessionMeeting = {
+  meetingCode: string | null
+  joinUrl: string | null
+  createStatus: string
+}
+
 export type TrainingSession = {
   id: string
   course: TrainingCourse
@@ -41,6 +47,7 @@ export type TrainingSession = {
   registeredCount: number
   waitlistCount: number
   remainingSeats: number
+  meeting?: TrainingSessionMeeting | null
   myRegistration: TrainingRegistrationSummary | null
 }
 
