@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service.js'
@@ -18,11 +19,13 @@ import type {
   AttendanceOutcomeDto,
   ResolveAttendanceMatchDto,
 } from './dto/resolve-attendance.dto.js'
+import { TrainingNotificationsService } from './training-notifications.service.js'
 
 type AttendanceRosterItem = {
   id: string
   anchorProfileId: string
   status: string
+  learningType?: string
   anchorNameSnapshot: string
   anchorProfile: {
     wecomUser: {
@@ -76,7 +79,20 @@ export function aggregateAttendanceIntervals(
       (total, interval) =>
         total + interval.leftAtSeconds - interval.joinedAtSeconds,
       0,
-    ),
+    ) +
+      rows
+        .filter(
+          (row) =>
+            !(
+              row.joinedAtSeconds != null &&
+              row.leftAtSeconds != null &&
+              row.leftAtSeconds > row.joinedAtSeconds
+            ),
+        )
+        .reduce(
+          (total, row) => total + Math.max(0, row.durationSeconds ?? 0),
+          0,
+        ),
   }
 }
 
@@ -138,6 +154,8 @@ export class TrainingAttendanceService {
     private readonly access: AccessService,
     @Inject(TENCENT_MEETING_GATEWAY)
     private readonly gateway: TencentMeetingGateway,
+    @Optional()
+    private readonly trainingNotifications?: TrainingNotificationsService,
   ) {}
 
   async syncFromTencentMeeting(
@@ -221,140 +239,18 @@ export class TrainingAttendanceService {
           row.leftAtSeconds != null &&
           row.leftAtSeconds > row.joinedAtSeconds
             ? row.leftAtSeconds - row.joinedAtSeconds
-            : 0,
+            : Math.max(0, row.durationSeconds ?? 0),
         rawPayload: row.raw as Prisma.InputJsonValue,
       })),
       skipDuplicates: true,
     })
 
-    const grouped = new Map<string, TencentMeetingParticipant[]>()
-    for (const row of rows) {
-      const values = grouped.get(row.externalIdentityKey) ?? []
-      values.push(row)
-      grouped.set(row.externalIdentityKey, values)
-    }
-    const sessionDurationSeconds = Math.max(
-      1,
-      Math.round(
-        (meeting.session.scheduledEndAt.getTime() -
-          meeting.session.scheduledStartAt.getTime()) /
-          1000,
-      ),
+    const summary = await this.processRows(
+      attendanceImport.id,
+      meeting.session,
+      rows,
+      'system:tencent-meeting',
     )
-    const summary = {
-      matched: 0,
-      conflicts: 0,
-      unmatched: 0,
-      learned: 0,
-      pendingConfirmation: 0,
-    }
-
-    for (const [identity, identityRows] of grouped) {
-      const representative = identityRows[0]
-      const match = matchAttendanceToRoster(
-        representative,
-        meeting.session.registrations as AttendanceRosterItem[],
-      )
-      const aggregation = aggregateAttendanceIntervals(identityRows)
-      const ratio = Math.min(
-        1,
-        aggregation.totalDurationSeconds / sessionDurationSeconds,
-      )
-      const automaticallyLearned =
-        match.matchStatus === 'matched' && ratio >= 0.8
-      if (match.matchStatus === 'matched') summary.matched += 1
-      if (match.matchStatus === 'conflict') summary.conflicts += 1
-      if (match.matchStatus === 'unmatched') summary.unmatched += 1
-      if (automaticallyLearned) summary.learned += 1
-      else summary.pendingConfirmation += 1
-
-      await this.prisma.$transaction(async (tx) => {
-        await tx.trainingAttendanceRecord.upsert({
-          where: {
-            sessionId_externalIdentityKey: {
-              sessionId,
-              externalIdentityKey: identity,
-            },
-          },
-          create: {
-            sessionId,
-            importId: attendanceImport.id,
-            registrationId: match.registrationId,
-            anchorProfileId: match.anchorProfileId,
-            externalIdentityKey: identity,
-            externalUserId: representative.externalUserId,
-            displayName: representative.displayName,
-            intervals: aggregation.intervals,
-            totalDurationSeconds: aggregation.totalDurationSeconds,
-            sessionDurationSeconds,
-            attendanceRatio: ratio,
-            matchStatus: match.matchStatus,
-            matchMethod: match.matchMethod,
-            outcome: automaticallyLearned
-              ? 'learned'
-              : 'pending_confirmation',
-            matchedAt:
-              match.matchStatus === 'matched' ? new Date() : undefined,
-            outcomeAt: automaticallyLearned ? new Date() : undefined,
-          },
-          update: {
-            importId: attendanceImport.id,
-            registrationId: match.registrationId,
-            anchorProfileId: match.anchorProfileId,
-            externalUserId: representative.externalUserId,
-            displayName: representative.displayName,
-            intervals: aggregation.intervals,
-            totalDurationSeconds: aggregation.totalDurationSeconds,
-            sessionDurationSeconds,
-            attendanceRatio: ratio,
-            matchStatus: match.matchStatus,
-            matchMethod: match.matchMethod,
-            outcome: automaticallyLearned
-              ? 'learned'
-              : 'pending_confirmation',
-            matchedAt:
-              match.matchStatus === 'matched' ? new Date() : undefined,
-            outcomeAt: automaticallyLearned ? new Date() : null,
-          },
-        })
-        if (
-          automaticallyLearned &&
-          match.registrationId &&
-          match.anchorProfileId
-        ) {
-          const now = new Date()
-          await tx.trainingRegistration.update({
-            where: { id: match.registrationId },
-            data: {
-              status: 'learned',
-              outcomeReason: '参会时长达到课程时长80%',
-              outcomeBy: 'system:tencent-meeting',
-              outcomeAt: now,
-            },
-          })
-          await tx.trainingLearningProgress.upsert({
-            where: {
-              anchorProfileId_courseId: {
-                anchorProfileId: match.anchorProfileId,
-                courseId: meeting.session.courseId,
-              },
-            },
-            create: {
-              anchorProfileId: match.anchorProfileId,
-              courseId: meeting.session.courseId,
-              status: 'learned',
-              makeupStatus: 'none',
-              firstLearnedAt: now,
-              lastLearnedAt: now,
-            },
-            update: {
-              status: 'learned',
-              lastLearnedAt: now,
-            },
-          })
-        }
-      })
-    }
 
     await this.prisma.trainingAttendanceImport.update({
       where: { id: attendanceImport.id },
@@ -370,6 +266,80 @@ export class TrainingAttendanceService {
       data: { lastSyncAt: new Date(), lastError: null },
     })
     return { importId: attendanceImport.id, summary }
+  }
+
+  async confirmExcelImport(
+    currentUser: AuthenticatedUser,
+    importId: string,
+  ) {
+    await this.requireTrainingExecutor(currentUser)
+    const attendanceImport =
+      await this.prisma.trainingAttendanceImport.findUnique({
+        where: { id: importId },
+        include: {
+          rawRecords: true,
+          session: {
+            include: {
+              registrations: {
+                include: {
+                  anchorProfile: {
+                    include: {
+                      wecomUser: {
+                        select: {
+                          wecomUserId: true,
+                          wecomName: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      })
+    if (!attendanceImport || attendanceImport.source !== 'excel') {
+      throw new NotFoundException('未找到Excel参会导入批次')
+    }
+    if (attendanceImport.status === 'confirmed') {
+      return {
+        importId,
+        duplicate: true,
+        summary: attendanceImport.previewSummary,
+      }
+    }
+    const rows: TencentMeetingParticipant[] =
+      attendanceImport.rawRecords.map((row) => ({
+        externalRecordKey: row.externalRecordKey,
+        externalUserId: row.externalUserId,
+        externalIdentityKey: row.externalIdentityKey,
+        rawDisplayName: row.rawDisplayName,
+        displayName: row.displayName,
+        joinedAtSeconds: row.joinedAt
+          ? Math.floor(row.joinedAt.getTime() / 1000)
+          : null,
+        leftAtSeconds: row.leftAt
+          ? Math.floor(row.leftAt.getTime() / 1000)
+          : null,
+        durationSeconds: row.durationSeconds,
+        raw: row.rawPayload as Record<string, unknown>,
+      }))
+    const summary = await this.processRows(
+      importId,
+      attendanceImport.session,
+      rows,
+      `manual:${currentUser.wecomUserId}`,
+    )
+    await this.prisma.trainingAttendanceImport.update({
+      where: { id: importId },
+      data: {
+        status: 'confirmed',
+        previewSummary: summary,
+        confirmedBy: currentUser.wecomUserId,
+        confirmedAt: new Date(),
+      },
+    })
+    return { importId, duplicate: false, summary }
   }
 
   async listSessionAttendance(
@@ -466,6 +436,13 @@ export class TrainingAttendanceService {
         )
       }
     })
+    if (learned) {
+      await this.trainingNotifications?.notifyAttendanceOutcome(
+        registration.id,
+        'learned',
+        '人工匹配后参会时长达到80%',
+      )
+    }
     return { ok: true }
   }
 
@@ -525,6 +502,11 @@ export class TrainingAttendanceService {
         now,
       )
     })
+    await this.trainingNotifications?.notifyAttendanceOutcome(
+      registration.id,
+      outcome,
+      reason,
+    )
     return { ok: true }
   }
 
@@ -544,6 +526,143 @@ export class TrainingAttendanceService {
 
   private secondsToDate(value: number | null) {
     return value == null ? null : new Date(value * 1000)
+  }
+
+  private async processRows(
+    importId: string,
+    session: {
+      id: string
+      courseId: string
+      scheduledStartAt: Date
+      scheduledEndAt: Date
+      registrations: AttendanceRosterItem[]
+    },
+    rows: TencentMeetingParticipant[],
+    automaticOutcomeBy: string,
+  ) {
+    const grouped = new Map<string, TencentMeetingParticipant[]>()
+    for (const row of rows) {
+      const values = grouped.get(row.externalIdentityKey) ?? []
+      values.push(row)
+      grouped.set(row.externalIdentityKey, values)
+    }
+    const sessionDurationSeconds = Math.max(
+      1,
+      Math.round(
+        (session.scheduledEndAt.getTime() -
+          session.scheduledStartAt.getTime()) /
+          1000,
+      ),
+    )
+    const summary = {
+      matched: 0,
+      conflicts: 0,
+      unmatched: 0,
+      learned: 0,
+      pendingConfirmation: 0,
+    }
+
+    for (const [identity, identityRows] of grouped) {
+      const representative = identityRows[0]
+      const match = matchAttendanceToRoster(
+        representative,
+        session.registrations,
+      )
+      const aggregation = aggregateAttendanceIntervals(identityRows)
+      const ratio = Math.min(
+        1,
+        aggregation.totalDurationSeconds / sessionDurationSeconds,
+      )
+      const automaticallyLearned =
+        match.matchStatus === 'matched' && ratio >= 0.8
+      if (match.matchStatus === 'matched') summary.matched += 1
+      if (match.matchStatus === 'conflict') summary.conflicts += 1
+      if (match.matchStatus === 'unmatched') summary.unmatched += 1
+      if (automaticallyLearned) summary.learned += 1
+      else summary.pendingConfirmation += 1
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.trainingAttendanceRecord.upsert({
+          where: {
+            sessionId_externalIdentityKey: {
+              sessionId: session.id,
+              externalIdentityKey: identity,
+            },
+          },
+          create: {
+            sessionId: session.id,
+            importId,
+            registrationId: match.registrationId,
+            anchorProfileId: match.anchorProfileId,
+            externalIdentityKey: identity,
+            externalUserId: representative.externalUserId,
+            displayName: representative.displayName,
+            intervals: aggregation.intervals,
+            totalDurationSeconds: aggregation.totalDurationSeconds,
+            sessionDurationSeconds,
+            attendanceRatio: ratio,
+            matchStatus: match.matchStatus,
+            matchMethod: match.matchMethod,
+            outcome: automaticallyLearned
+              ? 'learned'
+              : 'pending_confirmation',
+            matchedAt:
+              match.matchStatus === 'matched' ? new Date() : undefined,
+            outcomeAt: automaticallyLearned ? new Date() : undefined,
+          },
+          update: {
+            importId,
+            registrationId: match.registrationId,
+            anchorProfileId: match.anchorProfileId,
+            externalUserId: representative.externalUserId,
+            displayName: representative.displayName,
+            intervals: aggregation.intervals,
+            totalDurationSeconds: aggregation.totalDurationSeconds,
+            sessionDurationSeconds,
+            attendanceRatio: ratio,
+            matchStatus: match.matchStatus,
+            matchMethod: match.matchMethod,
+            outcome: automaticallyLearned
+              ? 'learned'
+              : 'pending_confirmation',
+            matchedAt:
+              match.matchStatus === 'matched' ? new Date() : undefined,
+            outcomeAt: automaticallyLearned ? new Date() : null,
+          },
+        })
+        if (
+          automaticallyLearned &&
+          match.registrationId &&
+          match.anchorProfileId
+        ) {
+          const registration = session.registrations.find(
+            (item) => item.id === match.registrationId,
+          )
+          if (registration) {
+            await this.applyOutcome(
+              tx,
+              {
+                ...registration,
+                learningType: registration.learningType ?? 'first_learning',
+                session: { courseId: session.courseId },
+              },
+              'learned',
+              '参会时长达到课程时长80%',
+              automaticOutcomeBy,
+              new Date(),
+            )
+          }
+        }
+      })
+      if (automaticallyLearned && match.registrationId) {
+        await this.trainingNotifications?.notifyAttendanceOutcome(
+          match.registrationId,
+          'learned',
+          '参会时长达到课程时长80%',
+        )
+      }
+    }
+    return summary
   }
 
   private async applyOutcome(

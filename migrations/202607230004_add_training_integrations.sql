@@ -132,7 +132,7 @@ CREATE TABLE "training_attendance_records" (
   CONSTRAINT "training_attendance_records_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "training_attendance_records_registration_id_key"
+CREATE INDEX "training_attendance_records_registration_id_idx"
   ON "training_attendance_records"("registration_id");
 CREATE UNIQUE INDEX "training_attendance_records_session_id_external_identity_key_key"
   ON "training_attendance_records"("session_id", "external_identity_key");
@@ -171,6 +171,8 @@ CREATE TABLE "training_course_recommendations" (
 
 CREATE INDEX "training_course_recommendations_anchor_profile_id_completed_at_created_at_idx"
   ON "training_course_recommendations"("anchor_profile_id", "completed_at", "created_at");
+CREATE UNIQUE INDEX "training_course_recommendations_anchor_profile_id_course_id_source_key"
+  ON "training_course_recommendations"("anchor_profile_id", "course_id", "source");
 
 CREATE TABLE "training_application_feedback" (
   "id" UUID NOT NULL,
@@ -328,4 +330,3 @@ ALTER TABLE "training_weekly_actions"
 ALTER TABLE "training_weekly_actions"
   ADD CONSTRAINT "training_weekly_actions_owner_account_id_fkey"
   FOREIGN KEY ("owner_account_id") REFERENCES "operator_accounts"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-

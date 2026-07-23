@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { PrismaService } from '../../prisma/prisma.service.js'
 import { AuthService } from '../auth/auth.service.js'
 import type { AuthenticatedUser } from '../auth/auth.types.js'
@@ -142,35 +142,18 @@ export class ExportsService {
       ]
     })
 
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows])
-    worksheet['!cols'] = [
-      { wch: 18 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 14 },
-      { wch: 12 },
-      { wch: 10 },
-      { wch: 28 },
-      { wch: 24 },
-      { wch: 24 },
-      { wch: 14 },
-      { wch: 12 },
-      { wch: 14 },
-      { wch: 22 },
-      { wch: 22 },
-      { wch: 21 },
-      { wch: 21 },
-      { wch: 21 },
-    ]
-    if (worksheet['!ref']) {
-      worksheet['!autofilter'] = { ref: worksheet['!ref'] }
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('活动记录')
+    worksheet.addRows([headers, ...rows])
+    const widths = [18, 12, 12, 14, 12, 10, 28, 24, 24, 14, 12, 14, 22, 22, 21, 21, 21]
+    widths.forEach((width, index) => {
+      worksheet.getColumn(index + 1).width = width
+    })
+    worksheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: Math.max(1, rows.length + 1), column: headers.length },
     }
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, '活动记录')
-    const content = XLSX.write(workbook, {
-      type: 'buffer',
-      bookType: 'xlsx',
-    }) as Buffer
+    const content = Buffer.from(await workbook.xlsx.writeBuffer())
 
     return {
       fileName: this.buildFileName(items[0]?.activity?.name ?? null),

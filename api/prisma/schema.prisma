@@ -433,7 +433,7 @@ model TrainingRegistration {
   updatedAt            DateTime                   @updatedAt @map("updated_at")
   anchorProfile        AnchorProfile              @relation(fields: [anchorProfileId], references: [id])
   session              TrainingSession            @relation(fields: [sessionId], references: [id])
-  attendanceRecord     TrainingAttendanceRecord?
+  attendanceRecords    TrainingAttendanceRecord[]
 
   @@unique([anchorProfileId, sessionId])
   @@index([sessionId, status, waitlistPosition])
@@ -526,7 +526,7 @@ model TrainingAttendanceRecord {
   id                     String                        @id @default(uuid()) @db.Uuid
   sessionId              String                        @map("session_id") @db.Uuid
   importId               String                        @map("import_id") @db.Uuid
-  registrationId         String?                       @unique @map("registration_id") @db.Uuid
+  registrationId         String?                       @map("registration_id") @db.Uuid
   anchorProfileId        String?                       @map("anchor_profile_id") @db.Uuid
   externalIdentityKey    String                        @map("external_identity_key") @db.VarChar(160)
   externalUserId         String?                       @map("external_user_id") @db.VarChar(128)
@@ -552,6 +552,7 @@ model TrainingAttendanceRecord {
   auditLogs              TrainingAttendanceAuditLog[]
 
   @@unique([sessionId, externalIdentityKey])
+  @@index([registrationId])
   @@index([sessionId, matchStatus, outcome])
   @@map("training_attendance_records")
 }
@@ -587,6 +588,7 @@ model TrainingCourseRecommendation {
   course                 TrainingCourse               @relation("TrainingRecommendedCourse", fields: [courseId], references: [id])
   recommendedByAccount   OperatorAccount?             @relation("TrainingRecommendationCreator", fields: [recommendedByAccountId], references: [id])
 
+  @@unique([anchorProfileId, courseId, source])
   @@index([anchorProfileId, completedAt, createdAt])
   @@map("training_course_recommendations")
 }

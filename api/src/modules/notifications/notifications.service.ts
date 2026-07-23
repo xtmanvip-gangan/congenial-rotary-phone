@@ -16,6 +16,19 @@ type SubmissionNotificationPayload = {
   grantRemark: string | null
 }
 
+export type BusinessNotificationPayload = {
+  businessType: string
+  businessId: string
+  templateCode: string
+  dedupeKey?: string
+  receiverWecomUserId: string
+  receiverRole: string
+  messageTitle: string
+  messageContent: string
+  scheduledAt?: Date
+  maxAttempts?: number
+}
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name)
@@ -97,6 +110,67 @@ export class NotificationsService {
     })
   }
 
+  async sendBusinessNotification(payload: BusinessNotificationPayload) {
+    if (payload.dedupeKey) {
+      const existing = await this.prisma.notificationLog.findUnique({
+        where: { dedupeKey: payload.dedupeKey },
+      })
+      if (existing?.status === 'success') {
+        return { item: existing, duplicate: true }
+      }
+      if (existing) {
+        await this.deliver(existing.id, payload)
+        return { item: existing, duplicate: true }
+      }
+    }
+
+    const log = await this.prisma.notificationLog.create({
+      data: {
+        submissionId: null,
+        businessType: payload.businessType,
+        businessId: payload.businessId,
+        templateCode: payload.templateCode,
+        dedupeKey: payload.dedupeKey ?? null,
+        notificationType: payload.templateCode,
+        receiverWecomUserId: payload.receiverWecomUserId,
+        receiverRole: payload.receiverRole,
+        messageTitle: payload.messageTitle,
+        messageContent: payload.messageContent,
+        status: 'pending',
+        scheduledAt: payload.scheduledAt ?? null,
+        maxAttempts: payload.maxAttempts ?? 3,
+      },
+    })
+    await this.deliver(log.id, payload)
+    return { item: log, duplicate: false }
+  }
+
+  async retryFailed(limit = 50) {
+    const items = await this.prisma.notificationLog.findMany({
+      where: {
+        status: 'failed',
+        OR: [{ scheduledAt: null }, { scheduledAt: { lte: new Date() } }],
+      },
+      orderBy: { createdAt: 'asc' },
+      take: Math.min(100, Math.max(1, limit)),
+    })
+    let retried = 0
+    for (const item of items) {
+      if (item.attemptCount >= item.maxAttempts) continue
+      await this.deliver(item.id, {
+        businessType: item.businessType ?? 'legacy',
+        businessId: item.businessId ?? item.submissionId ?? item.id,
+        templateCode: item.templateCode ?? item.notificationType,
+        receiverWecomUserId: item.receiverWecomUserId,
+        receiverRole: item.receiverRole,
+        messageTitle: item.messageTitle,
+        messageContent: item.messageContent,
+      })
+      retried += 1
+    }
+    return { retried }
+  }
+
   private async sendAndLog(payload: {
     submissionId: string
     notificationType: string
@@ -108,6 +182,9 @@ export class NotificationsService {
     const log = await this.prisma.notificationLog.create({
       data: {
         submissionId: payload.submissionId,
+        businessType: 'submission',
+        businessId: payload.submissionId,
+        templateCode: payload.notificationType,
         notificationType: payload.notificationType,
         receiverWecomUserId: payload.receiverWecomUserId,
         receiverRole: payload.receiverRole,
@@ -117,6 +194,28 @@ export class NotificationsService {
       },
     })
 
+    await this.deliver(log.id, {
+      businessType: 'submission',
+      businessId: payload.submissionId,
+      templateCode: payload.notificationType,
+      receiverWecomUserId: payload.receiverWecomUserId,
+      receiverRole: payload.receiverRole,
+      messageTitle: payload.messageTitle,
+      messageContent: payload.messageContent,
+    })
+  }
+
+  private async deliver(
+    logId: string,
+    payload: Pick<
+      BusinessNotificationPayload,
+      | 'receiverWecomUserId'
+      | 'messageTitle'
+      | 'messageContent'
+      | 'templateCode'
+    > &
+      Partial<BusinessNotificationPayload>,
+  ) {
     try {
       await this.wecomService.sendAgentTextMessage(
         payload.receiverWecomUserId,
@@ -125,10 +224,12 @@ export class NotificationsService {
 
       await this.prisma.notificationLog.update({
         where: {
-          id: log.id,
+          id: logId,
         },
         data: {
           status: 'success',
+          attemptCount: { increment: 1 },
+          lastAttemptAt: new Date(),
           sentAt: new Date(),
           errorMessage: null,
         },
@@ -137,15 +238,17 @@ export class NotificationsService {
       const message = error instanceof Error ? error.message : '通知发送失败'
 
       this.logger.warn(
-        `通知发送失败 notificationType=${payload.notificationType} receiver=${payload.receiverWecomUserId} error=${message}`,
+        `通知发送失败 templateCode=${payload.templateCode} receiver=${payload.receiverWecomUserId} error=${message}`,
       )
 
       await this.prisma.notificationLog.update({
         where: {
-          id: log.id,
+          id: logId,
         },
         data: {
           status: 'failed',
+          attemptCount: { increment: 1 },
+          lastAttemptAt: new Date(),
           errorMessage: message,
         },
       })

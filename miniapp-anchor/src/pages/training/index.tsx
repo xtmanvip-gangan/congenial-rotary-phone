@@ -7,17 +7,20 @@ import { ensureAppSession } from '@/services/auth'
 import {
   cancelTrainingRegistration,
   getMyTraining,
+  getTrainingRecommendations,
   getTrainingSessions,
+  markTrainingRecommendationsViewed,
   registerTrainingSession,
 } from '@/services/training'
 import type {
   MyTrainingResponse,
+  TrainingRecommendation,
   TrainingSession,
 } from '@/types/training'
 import { formatDateTime } from '@/utils/format'
 import styles from './index.module.scss'
 
-type ViewMode = 'sessions' | 'progress'
+type ViewMode = 'sessions' | 'progress' | 'recommendations'
 
 const progressNames = {
   not_started: '未开始',
@@ -32,6 +35,9 @@ export default function TrainingPage() {
     registrations: [],
     progress: [],
   })
+  const [recommendations, setRecommendations] = useState<
+    TrainingRecommendation[]
+  >([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submittingId, setSubmittingId] = useState('')
@@ -41,12 +47,16 @@ export default function TrainingPage() {
     setError(null)
     try {
       await ensureAppSession()
-      const [sessionResult, trainingResult] = await Promise.all([
+      const [sessionResult, trainingResult, recommendationResult] =
+        await Promise.all([
         getTrainingSessions(),
         getMyTraining(),
-      ])
+          getTrainingRecommendations(),
+        ])
       setSessions(sessionResult.items)
       setMyTraining(trainingResult)
+      setRecommendations(recommendationResult.items)
+      void markTrainingRecommendationsViewed()
       if (showToast) {
         Taro.showToast({ title: '课表已刷新', icon: 'success' })
       }
@@ -134,6 +144,12 @@ export default function TrainingPage() {
             onClick={() => setViewMode('progress')}
           >
             我的进度
+          </Button>
+          <Button
+            className={`${styles.tab} ${viewMode === 'recommendations' ? 'primaryButton' : 'secondaryButton'}`}
+            onClick={() => setViewMode('recommendations')}
+          >
+            推荐课程
           </Button>
         </View>
 
@@ -224,7 +240,7 @@ export default function TrainingPage() {
               description="课程1—3每周循环发布，请稍后再来查看。"
             />
           )
-        ) : (
+        ) : viewMode === 'progress' ? (
           <View className={styles.progressList}>
             {myTraining.progress.map((item) => (
               <View key={item.course.id} className="panelCard">
@@ -266,6 +282,52 @@ export default function TrainingPage() {
               </View>
             ))}
           </View>
+        ) : recommendations.length ? (
+          <View className={styles.progressList}>
+            {recommendations.map((item) => (
+              <View key={item.id} className="panelCard">
+                <View className={styles.progressHeader}>
+                  <View>
+                    <Text className={styles.eyebrow}>
+                      {item.source === 'system'
+                        ? '系统成长建议'
+                        : item.source === 'operator'
+                          ? '运营老师推荐'
+                          : '培训老师推荐'}
+                    </Text>
+                    <Text className={styles.title}>{item.course.title}</Text>
+                  </View>
+                  <StatusTag
+                    text={
+                      item.completedAt
+                        ? '已完成'
+                        : item.registeredAt
+                          ? '已报名'
+                          : '待安排'
+                    }
+                    tone={item.completedAt ? 'success' : 'warning'}
+                  />
+                </View>
+                <Text className="panelDesc">
+                  {item.reason || item.course.summary || '结合当前成长情况推荐'}
+                </Text>
+                <View className={styles.actionRow}>
+                  <Button
+                    className="primaryButton"
+                    onClick={() => setViewMode('sessions')}
+                  >
+                    查看开放场次
+                  </Button>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <StateBlock
+            icon="empty"
+            title="当前没有新的课程推荐"
+            description="培训中心和运营老师会结合你的实际成长持续更新。"
+          />
         )}
       </View>
     </View>

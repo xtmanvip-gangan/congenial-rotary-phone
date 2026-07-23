@@ -60,3 +60,17 @@ export type MyTrainingResponse = {
   >
   progress: TrainingProgress[]
 }
+
+export type TrainingRecommendation = {
+  id: string
+  source: 'system' | 'operator' | 'training_staff'
+  reason: string | null
+  viewedAt: string | null
+  registeredAt: string | null
+  completedAt: string | null
+  course: TrainingCourse
+  recommendedByAccount: {
+    id: string
+    displayName: string
+  } | null
+}

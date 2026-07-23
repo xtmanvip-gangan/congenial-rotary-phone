@@ -23,6 +23,8 @@ import { StaffManagementPage } from './pages/StaffManagementPage'
 import { TrainingCoursesPage } from './pages/TrainingCoursesPage'
 import { TrainingSessionsPage } from './pages/TrainingSessionsPage'
 import { OperatorTrainingPage } from './pages/OperatorTrainingPage'
+import { TrainingAttendancePage } from './pages/TrainingAttendancePage'
+import { TrainingOperationsPage } from './pages/TrainingOperationsPage'
 import type { AppRole } from './lib/auth'
 
 function App() {
@@ -244,6 +246,35 @@ function App() {
               }
             />
             <Route
+              path="/training/attendance"
+              element={
+                <AuthGate
+                  allowRoles={[
+                    'training_teacher',
+                    'training_admin',
+                    'super_admin',
+                  ]}
+                >
+                  <TrainingAttendancePage />
+                </AuthGate>
+              }
+            />
+            <Route
+              path="/training/operations"
+              element={
+                <AuthGate
+                  allowRoles={[
+                    'operator',
+                    'training_teacher',
+                    'training_admin',
+                    'super_admin',
+                  ]}
+                >
+                  <TrainingOperationsPage />
+                </AuthGate>
+              }
+            />
+            <Route
               path="/admin/exports"
               element={
                 <AuthGate allowRoles={['operator', 'super_admin']}>
@@ -315,6 +346,8 @@ function getNavigationItems(role: AppRole): NavigationItem[] {
       { label: '活动管理', to: '/admin/activities' },
       { label: '规则管理', to: '/admin/rules' },
       { label: '导出中心', to: '/admin/exports' },
+      { label: '参会导入', to: '/training/attendance' },
+      { label: '培训运营', to: '/training/operations' },
     ]
   }
 
@@ -322,6 +355,7 @@ function getNavigationItems(role: AppRole): NavigationItem[] {
     return [
       { label: '我的主播', to: '/operator/anchors' },
       { label: '培训代报名', to: '/operator/training' },
+      { label: '应用反馈', to: '/training/operations' },
       { label: '活动记录', to: '/admin/records' },
       { label: '规则管理', to: '/admin/rules' },
       { label: '导出中心', to: '/admin/exports' },
@@ -332,6 +366,8 @@ function getNavigationItems(role: AppRole): NavigationItem[] {
     return [
       { label: '课程管理', to: '/training/courses' },
       { label: '排课与场次', to: '/training/sessions' },
+      { label: '参会处理', to: '/training/attendance' },
+      { label: '问题与周会', to: '/training/operations' },
       { label: '主播激活', to: '/audit/activations' },
       { label: '工作台', to: '/staff/home' },
     ]
@@ -340,6 +376,8 @@ function getNavigationItems(role: AppRole): NavigationItem[] {
   if (role === 'training_teacher') {
     return [
       { label: '场次执行', to: '/training/sessions' },
+      { label: '参会处理', to: '/training/attendance' },
+      { label: '问题池', to: '/training/operations' },
       { label: '工作台', to: '/staff/home' },
     ]
   }

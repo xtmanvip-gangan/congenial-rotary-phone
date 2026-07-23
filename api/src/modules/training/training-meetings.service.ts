@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service.js'
@@ -10,6 +11,7 @@ import {
   TENCENT_MEETING_GATEWAY,
   type TencentMeetingGateway,
 } from '../integrations/tencent-meeting/tencent-meeting.types.js'
+import { NotificationsService } from '../notifications/notifications.service.js'
 
 @Injectable()
 export class TrainingMeetingsService {
@@ -17,6 +19,7 @@ export class TrainingMeetingsService {
     private readonly prisma: PrismaService,
     @Inject(TENCENT_MEETING_GATEWAY)
     private readonly gateway: TencentMeetingGateway,
+    @Optional() private readonly notifications?: NotificationsService,
   ) {}
 
   async publishSession(sessionId: string) {
@@ -146,7 +149,33 @@ export class TrainingMeetingsService {
       where: { id: sessionId },
       data: { status: 'publish_failed' },
     })
+    await this.notifyMeetingFailure(sessionId, message)
     throw new BadRequestException(`腾讯会议创建或更新失败：${message}`)
+  }
+
+  private async notifyMeetingFailure(sessionId: string, message: string) {
+    if (!this.notifications) return
+    const admins = await this.prisma.operatorAccount.findMany({
+      where: {
+        status: 'active',
+        wecomUserId: { not: null },
+        staffRoles: { some: { role: 'training_admin' } },
+      },
+      select: { id: true, wecomUserId: true },
+    })
+    for (const admin of admins) {
+      if (!admin.wecomUserId) continue
+      await this.notifications.sendBusinessNotification({
+        businessType: 'training_meeting',
+        businessId: sessionId,
+        templateCode: 'training_meeting_publish_failed',
+        dedupeKey: `training_meeting_publish_failed:${sessionId}:${admin.id}`,
+        receiverWecomUserId: admin.wecomUserId,
+        receiverRole: 'training_admin',
+        messageTitle: '【培训中心】腾讯会议创建失败',
+        messageContent: `场次：${sessionId}\n错误：${message}\n请在场次页检查配置后重试。`,
+      })
+    }
   }
 
   private errorMessage(error: unknown) {

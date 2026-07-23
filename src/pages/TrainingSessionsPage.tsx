@@ -16,6 +16,14 @@ type Session = {
   registeredCount: number
   waitlistCount: number
   remainingSeats: number
+  meeting: {
+    meetingCode: string | null
+    joinUrl: string | null
+    createStatus: string
+    createAttempts: number
+    lastError: string | null
+    lastSyncAt: string | null
+  } | null
 }
 type RosterItem = {
   id: string
@@ -134,7 +142,7 @@ export function TrainingSessionsPage() {
           排课与课堂执行
         </h2>
         <p className="mt-2 text-sm text-slate-500">
-          当前阶段发布场次后即可报名；腾讯会议入口将在阶段D接入。
+          发布场次时自动创建独立腾讯会议；失败会保留原因，可直接重试。
         </p>
         {isAdmin ? (
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -266,6 +274,27 @@ export function TrainingSessionsPage() {
                   {item.registeredCount}/{item.capacity} · 候补{' '}
                   {item.waitlistCount}
                 </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  腾讯会议：
+                  {item.meeting?.meetingCode
+                    ? `${item.meeting.meetingCode} · ${item.meeting.createStatus}`
+                    : item.meeting?.createStatus ?? '尚未创建'}
+                </p>
+                {item.meeting?.lastError ? (
+                  <p className="mt-1 text-sm text-rose-600">
+                    {item.meeting.lastError}
+                  </p>
+                ) : null}
+                {item.meeting?.joinUrl ? (
+                  <a
+                    className="mt-2 inline-block text-sm text-brand-700 underline"
+                    href={item.meeting.joinUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    打开会议入口
+                  </a>
+                ) : null}
               </div>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -276,7 +305,9 @@ export function TrainingSessionsPage() {
                   查看名单
                 </button>
                 {isAdmin &&
-                ['draft', 'rescheduled'].includes(item.status) ? (
+                ['draft', 'rescheduled', 'publish_failed'].includes(
+                  item.status,
+                ) ? (
                   <button
                     type="button"
                     className="app-btn-primary"
@@ -286,7 +317,7 @@ export function TrainingSessionsPage() {
                       })
                     }
                   >
-                    发布
+                    {item.status === 'publish_failed' ? '重试发布' : '发布'}
                   </button>
                 ) : null}
                 {isAdmin &&

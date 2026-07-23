@@ -19,6 +19,7 @@ export type TencentMeetingParticipant = {
   displayName: string
   joinedAtSeconds: number | null
   leftAtSeconds: number | null
+  durationSeconds?: number
   raw: Record<string, unknown>
 }
 

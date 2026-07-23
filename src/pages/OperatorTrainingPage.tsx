@@ -30,6 +30,9 @@ export function OperatorTrainingPage() {
   const [sessionId, setSessionId] = useState('')
   const [selectedAnchors, setSelectedAnchors] = useState<string[]>([])
   const [resultText, setResultText] = useState('')
+  const [recommendationAnchorId, setRecommendationAnchorId] = useState('')
+  const [recommendationCourseId, setRecommendationCourseId] = useState('')
+  const [recommendationReason, setRecommendationReason] = useState('')
   const anchorsQuery = useQuery({
     queryKey: ['operator-training-anchors'],
     queryFn: () =>
@@ -44,6 +47,13 @@ export function OperatorTrainingPage() {
     queryFn: () =>
       apiJson<{ items: OperatorRegistration[] }>(
         '/training/operator/registrations',
+      ),
+  })
+  const coursesQuery = useQuery({
+    queryKey: ['training-courses'],
+    queryFn: () =>
+      apiJson<{ items: Array<{ id: string; title: string }> }>(
+        '/training/courses',
       ),
   })
   const openSessions = useMemo(
@@ -88,6 +98,21 @@ export function OperatorTrainingPage() {
         }),
         queryClient.invalidateQueries({ queryKey: ['training-sessions'] }),
       ]),
+  })
+  const recommendMutation = useMutation({
+    mutationFn: () =>
+      apiJson('/training/recommendations', {
+        method: 'POST',
+        body: JSON.stringify({
+          anchorProfileId: recommendationAnchorId,
+          courseId: recommendationCourseId,
+          reason: recommendationReason || undefined,
+        }),
+      }),
+    onSuccess: () => {
+      setRecommendationReason('')
+      setResultText('课程推荐已发送，主播可在小程序“推荐课程”中查看。')
+    },
   })
 
   return (
@@ -163,6 +188,62 @@ export function OperatorTrainingPage() {
           {mutation.error instanceof Error ? mutation.error.message : '报名失败'}
         </p>
       ) : null}
+      <section className="rounded-3xl border border-slate-200 bg-white p-6">
+        <h3 className="text-lg font-semibold text-slate-900">
+          根据直播表现推荐课程
+        </h3>
+        <p className="mt-2 text-sm text-slate-500">
+          推荐只是成长建议，不限制主播报名其他开放课程。
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <select
+            className="app-select"
+            value={recommendationAnchorId}
+            onChange={(event) =>
+              setRecommendationAnchorId(event.target.value)
+            }
+          >
+            <option value="">选择主播</option>
+            {anchorsQuery.data?.items.map((anchor) => (
+              <option key={anchor.id} value={anchor.id}>
+                {anchor.anchorDisplayName}
+              </option>
+            ))}
+          </select>
+          <select
+            className="app-select"
+            value={recommendationCourseId}
+            onChange={(event) =>
+              setRecommendationCourseId(event.target.value)
+            }
+          >
+            <option value="">选择课程</option>
+            {coursesQuery.data?.items.map((course) => (
+              <option key={course.id} value={course.id}>
+                {course.title}
+              </option>
+            ))}
+          </select>
+        </div>
+        <textarea
+          className="app-field mt-3 min-h-20"
+          placeholder="填写推荐原因，例如：需要加强开场和互动延展"
+          value={recommendationReason}
+          onChange={(event) => setRecommendationReason(event.target.value)}
+        />
+        <button
+          type="button"
+          className="app-btn-primary mt-3"
+          disabled={
+            !recommendationAnchorId ||
+            !recommendationCourseId ||
+            recommendMutation.isPending
+          }
+          onClick={() => recommendMutation.mutate()}
+        >
+          发送课程推荐
+        </button>
+      </section>
       <section className="rounded-3xl border border-slate-200 bg-white p-6">
         <h3 className="text-lg font-semibold text-slate-900">待开课报名</h3>
         <div className="mt-4 space-y-3">

@@ -21,6 +21,8 @@ import type { CreateSessionDto } from './dto/create-session.dto.js'
 import type { UpdateCourseDto } from './dto/update-course.dto.js'
 import type { RescheduleSessionDto } from './dto/reschedule-session.dto.js'
 import { TrainingMeetingsService } from './training-meetings.service.js'
+import { TrainingNotificationsService } from './training-notifications.service.js'
+import { TrainingRecommendationsService } from './training-recommendations.service.js'
 
 const courseInclude = {
   materialLinks: {
@@ -68,6 +70,10 @@ export class TrainingService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     @Optional() private readonly meetings?: TrainingMeetingsService,
+    @Optional()
+    private readonly trainingNotifications?: TrainingNotificationsService,
+    @Optional()
+    private readonly trainingRecommendations?: TrainingRecommendationsService,
   ) {}
 
   async listCourses(currentUser: AuthenticatedUser) {
@@ -305,6 +311,13 @@ export class TrainingService {
       include: sessionInclude,
     })
     if (!updated) throw new NotFoundException('未找到培训场次')
+    if (item.status === 'rescheduled') {
+      await this.trainingNotifications?.notifySessionChanged(
+        sessionId,
+        'rescheduled',
+        '场次时间已调整，请以最新通知为准',
+      )
+    }
     return { item: this.formatSession(updated) }
   }
 
@@ -387,6 +400,11 @@ export class TrainingService {
     const reason = reasonInput.trim()
     if (!reason) throw new BadRequestException('请填写取消原因')
     await this.meetings?.cancelSession(sessionId, reason)
+    await this.trainingNotifications?.notifySessionChanged(
+      sessionId,
+      'cancelled',
+      reason,
+    )
     await this.prisma.$transaction([
       this.prisma.trainingSession.update({
         where: { id: sessionId },
@@ -432,6 +450,7 @@ export class TrainingService {
       },
       include: {
         currentOperator: true,
+        wecomUser: true,
       },
     })
     if (!profile) {
@@ -481,7 +500,7 @@ export class TrainingService {
     ])
     const profile = await this.prisma.anchorProfile.findFirst({
       where: { id: anchorProfileId, status: 'active' },
-      include: { currentOperator: true },
+      include: { currentOperator: true, wecomUser: true },
     })
     if (!profile) throw new NotFoundException('未找到有效主播档案')
     return this.registerProfile(
@@ -587,7 +606,7 @@ export class TrainingService {
     ) {
       throw new BadRequestException('当前报名状态不能取消')
     }
-    await this.withSerializableTransaction(async (tx) => {
+    const promotedId = await this.withSerializableTransaction(async (tx) => {
       await tx.trainingRegistration.update({
         where: { id: registration.id },
         data: {
@@ -620,9 +639,14 @@ export class TrainingService {
               waitlistPosition: null,
             },
           })
+          return next.id
         }
       }
+      return null
     })
+    if (promotedId) {
+      await this.trainingNotifications?.notifyPromoted(promotedId)
+    }
   }
 
   async listMyTraining(currentUser: AuthenticatedUser) {
@@ -806,6 +830,12 @@ export class TrainingService {
         })
       }
     })
+    if (dto.status === 'learned') {
+      await this.trainingRecommendations?.markCompleted(
+        registration.anchorProfileId,
+        registration.session.courseId,
+      )
+    }
     return { ok: true }
   }
 
@@ -821,7 +851,7 @@ export class TrainingService {
         status: 'published',
         scheduledStartAt: { gt: new Date() },
       },
-      include: { course: true },
+      include: { course: true, meeting: true },
     })
     if (!session) {
       throw new BadRequestException('当前场次未开放报名或已经开始')
@@ -929,6 +959,15 @@ export class TrainingService {
       })
       return registration
     })
+    await this.trainingNotifications?.notifyRegistration(
+      item,
+      profile,
+      session,
+    )
+    await this.trainingRecommendations?.markRegistered(
+      profile.id,
+      session.courseId,
+    )
     return { item: this.formatRegistration(item) }
   }
 
@@ -940,6 +979,7 @@ export class TrainingService {
       },
       include: {
         currentOperator: true,
+        wecomUser: true,
       },
     })
   }

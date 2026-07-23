@@ -145,7 +145,7 @@ export class TencentMeetingClient implements TencentMeetingGateway {
       const participants = Array.isArray(response.participants)
         ? response.participants
         : []
-      for (const [index, participantInput] of participants.entries()) {
+      for (const participantInput of participants) {
         const participant = participantInput as Record<string, unknown>
         const rawDisplayName = String(participant.user_name ?? '')
         const displayName = this.decodeDisplayName(rawDisplayName)
@@ -162,7 +162,6 @@ export class TencentMeetingClient implements TencentMeetingGateway {
             identity,
             joinTime ?? 'unknown',
             leftTime ?? 'unknown',
-            index,
           ].join(':'),
           externalUserId,
           externalIdentityKey: externalUserId

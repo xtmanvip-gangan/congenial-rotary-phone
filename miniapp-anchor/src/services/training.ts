@@ -4,6 +4,7 @@ import type {
   MyTrainingResponse,
   TrainingCourse,
   TrainingSession,
+  TrainingRecommendation,
 } from '@/types/training'
 
 const mockCourses: TrainingCourse[] = [
@@ -123,5 +124,41 @@ export async function cancelTrainingRegistration(registrationId: string) {
   return requestJson<{ ok: true }>(
     `/training/registrations/${registrationId}`,
     { method: 'DELETE' },
+  )
+}
+
+export async function getTrainingRecommendations() {
+  const session = useSessionStore.getState().session
+  if (!session || session.mode === 'mock') {
+    return {
+      items: mockCourses.slice(0, 3).map(
+        (course, index) =>
+          ({
+            id: `recommendation-${index + 1}`,
+            source: 'system',
+            reason: '新主播基础必修课程',
+            viewedAt: null,
+            registeredAt:
+              mockRegistration && course.id === 'course-1'
+                ? new Date().toISOString()
+                : null,
+            completedAt: null,
+            course,
+            recommendedByAccount: null,
+          }) satisfies TrainingRecommendation,
+      ),
+    }
+  }
+  return requestJson<{ items: TrainingRecommendation[] }>(
+    '/training/recommendations/me',
+  )
+}
+
+export async function markTrainingRecommendationsViewed() {
+  const session = useSessionStore.getState().session
+  if (!session || session.mode === 'mock') return { ok: true as const }
+  return requestJson<{ ok: true }>(
+    '/training/recommendations/me/viewed',
+    { method: 'POST' },
   )
 }
