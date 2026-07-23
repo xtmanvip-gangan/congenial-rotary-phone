@@ -73,10 +73,10 @@
 
 ## 员工角色编辑补丁
 
-- 部署版本：`e3c5afe`
+- 部署版本：`d9a00c9`（功能提交：`e3c5afe`）
 - 部署时间：2026-07-23（Asia/Shanghai）
 - 改为“编辑角色—勾选角色—保存角色”的明确操作流程。
 - 同一员工可同时勾选审核老师、运营老师、培训老师和培训管理员。
 - 保存后展示成功或失败原因；员工退出当前企微登录后重新登录，即可在顶部工作台切换已分配角色。
 - 上线前 Web 备份：`/www/backups/shouji/20260723-roles-e3c5afe/ac.ydwy.net-before-roles.tar.gz`
-- 线上静态资源：`index-oVQD2jm1.js`
+- 线上静态资源：`index-HnTvFq7i.js`
