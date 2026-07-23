@@ -10,6 +10,7 @@ import { AnchorsModule } from './modules/anchors/anchors.module.js'
 import { AuthModule } from './modules/auth/auth.module.js'
 import { HealthModule } from './modules/health/health.module.js'
 import { NotificationsModule } from './modules/notifications/notifications.module.js'
+import { OnboardingModule } from './modules/onboarding/onboarding.module.js'
 import { OperatorsModule } from './modules/operators/operators.module.js'
 import { SubmissionsModule } from './modules/submissions/submissions.module.js'
 import { StaffModule } from './modules/staff/staff.module.js'
@@ -32,6 +33,7 @@ import { PrismaModule } from './prisma/prisma.module.js'
     OperatorsModule,
     SubmissionsModule,
     NotificationsModule,
+    OnboardingModule,
     StaffModule,
   ],
   controllers: [AppController],

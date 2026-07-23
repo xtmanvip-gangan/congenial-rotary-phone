@@ -39,6 +39,27 @@ enum OperatorAssignmentStatus {
   ended
 }
 
+enum OnboardingMilestoneType {
+  operator_received
+  homepage_ready
+  live_software_ready
+  helper_software_ready
+  prejob_learning_completed
+  prelive_check_completed
+  first_live_completed
+  first_live_review_completed
+}
+
+enum OnboardingMilestoneStatus {
+  pending
+  completed
+}
+
+enum SubmissionAssignmentStatus {
+  pending_confirmation
+  confirmed
+}
+
 enum ActivityStatus {
   draft
   active
@@ -150,6 +171,8 @@ model AnchorProfile {
   assignments       AnchorOperatorAssignment[]
   activationTask    AnchorActivationTask?
   nameHistory       AnchorNameHistory[]
+  onboardingProgress AnchorOnboardingProgress?
+  submissions       Submission[]
 
   @@index([currentOperatorId, assignmentStatus])
   @@map("anchor_profiles")
@@ -182,10 +205,42 @@ model AnchorOperatorAssignment {
   updatedAt       DateTime                 @updatedAt @map("updated_at")
   anchorProfile   AnchorProfile            @relation(fields: [anchorProfileId], references: [id], onDelete: Cascade)
   operator        OperatorAccount          @relation("AssignmentOperator", fields: [operatorId], references: [id])
+  submissions     Submission[]
 
   @@index([anchorProfileId, status])
   @@index([operatorId, status])
   @@map("anchor_operator_assignments")
+}
+
+model AnchorOnboardingProgress {
+  id                     String                        @id @default(uuid()) @db.Uuid
+  anchorProfileId        String                        @unique @map("anchor_profile_id") @db.Uuid
+  currentStage           OnboardingMilestoneType       @default(operator_received) @map("current_stage")
+  firstLiveAt            DateTime?                     @map("first_live_at")
+  firstLiveBlockedReason String?                       @map("first_live_blocked_reason")
+  firstReviewCompletedAt DateTime?                     @map("first_review_completed_at")
+  createdAt              DateTime                      @default(now()) @map("created_at")
+  updatedAt              DateTime                      @updatedAt @map("updated_at")
+  anchorProfile          AnchorProfile                 @relation(fields: [anchorProfileId], references: [id], onDelete: Cascade)
+  milestones             AnchorOnboardingMilestone[]
+
+  @@map("anchor_onboarding_progress")
+}
+
+model AnchorOnboardingMilestone {
+  id          String                    @id @default(uuid()) @db.Uuid
+  progressId  String                    @map("progress_id") @db.Uuid
+  type        OnboardingMilestoneType
+  status      OnboardingMilestoneStatus @default(pending)
+  completedAt DateTime?                 @map("completed_at")
+  completedBy String?                   @map("completed_by") @db.VarChar(64)
+  note        String?
+  createdAt   DateTime                  @default(now()) @map("created_at")
+  updatedAt   DateTime                  @updatedAt @map("updated_at")
+  progress    AnchorOnboardingProgress  @relation(fields: [progressId], references: [id], onDelete: Cascade)
+
+  @@unique([progressId, type])
+  @@map("anchor_onboarding_milestones")
 }
 
 model ActivityType {
@@ -262,6 +317,11 @@ model Submission {
   anchorUserId   String            @map("anchor_user_id") @db.Uuid
   anchorName     String            @map("anchor_name") @db.VarChar(100)
   operatorId     String            @map("operator_id") @db.Uuid
+  anchorProfileId String?           @map("anchor_profile_id") @db.Uuid
+  operatorAssignmentId String?      @map("operator_assignment_id") @db.Uuid
+  anchorDisplayNameSnapshot String? @map("anchor_display_name_snapshot") @db.VarChar(100)
+  operatorNameSnapshot String?      @map("operator_name_snapshot") @db.VarChar(100)
+  operatorAssignmentStatus SubmissionAssignmentStatus @default(confirmed) @map("operator_assignment_status")
   liveDate       DateTime          @map("live_date") @db.Date
   liveStartTime  DateTime          @map("live_start_time") @db.Time(0)
   reviewStatus   ReviewStatus      @default(pending) @map("review_status")
@@ -273,6 +333,8 @@ model Submission {
   activity       Activity          @relation(fields: [activityId], references: [id])
   anchorUser     WecomUser         @relation(fields: [anchorUserId], references: [id])
   operator       OperatorAccount   @relation(fields: [operatorId], references: [id])
+  anchorProfile  AnchorProfile?    @relation(fields: [anchorProfileId], references: [id])
+  operatorAssignment AnchorOperatorAssignment? @relation(fields: [operatorAssignmentId], references: [id])
   items          SubmissionItem[]
   attachments    Attachment[]
   reviewLogs     ReviewLog[]
@@ -281,6 +343,7 @@ model Submission {
 
   @@index([activityId, operatorId, liveDate], map: "idx_submissions_activity_operator_date")
   @@index([anchorUserId, activityId, liveDate], map: "idx_submissions_anchor_activity_date")
+  @@index([anchorProfileId, operatorAssignmentStatus], map: "idx_submissions_anchor_assignment_status")
   @@map("submissions")
 }
 

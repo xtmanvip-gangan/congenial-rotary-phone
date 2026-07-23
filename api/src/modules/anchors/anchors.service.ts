@@ -23,6 +23,17 @@ const profileInclude = {
   },
 } as const
 
+const onboardingTypes = [
+  'operator_received',
+  'homepage_ready',
+  'live_software_ready',
+  'helper_software_ready',
+  'prejob_learning_completed',
+  'prelive_check_completed',
+  'first_live_completed',
+  'first_live_review_completed',
+] as const
+
 @Injectable()
 export class AnchorsService {
   constructor(
@@ -318,6 +329,18 @@ export class AnchorsService {
         operatorId: currentUser.accountId ?? '',
         status: 'pending_confirmation',
       },
+      include: {
+        anchorProfile: {
+          select: {
+            anchorDisplayName: true,
+          },
+        },
+        operator: {
+          select: {
+            displayName: true,
+          },
+        },
+      },
     })
 
     if (!assignment) {
@@ -325,8 +348,8 @@ export class AnchorsService {
     }
 
     const now = new Date()
-    await this.prisma.$transaction([
-      this.prisma.anchorOperatorAssignment.update({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.anchorOperatorAssignment.update({
         where: {
           id: assignment.id,
         },
@@ -335,8 +358,8 @@ export class AnchorsService {
           startedAt: now,
           confirmedBy: currentUser.wecomUserId,
         },
-      }),
-      this.prisma.anchorProfile.update({
+      })
+      await tx.anchorProfile.update({
         where: {
           id: assignment.anchorProfileId,
         },
@@ -344,8 +367,41 @@ export class AnchorsService {
           currentOperatorId: assignment.operatorId,
           assignmentStatus: 'confirmed',
         },
-      }),
-    ])
+      })
+      await tx.anchorOnboardingProgress.upsert({
+        where: {
+          anchorProfileId: assignment.anchorProfileId,
+        },
+        create: {
+          anchorProfileId: assignment.anchorProfileId,
+          currentStage: 'operator_received',
+          milestones: {
+            create: onboardingTypes.map((type) => ({
+              type,
+              status: type === 'operator_received' ? 'completed' : 'pending',
+              completedAt: type === 'operator_received' ? now : null,
+              completedBy:
+                type === 'operator_received' ? currentUser.wecomUserId : null,
+            })),
+          },
+        },
+        update: {},
+      })
+      await tx.submission.updateMany({
+        where: {
+          anchorProfileId: assignment.anchorProfileId,
+          operatorAssignmentStatus: 'pending_confirmation',
+        },
+        data: {
+          operatorId: assignment.operatorId,
+          operatorAssignmentId: assignment.id,
+          operatorAssignmentStatus: 'confirmed',
+          anchorDisplayNameSnapshot:
+            assignment.anchorProfile.anchorDisplayName,
+          operatorNameSnapshot: assignment.operator.displayName,
+        },
+      })
+    })
 
     return { ok: true }
   }

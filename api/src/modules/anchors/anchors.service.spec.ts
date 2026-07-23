@@ -121,4 +121,65 @@ describe('AnchorsService', () => {
       }),
     })
   })
+
+  it('initializes onboarding and releases pending gift submissions when assignment is confirmed', async () => {
+    const tx = {
+      anchorOperatorAssignment: {
+        update: vi.fn().mockResolvedValue({}),
+      },
+      anchorProfile: {
+        update: vi.fn().mockResolvedValue({}),
+      },
+      anchorOnboardingProgress: {
+        upsert: vi.fn().mockResolvedValue({}),
+      },
+      submission: {
+        updateMany: vi.fn().mockResolvedValue({ count: 2 }),
+      },
+    }
+    const prisma = {
+      anchorOperatorAssignment: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'assignment-1',
+          anchorProfileId: 'anchor-1',
+          operatorId: 'operator-1',
+          anchorProfile: {
+            anchorDisplayName: '小鹿',
+          },
+          operator: {
+            displayName: '运营A',
+          },
+        }),
+      },
+      $transaction: vi.fn(async (callback) => callback(tx)),
+    }
+    const access = {
+      requireAnyRole: vi.fn(),
+    }
+    const service = new AnchorsService(prisma as never, access as never)
+    const operator = {
+      accountId: 'operator-1',
+      wecomUserId: 'operator-uid',
+      name: '运营A',
+      avatarUrl: null,
+      role: 'operator' as const,
+      roles: ['operator' as const],
+      loginType: 'wecom_staff' as const,
+    }
+
+    await service.confirmAssignment(operator, 'assignment-1')
+
+    expect(tx.anchorOnboardingProgress.upsert).toHaveBeenCalled()
+    expect(tx.submission.updateMany).toHaveBeenCalledWith({
+      where: {
+        anchorProfileId: 'anchor-1',
+        operatorAssignmentStatus: 'pending_confirmation',
+      },
+      data: expect.objectContaining({
+        operatorId: 'operator-1',
+        operatorAssignmentId: 'assignment-1',
+        operatorAssignmentStatus: 'confirmed',
+      }),
+    })
+  })
 })
