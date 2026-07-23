@@ -63,6 +63,52 @@ describe('OnboardingService', () => {
     ).rejects.toBeInstanceOf(BadRequestException)
   })
 
+  it('lazily initializes progress for an already-confirmed legacy profile', async () => {
+    const initialized = {
+      id: 'anchor-legacy',
+      anchorDisplayName: '旧主播',
+      onboardingProgress: {
+        id: 'progress-legacy',
+        currentStage: 'operator_received',
+        firstLiveAt: null,
+        firstReviewCompletedAt: null,
+        milestones: [
+          {
+            id: 'milestone-1',
+            type: 'operator_received',
+            status: 'completed',
+            completedAt: new Date('2026-07-23T10:00:00.000Z'),
+            note: null,
+          },
+        ],
+      },
+    }
+    const prisma = {
+      anchorProfile: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValueOnce({
+            id: 'anchor-legacy',
+            anchorDisplayName: '旧主播',
+            onboardingProgress: null,
+          })
+          .mockResolvedValueOnce(initialized),
+      },
+      anchorOnboardingProgress: {
+        upsert: vi.fn().mockResolvedValue({}),
+      },
+    }
+    const service = new OnboardingService(
+      prisma as never,
+      { requireAnyRole: vi.fn() } as never,
+    )
+
+    const result = await service.getProgress(operatorUser, 'anchor-legacy')
+
+    expect(prisma.anchorOnboardingProgress.upsert).toHaveBeenCalled()
+    expect(result.item.anchor.id).toBe('anchor-legacy')
+  })
+
   it('records first-live time only after pre-live preparation is complete', async () => {
     const tx = {
       anchorOnboardingMilestone: {

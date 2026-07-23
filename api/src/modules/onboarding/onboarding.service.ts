@@ -171,7 +171,7 @@ export class OnboardingService {
     anchorId: string,
   ) {
     await this.access.requireAnyRole(currentUser, ['operator'])
-    const anchor = await this.prisma.anchorProfile.findFirst({
+    let anchor = await this.prisma.anchorProfile.findFirst({
       where: {
         id: anchorId,
         currentOperatorId: currentUser.accountId ?? '',
@@ -183,6 +183,41 @@ export class OnboardingService {
     if (!anchor) {
       throw new NotFoundException('未找到归属于当前运营的主播')
     }
+
+    if (!anchor.onboardingProgress) {
+      const now = new Date()
+      await this.prisma.anchorOnboardingProgress.upsert({
+        where: {
+          anchorProfileId: anchor.id,
+        },
+        create: {
+          anchorProfileId: anchor.id,
+          currentStage: 'operator_received',
+          milestones: {
+            create: ONBOARDING_MILESTONES.map((type) => ({
+              type,
+              status: type === 'operator_received' ? 'completed' : 'pending',
+              completedAt: type === 'operator_received' ? now : null,
+              completedBy:
+                type === 'operator_received' ? currentUser.wecomUserId : null,
+            })),
+          },
+        },
+        update: {},
+      })
+      anchor = await this.prisma.anchorProfile.findFirst({
+        where: {
+          id: anchorId,
+          currentOperatorId: currentUser.accountId ?? '',
+          assignmentStatus: 'confirmed',
+        },
+        include: progressInclude,
+      })
+      if (!anchor) {
+        throw new NotFoundException('未找到归属于当前运营的主播')
+      }
+    }
+
     return anchor
   }
 
