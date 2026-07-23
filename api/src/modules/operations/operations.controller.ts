@@ -10,6 +10,7 @@ import {
 import { AuthService } from '../auth/auth.service.js'
 import { IncidentsService } from './incidents.service.js'
 import { JobRunService } from './job-run.service.js'
+import { MaintenanceService } from './maintenance.service.js'
 
 @Controller('operations')
 export class OperationsController {
@@ -17,6 +18,7 @@ export class OperationsController {
     private readonly authService: AuthService,
     private readonly incidents: IncidentsService,
     private readonly jobRuns: JobRunService,
+    private readonly maintenance: MaintenanceService,
   ) {}
 
   @Get('job-runs')
@@ -25,6 +27,13 @@ export class OperationsController {
       this.authService.getCurrentUserFromAuthHeader(authorization)
     await this.incidents.requireOperationsAccess(user)
     return this.jobRuns.list()
+  }
+
+  @Get('maintenance/cleanup-preview')
+  cleanupPreview(@Headers('authorization') authorization?: string) {
+    return this.maintenance.previewCleanup(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+    )
   }
 
   @Get('incidents')
