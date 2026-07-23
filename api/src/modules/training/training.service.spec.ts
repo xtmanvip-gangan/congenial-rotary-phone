@@ -238,4 +238,39 @@ describe('TrainingService', () => {
       }),
     )
   })
+
+  it('prevents an operator from cancelling another operator’s registration', async () => {
+    const prisma = {
+      trainingRegistration: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+    }
+    const service = new TrainingService(
+      prisma as never,
+      { requireAnyRole: vi.fn() } as never,
+    )
+
+    await expect(
+      service.cancelForOperator(operatorUser, 'registration-foreign'),
+    ).rejects.toBeInstanceOf(ForbiddenException)
+  })
+
+  it('only starts a published training session', async () => {
+    const prisma = {
+      trainingSession: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'session-draft',
+          status: 'draft',
+        }),
+      },
+    }
+    const service = new TrainingService(
+      prisma as never,
+      { requireAnyRole: vi.fn() } as never,
+    )
+
+    await expect(
+      service.startSession(trainingTeacher, 'session-draft'),
+    ).rejects.toThrow('只有已发布场次可以开始')
+  })
 })

@@ -17,6 +17,13 @@ type Session = {
   waitlistCount: number
   status: string
 }
+type OperatorRegistration = {
+  id: string
+  anchorDisplayName: string
+  status: string
+  waitlistPosition: number | null
+  session: Session
+}
 
 export function OperatorTrainingPage() {
   const queryClient = useQueryClient()
@@ -31,6 +38,13 @@ export function OperatorTrainingPage() {
   const sessionsQuery = useQuery({
     queryKey: ['training-sessions'],
     queryFn: () => apiJson<{ items: Session[] }>('/training/sessions'),
+  })
+  const registrationsQuery = useQuery({
+    queryKey: ['operator-training-registrations'],
+    queryFn: () =>
+      apiJson<{ items: OperatorRegistration[] }>(
+        '/training/operator/registrations',
+      ),
   })
   const openSessions = useMemo(
     () =>
@@ -61,6 +75,19 @@ export function OperatorTrainingPage() {
       setSelectedAnchors([])
       return queryClient.invalidateQueries({ queryKey: ['training-sessions'] })
     },
+  })
+  const cancelMutation = useMutation({
+    mutationFn: (registrationId: string) =>
+      apiJson(`/training/registrations/operator/${registrationId}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['operator-training-registrations'],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['training-sessions'] }),
+      ]),
   })
 
   return (
@@ -136,6 +163,41 @@ export function OperatorTrainingPage() {
           {mutation.error instanceof Error ? mutation.error.message : '报名失败'}
         </p>
       ) : null}
+      <section className="rounded-3xl border border-slate-200 bg-white p-6">
+        <h3 className="text-lg font-semibold text-slate-900">待开课报名</h3>
+        <div className="mt-4 space-y-3">
+          {registrationsQuery.data?.items.map((item) => (
+            <div
+              key={item.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4"
+            >
+              <div>
+                <p className="font-medium text-slate-900">
+                  {item.anchorDisplayName} · {item.session.course.title}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {formatDateTime(item.session.scheduledStartAt)} ·{' '}
+                  {item.status === 'waitlisted'
+                    ? `候补${item.waitlistPosition ?? ''}`
+                    : '已报名'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="app-btn-secondary"
+                disabled={cancelMutation.isPending}
+                onClick={() => cancelMutation.mutate(item.id)}
+              >
+                取消报名
+              </button>
+            </div>
+          ))}
+          {!registrationsQuery.isLoading &&
+          !registrationsQuery.data?.items.length ? (
+            <p className="text-sm text-slate-500">当前没有待开课报名。</p>
+          ) : null}
+        </div>
+      </section>
     </div>
   )
 }

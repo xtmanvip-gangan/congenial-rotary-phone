@@ -21,6 +21,7 @@ import {
   StaffRegisterSessionDto,
 } from './dto/register-session.dto.js'
 import { UpdateCourseDto } from './dto/update-course.dto.js'
+import { RescheduleSessionDto } from './dto/reschedule-session.dto.js'
 import { TrainingService } from './training.service.js'
 
 @Controller('training')
@@ -109,6 +110,41 @@ export class TrainingController {
     )
   }
 
+  @Patch('sessions/:sessionId/reschedule')
+  rescheduleSession(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('sessionId') sessionId: string,
+    @Body() dto: RescheduleSessionDto,
+  ) {
+    return this.trainingService.rescheduleSession(
+      this.user(authorization),
+      sessionId,
+      dto,
+    )
+  }
+
+  @Post('sessions/:sessionId/start')
+  startSession(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.trainingService.startSession(
+      this.user(authorization),
+      sessionId,
+    )
+  }
+
+  @Post('sessions/:sessionId/end')
+  endSession(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.trainingService.endSession(
+      this.user(authorization),
+      sessionId,
+    )
+  }
+
   @Post('sessions/:sessionId/cancel')
   cancelSession(
     @Headers('authorization') authorization: string | undefined,
@@ -177,6 +213,26 @@ export class TrainingController {
     return this.trainingService.cancelSelf(
       this.user(authorization),
       registrationId,
+    )
+  }
+
+  @Delete('registrations/operator/:registrationId')
+  cancelForOperator(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('registrationId') registrationId: string,
+  ) {
+    return this.trainingService.cancelForOperator(
+      this.user(authorization),
+      registrationId,
+    )
+  }
+
+  @Get('operator/registrations')
+  operatorRegistrations(
+    @Headers('authorization') authorization?: string,
+  ) {
+    return this.trainingService.listOperatorRegistrations(
+      this.user(authorization),
     )
   }
 

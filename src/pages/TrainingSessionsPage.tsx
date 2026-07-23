@@ -96,12 +96,14 @@ export function TrainingSessionsPage() {
     mutationFn: ({
       path,
       payload,
+      method = 'POST',
     }: {
       path: string
       payload?: Record<string, unknown>
+      method?: 'POST' | 'PATCH'
     }) =>
       apiJson(path, {
-        method: 'POST',
+        method,
         body: payload ? JSON.stringify(payload) : undefined,
       }),
     onSuccess: refresh,
@@ -273,7 +275,8 @@ export function TrainingSessionsPage() {
                 >
                   查看名单
                 </button>
-                {isAdmin && item.status === 'draft' ? (
+                {isAdmin &&
+                ['draft', 'rescheduled'].includes(item.status) ? (
                   <button
                     type="button"
                     className="app-btn-primary"
@@ -284,6 +287,59 @@ export function TrainingSessionsPage() {
                     }
                   >
                     发布
+                  </button>
+                ) : null}
+                {isAdmin &&
+                ['published', 'rescheduled'].includes(item.status) ? (
+                  <button
+                    type="button"
+                    className="app-btn-secondary"
+                    onClick={() => {
+                      const value = window.prompt(
+                        '请输入新的开课时间，例如 2026-07-30 18:30',
+                      )
+                      if (!value) return
+                      const start = new Date(value.replace(' ', 'T'))
+                      if (Number.isNaN(start.getTime())) return
+                      action.mutate({
+                        path: `/training/sessions/${item.id}/reschedule`,
+                        method: 'PATCH',
+                        payload: {
+                          scheduledStartAt: start.toISOString(),
+                          scheduledEndAt: new Date(
+                            start.getTime() + 60 * 60_000,
+                          ).toISOString(),
+                        },
+                      })
+                    }}
+                  >
+                    改期
+                  </button>
+                ) : null}
+                {item.status === 'published' ? (
+                  <button
+                    type="button"
+                    className="app-btn-primary"
+                    onClick={() =>
+                      action.mutate({
+                        path: `/training/sessions/${item.id}/start`,
+                      })
+                    }
+                  >
+                    开始上课
+                  </button>
+                ) : null}
+                {item.status === 'in_progress' ? (
+                  <button
+                    type="button"
+                    className="app-btn-primary"
+                    onClick={() =>
+                      action.mutate({
+                        path: `/training/sessions/${item.id}/end`,
+                      })
+                    }
+                  >
+                    结束课程
                   </button>
                 ) : null}
                 {isAdmin &&

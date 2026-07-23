@@ -9,6 +9,7 @@ import type {
   TrainingRegistrationSource,
   TrainingRegistrationStatus,
 } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service.js'
 import { AccessService } from '../access/access.service.js'
 import type { AuthenticatedUser } from '../auth/auth.types.js'
@@ -17,6 +18,7 @@ import type { CreateCourseDto } from './dto/create-course.dto.js'
 import type { CreateScheduleTemplateDto } from './dto/create-schedule-template.dto.js'
 import type { CreateSessionDto } from './dto/create-session.dto.js'
 import type { UpdateCourseDto } from './dto/update-course.dto.js'
+import type { RescheduleSessionDto } from './dto/reschedule-session.dto.js'
 
 const courseInclude = {
   materialLinks: {
@@ -284,6 +286,76 @@ export class TrainingService {
     return { item: this.formatSession(updated) }
   }
 
+  async rescheduleSession(
+    currentUser: AuthenticatedUser,
+    sessionId: string,
+    dto: RescheduleSessionDto,
+  ) {
+    await this.requireTrainingAdmin(currentUser)
+    const startAt = new Date(dto.scheduledStartAt)
+    const endAt = new Date(dto.scheduledEndAt)
+    this.validateSessionTimes(startAt, endAt)
+    const existing = await this.prisma.trainingSession.findUnique({
+      where: { id: sessionId },
+    })
+    if (!existing) throw new NotFoundException('未找到培训场次')
+    if (['cancelled', 'ended'].includes(existing.status)) {
+      throw new BadRequestException('已取消或已结束场次不能改期')
+    }
+    const item = await this.prisma.trainingSession.update({
+      where: { id: sessionId },
+      data: {
+        scheduledStartAt: startAt,
+        scheduledEndAt: endAt,
+        status: 'rescheduled',
+        publishedAt: null,
+      },
+      include: sessionInclude,
+    })
+    return { item: this.formatSession(item) }
+  }
+
+  async startSession(currentUser: AuthenticatedUser, sessionId: string) {
+    await this.access.requireAnyRole(currentUser, [
+      'training_teacher',
+      'training_admin',
+    ])
+    const session = await this.prisma.trainingSession.findUnique({
+      where: { id: sessionId },
+    })
+    if (!session) throw new NotFoundException('未找到培训场次')
+    if (session.status !== 'published') {
+      throw new BadRequestException('只有已发布场次可以开始')
+    }
+    await this.prisma.trainingSession.update({
+      where: { id: sessionId },
+      data: { status: 'in_progress' },
+    })
+    return { ok: true }
+  }
+
+  async endSession(currentUser: AuthenticatedUser, sessionId: string) {
+    await this.access.requireAnyRole(currentUser, [
+      'training_teacher',
+      'training_admin',
+    ])
+    const session = await this.prisma.trainingSession.findUnique({
+      where: { id: sessionId },
+    })
+    if (!session) throw new NotFoundException('未找到培训场次')
+    if (
+      session.status !== 'published' &&
+      session.status !== 'in_progress'
+    ) {
+      throw new BadRequestException('当前场次不能结束')
+    }
+    await this.prisma.trainingSession.update({
+      where: { id: sessionId },
+      data: { status: 'ended' },
+    })
+    return { ok: true }
+  }
+
   async cancelSession(
     currentUser: AuthenticatedUser,
     sessionId: string,
@@ -421,7 +493,78 @@ export class TrainingService {
       throw new BadRequestException('当前报名状态不能取消')
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.cancelRegistration(registration, profile.id)
+    return { ok: true }
+  }
+
+  async cancelForOperator(
+    currentUser: AuthenticatedUser,
+    registrationId: string,
+  ) {
+    await this.access.requireAnyRole(currentUser, ['operator'])
+    const registration = await this.prisma.trainingRegistration.findFirst({
+      where: {
+        id: registrationId,
+        anchorProfile: {
+          currentOperatorId: currentUser.accountId ?? '',
+          assignmentStatus: 'confirmed',
+        },
+      },
+      include: { session: true },
+    })
+    if (!registration) {
+      throw new ForbiddenException('只能取消自己已确认归属主播的报名')
+    }
+    await this.cancelRegistration(registration, registration.anchorProfileId)
+    return { ok: true }
+  }
+
+  async listOperatorRegistrations(currentUser: AuthenticatedUser) {
+    await this.access.requireAnyRole(currentUser, ['operator'])
+    const items = await this.prisma.trainingRegistration.findMany({
+      where: {
+        status: { in: ['registered', 'waitlisted'] },
+        anchorProfile: {
+          currentOperatorId: currentUser.accountId ?? '',
+          assignmentStatus: 'confirmed',
+        },
+        session: {
+          scheduledStartAt: { gt: new Date() },
+        },
+      },
+      include: {
+        session: {
+          include: sessionInclude,
+        },
+      },
+      orderBy: { registeredAt: 'desc' },
+    })
+    return {
+      items: items.map((item) => ({
+        id: item.id,
+        anchorProfileId: item.anchorProfileId,
+        anchorDisplayName: item.anchorNameSnapshot,
+        status: item.status,
+        waitlistPosition: item.waitlistPosition,
+        session: this.formatSession(item.session),
+      })),
+    }
+  }
+
+  private async cancelRegistration(
+    registration: any,
+    anchorProfileId: string,
+  ) {
+    if (registration.session.scheduledStartAt <= new Date()) {
+      throw new BadRequestException('课程开始后不能取消')
+    }
+    if (
+      registration.status !== 'registered' &&
+      registration.status !== 'waitlisted'
+    ) {
+      throw new BadRequestException('当前报名状态不能取消')
+    }
+    await this.withSerializableTransaction(async (tx) => {
       await tx.trainingRegistration.update({
         where: { id: registration.id },
         data: {
@@ -432,7 +575,7 @@ export class TrainingService {
       })
       await tx.trainingLearningProgress.updateMany({
         where: {
-          anchorProfileId: profile.id,
+          anchorProfileId,
           courseId: registration.session.courseId,
           status: 'registered',
         },
@@ -457,7 +600,6 @@ export class TrainingService {
         }
       }
     })
-    return { ok: true }
   }
 
   async listMyTraining(currentUser: AuthenticatedUser) {
@@ -662,7 +804,7 @@ export class TrainingService {
       throw new BadRequestException('当前场次未开放报名或已经开始')
     }
 
-    const item = await this.prisma.$transaction(async (tx) => {
+    const item = await this.withSerializableTransaction(async (tx) => {
       const existing = await tx.trainingRegistration.findUnique({
         where: {
           anchorProfileId_sessionId: {
@@ -777,6 +919,21 @@ export class TrainingService {
         currentOperator: true,
       },
     })
+  }
+
+  private async withSerializableTransaction<T>(
+    callback: (tx: Prisma.TransactionClient) => Promise<T>,
+  ) {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(callback, {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        })
+      } catch (error: any) {
+        if (error?.code !== 'P2034' || attempt === 3) throw error
+      }
+    }
+    throw new BadRequestException('报名人数变化较快，请重新操作')
   }
 
   private isAnchor(user: AuthenticatedUser) {
