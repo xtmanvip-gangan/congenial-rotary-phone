@@ -12,6 +12,33 @@ enum AccountRole {
   super_admin
 }
 
+enum StaffRole {
+  audit_teacher
+  operator
+  training_teacher
+  training_admin
+}
+
+enum ActivationTaskStatus {
+  pending
+  invited
+  activated
+  cancelled
+}
+
+enum AnchorProfileStatus {
+  active
+  paused
+  exited
+}
+
+enum OperatorAssignmentStatus {
+  pending_confirmation
+  confirmed
+  rejected
+  ended
+}
+
 enum ActivityStatus {
   draft
   active
@@ -42,32 +69,123 @@ enum NotificationStatus {
 }
 
 model WecomUser {
-  id           String       @id @default(uuid()) @db.Uuid
-  wecomUserId  String       @unique @map("wecom_user_id") @db.VarChar(64)
-  wecomName    String?      @map("wecom_name") @db.VarChar(100)
-  avatarUrl    String?      @map("avatar_url")
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
-  submissions  Submission[]
+  id            String         @id @default(uuid()) @db.Uuid
+  wecomUserId   String         @unique @map("wecom_user_id") @db.VarChar(64)
+  wecomName     String?        @map("wecom_name") @db.VarChar(100)
+  avatarUrl     String?        @map("avatar_url")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  submissions   Submission[]
+  anchorProfile AnchorProfile?
 
   @@map("wecom_users")
 }
 
 model OperatorAccount {
-  id           String        @id @default(uuid()) @db.Uuid
-  wecomUserId  String?       @unique @map("wecom_user_id") @db.VarChar(64)
-  username     String?       @unique @db.VarChar(64)
-  passwordHash String?       @map("password_hash")
-  role         AccountRole
-  displayName  String        @map("display_name") @db.VarChar(100)
-  status       String        @default("active") @db.VarChar(20)
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
-  submissions  Submission[]
-  reviewLogs   ReviewLog[]
-  rewardGrants RewardGrant[]
+  id                String                     @id @default(uuid()) @db.Uuid
+  wecomUserId       String?                    @unique @map("wecom_user_id") @db.VarChar(64)
+  username          String?                    @unique @db.VarChar(64)
+  passwordHash      String?                    @map("password_hash")
+  role              AccountRole
+  displayName       String                     @map("display_name") @db.VarChar(100)
+  status            String                     @default("active") @db.VarChar(20)
+  createdAt         DateTime                   @default(now()) @map("created_at")
+  updatedAt         DateTime                   @updatedAt @map("updated_at")
+  submissions       Submission[]
+  reviewLogs        ReviewLog[]
+  rewardGrants      RewardGrant[]
+  staffRoles        StaffRoleAssignment[]
+  activationTasks   AnchorActivationTask[]     @relation("ActivationAuditTeacher")
+  currentAnchors    AnchorProfile[]            @relation("CurrentAnchorOperator")
+  anchorAssignments AnchorOperatorAssignment[] @relation("AssignmentOperator")
 
   @@map("operator_accounts")
+}
+
+model StaffRoleAssignment {
+  id        String          @id @default(uuid()) @db.Uuid
+  accountId String          @map("account_id") @db.Uuid
+  role      StaffRole
+  createdBy String?         @map("created_by") @db.Uuid
+  createdAt DateTime        @default(now()) @map("created_at")
+  account   OperatorAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, role])
+  @@map("staff_role_assignments")
+}
+
+model AnchorActivationTask {
+  id                       String               @id @default(uuid()) @db.Uuid
+  expectedWecomUserId      String               @unique @map("expected_wecom_user_id") @db.VarChar(64)
+  wecomDisplayNameSnapshot String               @map("wecom_display_name_snapshot") @db.VarChar(100)
+  auditTeacherId           String               @map("audit_teacher_id") @db.Uuid
+  membershipCompletedAt    DateTime             @map("membership_completed_at")
+  deviceReadyAt            DateTime             @map("device_ready_at")
+  status                   ActivationTaskStatus @default(pending)
+  invitationSentAt         DateTime?            @map("invitation_sent_at")
+  invitationCount          Int                  @default(0) @map("invitation_count")
+  activatedAnchorProfileId String?              @unique @map("activated_anchor_profile_id") @db.Uuid
+  createdAt                DateTime             @default(now()) @map("created_at")
+  updatedAt                DateTime             @updatedAt @map("updated_at")
+  auditTeacher             OperatorAccount      @relation("ActivationAuditTeacher", fields: [auditTeacherId], references: [id])
+  activatedAnchorProfile   AnchorProfile?       @relation(fields: [activatedAnchorProfileId], references: [id])
+
+  @@index([status, createdAt])
+  @@map("anchor_activation_tasks")
+}
+
+model AnchorProfile {
+  id                String                     @id @default(uuid()) @db.Uuid
+  wecomUserRecordId String                     @unique @map("wecom_user_record_id") @db.Uuid
+  anchorDisplayName String                     @map("anchor_display_name") @db.VarChar(100)
+  currentOperatorId String?                    @map("current_operator_id") @db.Uuid
+  assignmentStatus  OperatorAssignmentStatus?  @map("assignment_status")
+  source            String                     @default("activation") @db.VarChar(30)
+  status            AnchorProfileStatus        @default(active)
+  activatedAt       DateTime                   @default(now()) @map("activated_at")
+  createdAt         DateTime                   @default(now()) @map("created_at")
+  updatedAt         DateTime                   @updatedAt @map("updated_at")
+  wecomUser         WecomUser                  @relation(fields: [wecomUserRecordId], references: [id])
+  currentOperator   OperatorAccount?           @relation("CurrentAnchorOperator", fields: [currentOperatorId], references: [id])
+  assignments       AnchorOperatorAssignment[]
+  activationTask    AnchorActivationTask?
+  nameHistory       AnchorNameHistory[]
+
+  @@index([currentOperatorId, assignmentStatus])
+  @@map("anchor_profiles")
+}
+
+model AnchorNameHistory {
+  id              String        @id @default(uuid()) @db.Uuid
+  anchorProfileId String        @map("anchor_profile_id") @db.Uuid
+  oldName         String        @map("old_name") @db.VarChar(100)
+  newName         String        @map("new_name") @db.VarChar(100)
+  changedByType   String        @map("changed_by_type") @db.VarChar(30)
+  changedById     String?       @map("changed_by_id") @db.VarChar(64)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  anchorProfile   AnchorProfile @relation(fields: [anchorProfileId], references: [id], onDelete: Cascade)
+
+  @@map("anchor_name_history")
+}
+
+model AnchorOperatorAssignment {
+  id              String                   @id @default(uuid()) @db.Uuid
+  anchorProfileId String                   @map("anchor_profile_id") @db.Uuid
+  operatorId      String                   @map("operator_id") @db.Uuid
+  status          OperatorAssignmentStatus @default(pending_confirmation)
+  startedAt       DateTime?                @map("started_at")
+  endedAt         DateTime?                @map("ended_at")
+  initiatedBy     String                   @map("initiated_by") @db.VarChar(64)
+  confirmedBy     String?                  @map("confirmed_by") @db.VarChar(64)
+  reason          String?
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+  anchorProfile   AnchorProfile            @relation(fields: [anchorProfileId], references: [id], onDelete: Cascade)
+  operator        OperatorAccount          @relation("AssignmentOperator", fields: [operatorId], references: [id])
+
+  @@index([anchorProfileId, status])
+  @@index([operatorId, status])
+  @@map("anchor_operator_assignments")
 }
 
 model ActivityType {
@@ -104,62 +222,62 @@ model Activity {
 }
 
 model ActivityItem {
-  id        String   @id @default(uuid()) @db.Uuid
-  activityId String  @map("activity_id") @db.Uuid
-  itemCode  String   @map("item_code") @db.VarChar(50)
-  itemName  String   @map("item_name") @db.VarChar(100)
-  itemType  String   @map("item_type") @db.VarChar(30)
-  sortOrder Int      @default(0) @map("sort_order")
-  enabled   Boolean  @default(true)
-  activity  Activity @relation(fields: [activityId], references: [id])
-  rules     RewardRule[]
+  id              String           @id @default(uuid()) @db.Uuid
+  activityId      String           @map("activity_id") @db.Uuid
+  itemCode        String           @map("item_code") @db.VarChar(50)
+  itemName        String           @map("item_name") @db.VarChar(100)
+  itemType        String           @map("item_type") @db.VarChar(30)
+  sortOrder       Int              @default(0) @map("sort_order")
+  enabled         Boolean          @default(true)
+  activity        Activity         @relation(fields: [activityId], references: [id])
+  rules           RewardRule[]
   submissionItems SubmissionItem[]
 
   @@map("activity_items")
 }
 
 model RewardRule {
-  id           String        @id @default(uuid()) @db.Uuid
-  activityId   String        @map("activity_id") @db.Uuid
-  itemId       String?       @map("item_id") @db.Uuid
-  compareMode  String        @default("gte") @map("compare_mode") @db.VarChar(20)
-  threshold    Decimal       @db.Decimal(18, 2)
-  rewardType   String        @map("reward_type") @db.VarChar(20)
-  rewardLabel  String        @map("reward_label") @db.VarChar(200)
-  rewardValueCents Int       @default(0) @map("reward_value_cents")
-  rewardPayload Json?        @map("reward_payload")
-  sortOrder    Int           @default(0) @map("sort_order")
-  enabled      Boolean       @default(true)
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
-  activity     Activity      @relation(fields: [activityId], references: [id])
-  item         ActivityItem? @relation(fields: [itemId], references: [id])
+  id               String        @id @default(uuid()) @db.Uuid
+  activityId       String        @map("activity_id") @db.Uuid
+  itemId           String?       @map("item_id") @db.Uuid
+  compareMode      String        @default("gte") @map("compare_mode") @db.VarChar(20)
+  threshold        Decimal       @db.Decimal(18, 2)
+  rewardType       String        @map("reward_type") @db.VarChar(20)
+  rewardLabel      String        @map("reward_label") @db.VarChar(200)
+  rewardValueCents Int           @default(0) @map("reward_value_cents")
+  rewardPayload    Json?         @map("reward_payload")
+  sortOrder        Int           @default(0) @map("sort_order")
+  enabled          Boolean       @default(true)
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  activity         Activity      @relation(fields: [activityId], references: [id])
+  item             ActivityItem? @relation(fields: [itemId], references: [id])
 
   @@map("reward_rules")
 }
 
 model Submission {
-  id            String             @id @default(uuid()) @db.Uuid
-  activityId    String             @map("activity_id") @db.Uuid
-  anchorUserId  String             @map("anchor_user_id") @db.Uuid
-  anchorName    String             @map("anchor_name") @db.VarChar(100)
-  operatorId    String             @map("operator_id") @db.Uuid
-  liveDate      DateTime           @map("live_date") @db.Date
-  liveStartTime DateTime           @map("live_start_time") @db.Time(0)
-  reviewStatus  ReviewStatus       @default(pending) @map("review_status")
-  grantStatus   GrantStatus        @default(pending) @map("grant_status")
-  rejectReason  String?            @map("reject_reason")
+  id             String            @id @default(uuid()) @db.Uuid
+  activityId     String            @map("activity_id") @db.Uuid
+  anchorUserId   String            @map("anchor_user_id") @db.Uuid
+  anchorName     String            @map("anchor_name") @db.VarChar(100)
+  operatorId     String            @map("operator_id") @db.Uuid
+  liveDate       DateTime          @map("live_date") @db.Date
+  liveStartTime  DateTime          @map("live_start_time") @db.Time(0)
+  reviewStatus   ReviewStatus      @default(pending) @map("review_status")
+  grantStatus    GrantStatus       @default(pending) @map("grant_status")
+  rejectReason   String?           @map("reject_reason")
   rewardSnapshot Json?             @map("reward_snapshot")
-  createdAt     DateTime           @default(now()) @map("created_at")
-  updatedAt     DateTime           @updatedAt @map("updated_at")
-  activity      Activity           @relation(fields: [activityId], references: [id])
-  anchorUser    WecomUser          @relation(fields: [anchorUserId], references: [id])
-  operator      OperatorAccount    @relation(fields: [operatorId], references: [id])
-  items         SubmissionItem[]
-  attachments   Attachment[]
-  reviewLogs    ReviewLog[]
-  rewardGrants  RewardGrant[]
-  notifications NotificationLog[]
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+  activity       Activity          @relation(fields: [activityId], references: [id])
+  anchorUser     WecomUser         @relation(fields: [anchorUserId], references: [id])
+  operator       OperatorAccount   @relation(fields: [operatorId], references: [id])
+  items          SubmissionItem[]
+  attachments    Attachment[]
+  reviewLogs     ReviewLog[]
+  rewardGrants   RewardGrant[]
+  notifications  NotificationLog[]
 
   @@index([activityId, operatorId, liveDate], map: "idx_submissions_activity_operator_date")
   @@index([anchorUserId, activityId, liveDate], map: "idx_submissions_anchor_activity_date")
@@ -167,13 +285,13 @@ model Submission {
 }
 
 model SubmissionItem {
-  id           String      @id @default(uuid()) @db.Uuid
-  submissionId String      @map("submission_id") @db.Uuid
-  itemId       String?     @map("item_id") @db.Uuid
-  itemName     String      @map("item_name") @db.VarChar(100)
-  quantity     Decimal     @db.Decimal(18, 2)
-  extraPayload Json?       @map("extra_payload")
-  submission   Submission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  id           String        @id @default(uuid()) @db.Uuid
+  submissionId String        @map("submission_id") @db.Uuid
+  itemId       String?       @map("item_id") @db.Uuid
+  itemName     String        @map("item_name") @db.VarChar(100)
+  quantity     Decimal       @db.Decimal(18, 2)
+  extraPayload Json?         @map("extra_payload")
+  submission   Submission    @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   item         ActivityItem? @relation(fields: [itemId], references: [id])
 
   @@map("submission_items")
@@ -220,18 +338,18 @@ model RewardGrant {
 }
 
 model NotificationLog {
-  id                 String             @id @default(uuid()) @db.Uuid
-  submissionId       String             @map("submission_id") @db.Uuid
-  notificationType   String             @map("notification_type") @db.VarChar(50)
-  receiverWecomUserId String            @map("receiver_wecom_user_id") @db.VarChar(64)
-  receiverRole       String             @map("receiver_role") @db.VarChar(20)
-  messageTitle       String             @map("message_title") @db.VarChar(200)
-  messageContent     String             @map("message_content")
-  status             NotificationStatus @default(pending)
-  errorMessage       String?            @map("error_message")
-  sentAt             DateTime?          @map("sent_at")
-  createdAt          DateTime           @default(now()) @map("created_at")
-  submission         Submission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  id                  String             @id @default(uuid()) @db.Uuid
+  submissionId        String             @map("submission_id") @db.Uuid
+  notificationType    String             @map("notification_type") @db.VarChar(50)
+  receiverWecomUserId String             @map("receiver_wecom_user_id") @db.VarChar(64)
+  receiverRole        String             @map("receiver_role") @db.VarChar(20)
+  messageTitle        String             @map("message_title") @db.VarChar(200)
+  messageContent      String             @map("message_content")
+  status              NotificationStatus @default(pending)
+  errorMessage        String?            @map("error_message")
+  sentAt              DateTime?          @map("sent_at")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  submission          Submission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   @@index([submissionId, notificationType], map: "idx_notification_logs_submission_type")
   @@map("notification_logs")
