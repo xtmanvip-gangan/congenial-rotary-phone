@@ -5,6 +5,7 @@ import { AppService } from './app.service.js'
 import { ExportsModule } from './modules/exports/exports.module.js'
 import { ActivitiesModule } from './modules/activities/activities.module.js'
 import { AccessModule } from './modules/access/access.module.js'
+import { ActivationModule } from './modules/activation/activation.module.js'
 import { AuthModule } from './modules/auth/auth.module.js'
 import { HealthModule } from './modules/health/health.module.js'
 import { NotificationsModule } from './modules/notifications/notifications.module.js'
@@ -21,6 +22,7 @@ import { PrismaModule } from './prisma/prisma.module.js'
     }),
     PrismaModule,
     AccessModule,
+    ActivationModule,
     HealthModule,
     AuthModule,
     ExportsModule,
