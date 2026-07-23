@@ -1,12 +1,13 @@
-# 礼物收集活动管理系统
+# 主播培训中台与礼物收集系统
 
-当前仓库已经完成基础骨架、企业微信登录第一版接入，以及数据库驱动的运营老师管理最小闭环，包含：
+本仓库是在礼物收集活动管理系统副本上扩展的公司内部主播培训中台。
 
 - `src`：React + Vite 前端基础路由骨架
 - `api`：NestJS 后端基础模块骨架
 - `api/prisma/schema.prisma`：Prisma 数据模型
 - `migrations`：初始化 SQL 文件
 - `.trae/documents`：产品需求和技术方案文档
+- `docs/superpowers/plans`：分阶段实施计划
 
 ## 开发命令
 
@@ -46,11 +47,15 @@ npm run db:push
 npm run db:seed:activity-types
 ```
 
-这一步会完成：
+初始化已有礼物业务后，再按顺序执行 `migrations` 目录中的增量SQL。阶段A新增：
 
-- 生成 Prisma Client
-- 把 `schema.prisma` 表结构推送到 PostgreSQL
-- 初始化两种活动类型：`礼物收集类`、`PK 值类`
+- `staff_role_assignments`
+- `anchor_activation_tasks`
+- `anchor_profiles`
+- `anchor_name_history`
+- `anchor_operator_assignments`
+
+生产环境不要使用无确认的整库 `db:push` 替代增量迁移。
 
 ## 环境变量
 
@@ -58,17 +63,27 @@ npm run db:seed:activity-types
 
 - PostgreSQL 连接地址
 - 企业微信 `CorpID / AgentID / Secret / Callback URL`
+- 企业微信小程序 `CorpID / Secret`
+- 超级管理员初始化账号
 - 对象存储配置
 - 前端访问后端的 `VITE_API_BASE_URL`
 
-## 当前阶段说明
+真实密钥、私钥文件和密码只能放在部署环境变量或仓库外的受控位置，不能提交到Git。
 
-当前版本主要完成：
+## 三类登录
 
-- 前端主路由占位
-- 后端健康检查与模块骨架
-- 企业微信登录与回调
-- 数据库结构建模
-- 超级管理员运营老师管理最小闭环
+- 超级管理员：只能在外部浏览器使用账号密码登录。
+- 审核、运营和培训人员：只能从企业微信自建应用进入，通过预录入的企微UID识别。
+- 主播：只能通过企业微信小程序授权登录。
 
-下一阶段会继续实现活动管理、规则配置、主播提报、审核发放和通知逻辑。
+## 阶段A已完成
+
+- 员工多角色和登录入口隔离。
+- 审核老师创建、提醒和跟进主播激活任务。
+- 主播本人通过企微身份激活唯一档案。
+- 主播选择运营，运营确认或驳回。
+- 固定运营归属和归属历史数据基础。
+- 超管员工管理、审核激活和运营主播Web工作台。
+- 主播小程序激活页面。
+
+本阶段尚未改造礼物提报自动归属，也未加入岗前里程碑和培训课程；这些内容从阶段B开始实施。
