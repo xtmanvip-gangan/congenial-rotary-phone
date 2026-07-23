@@ -80,3 +80,12 @@
 - 保存后展示成功或失败原因；员工退出当前企微登录后重新登录，即可在顶部工作台切换已分配角色。
 - 上线前 Web 备份：`/www/backups/shouji/20260723-roles-e3c5afe/ac.ydwy.net-before-roles.tar.gz`
 - 线上静态资源：`index-HnTvFq7i.js`
+
+## 激活任务时间校验补丁
+
+- 部署版本：`8c1149c`
+- 部署时间：2026-07-23（Asia/Shanghai）
+- 修复入会完成时间或设备调试完成时间为空时，前端执行无效日期转换并中断提交的问题。
+- 现在提交前会明确提示填写两个完成时间，不再出现无请求、无反馈的失败。
+- 上线前 Web 备份：`/www/backups/shouji/20260723-activation-8c1149c/ac.ydwy.net-before-activation-fix.tar.gz`
+- 线上静态资源：`index-o2TA3fno.js`
