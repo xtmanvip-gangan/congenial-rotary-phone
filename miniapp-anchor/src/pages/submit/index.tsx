@@ -1,6 +1,5 @@
 import { Button, Input, Picker, Text, View } from '@tarojs/components'
 import Taro, { getCurrentInstance } from '@tarojs/taro'
-import type { BaseEventOrig, PickerSelectorProps } from '@tarojs/components'
 import { useEffect, useMemo, useState } from 'react'
 import StateBlock from '@/components/StateBlock'
 import { ensureAppSession } from '@/services/auth'
@@ -14,7 +13,6 @@ import {
   updateSubmission,
   uploadImages,
 } from '@/services/submissions'
-import { useSessionStore } from '@/store/session'
 import type { ActivityDetailResponse } from '@/types/activity'
 import type {
   LocalImageFile,
@@ -33,7 +31,6 @@ type GiftRow = {
 }
 
 export default function SubmitPage() {
-  const session = useSessionStore((state) => state.session)
   const params = useMemo(() => getCurrentInstance().router?.params ?? {}, [])
   const recordId = params.recordId ?? ''
   const activityId = params.activityId ?? ''
@@ -42,8 +39,6 @@ export default function SubmitPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pageData, setPageData] = useState<ActivityDetailResponse | null>(null)
-  const [anchorName, setAnchorName] = useState('')
-  const [operatorId, setOperatorId] = useState('')
   const [liveDate, setLiveDate] = useState(getCurrentDateValue())
   const [liveStartTime, setLiveStartTime] = useState(getCurrentTimeValue())
   const [giftRows, setGiftRows] = useState<GiftRow[]>([{ id: buildRowId(), itemName: '', quantity: '' }])
@@ -104,8 +99,6 @@ export default function SubmitPage() {
 
   function applyActivityDetail(response: ActivityDetailResponse) {
     setPageData(response)
-    setAnchorName((current) => current || session?.user.name || '')
-    setOperatorId(response.operators[0]?.id ?? '')
     if (response.item.formConfig.mode === 'gift_collection') {
       setGiftRows([
         {
@@ -123,10 +116,16 @@ export default function SubmitPage() {
   function applySubmissionDetail(response: SubmissionDetailResponse) {
     setPageData({
       item: response.item.activity,
-      operators: response.operators,
+      anchorProfile: {
+        id: '',
+        anchorDisplayName: response.item.anchorName,
+        assignmentStatus: response.item.operatorAssignmentStatus,
+        operator: {
+          id: response.item.operatorId,
+          displayName: response.item.operatorName,
+        },
+      },
     })
-    setAnchorName(response.item.anchorName)
-    setOperatorId(response.item.operatorId)
     setLiveDate(response.item.liveDate)
     setLiveStartTime(response.item.liveStartTime)
     setExistingAttachments(response.item.attachments)
@@ -297,16 +296,6 @@ export default function SubmitPage() {
       return
     }
 
-    if (!anchorName.trim()) {
-      Taro.showToast({ title: '请填写主播姓名', icon: 'none' })
-      return
-    }
-
-    if (!operatorId) {
-      Taro.showToast({ title: '请选择运营老师', icon: 'none' })
-      return
-    }
-
     if (!liveDate || !liveStartTime) {
       Taro.showToast({ title: '请选择直播时间', icon: 'none' })
       return
@@ -338,8 +327,6 @@ export default function SubmitPage() {
 
       const payload = {
         activityId: isEditMode ? undefined : pageData.item.id,
-        anchorName: anchorName.trim(),
-        operatorId,
         liveDate,
         liveStartTime,
         items: pageData.item.formConfig.mode === 'gift_collection' ? normalizedGiftItems : undefined,
@@ -352,7 +339,13 @@ export default function SubmitPage() {
         Taro.showToast({ title: '已重新提交', icon: 'success' })
       } else {
         await createSubmission(payload)
-        Taro.showToast({ title: '提交成功', icon: 'success' })
+        Taro.showToast({
+          title:
+            pageData.anchorProfile.assignmentStatus === 'pending_confirmation'
+              ? '已保存，归属确认后处理'
+              : '提交成功',
+          icon: 'success',
+        })
       }
 
       setTimeout(() => {
@@ -394,12 +387,6 @@ export default function SubmitPage() {
     )
   }
 
-  const operatorNames = pageData.operators.map((item) => item.displayName)
-  const operatorIndex = Math.max(
-    0,
-    pageData.operators.findIndex((item) => item.id === operatorId),
-  )
-
   return (
     <View className="pageShell">
       <View className="heroCard">
@@ -418,30 +405,21 @@ export default function SubmitPage() {
           <View className={styles.grid}>
             <View className="fieldBlock">
               <Text className="fieldLabel">主播姓名</Text>
-              <Input
-                className="fieldInput"
-                value={anchorName}
-                onInput={(event: { detail: { value: string } }) => setAnchorName(event.detail.value)}
-              />
+              <View className="fieldValue">
+                {pageData.anchorProfile.anchorDisplayName}
+              </View>
             </View>
             <View className="fieldBlock">
-              <Text className="fieldLabel">运营老师</Text>
-              {pageData.operators.length > 0 ? (
-                <Picker
-                  mode="selector"
-                  range={operatorNames}
-                  value={operatorIndex}
-                  onChange={(event: BaseEventOrig<PickerSelectorProps.ChangeEventDetail>) => {
-                    const nextIndex = Number(event.detail.value)
-                    setOperatorId(pageData.operators[nextIndex]?.id ?? '')
-                  }}
-                >
-                  <View className="fieldValue">{pageData.operators[operatorIndex]?.displayName || '请选择运营老师'}</View>
-                </Picker>
-              ) : (
-                <View className="fieldValue">当前还没有可选运营老师</View>
-              )}
-              {pageData.operators.length === 0 ? <Text className="fieldHint errorText">请先在后台配置可用的运营老师。</Text> : null}
+              <Text className="fieldLabel">固定运营老师</Text>
+              <View className="fieldValue">
+                {pageData.anchorProfile.operator.displayName}
+              </View>
+              {pageData.anchorProfile.assignmentStatus ===
+              'pending_confirmation' ? (
+                <Text className="fieldHint">
+                  当前归属待运营确认，本次提报会先保存，确认后自动进入处理。
+                </Text>
+              ) : null}
             </View>
             <View className="fieldBlock">
               <Text className="fieldLabel">直播日期</Text>

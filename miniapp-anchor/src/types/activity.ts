@@ -58,11 +58,18 @@ export type ActivityOperator = {
   displayName: string
 }
 
+export type ActivityAnchorProfile = {
+  id: string
+  anchorDisplayName: string
+  assignmentStatus: 'pending_confirmation' | 'confirmed'
+  operator: ActivityOperator
+}
+
 export type AvailableActivitiesResponse = {
   items: AvailableActivityItem[]
 }
 
 export type ActivityDetailResponse = {
   item: ActivityDetailItem
-  operators: ActivityOperator[]
+  anchorProfile: ActivityAnchorProfile
 }

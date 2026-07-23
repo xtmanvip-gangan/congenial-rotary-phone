@@ -101,6 +101,9 @@ export default function RecordsPage() {
                 <View className={styles.titleRow}>
                   <Text className={styles.title}>{item.activity.name}</Text>
                   <StatusTag text={item.activity.typeName} tone="brand" />
+                  {item.operatorAssignmentStatus === 'pending_confirmation' ? (
+                    <StatusTag text="归属待确认" tone="warning" />
+                  ) : null}
                   <StatusTag text={getReviewStatusText(item.reviewStatus)} tone={reviewTone} />
                   <StatusTag text={getGrantStatusText(item.grantStatus)} tone={grantTone} />
                 </View>

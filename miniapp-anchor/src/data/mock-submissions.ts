@@ -17,6 +17,8 @@ let mockSubmissionItems: SubmissionDetailResponse['item'][] = [
     id: 'record-1001',
     anchorName: '预览主播小雨',
     operatorId: 'operator-1',
+    operatorName: '运营老师-安安',
+    operatorAssignmentStatus: 'confirmed',
     liveDate: '2026-07-18',
     liveStartTime: '19:30',
     reviewStatus: 'pending',
@@ -40,6 +42,8 @@ let mockSubmissionItems: SubmissionDetailResponse['item'][] = [
     id: 'record-1002',
     anchorName: '预览主播小雨',
     operatorId: 'operator-2',
+    operatorName: '运营老师-阿泽',
+    operatorAssignmentStatus: 'confirmed',
     liveDate: '2026-07-17',
     liveStartTime: '21:00',
     reviewStatus: 'rejected',
@@ -71,7 +75,8 @@ export function getMockSubmissions(): MySubmissionsResponse {
           typeName: item.activity.type.typeName,
         },
         anchorName: item.anchorName,
-        operatorName: getOperatorName(item.operatorId, item.activity.id),
+        operatorName: item.operatorName,
+        operatorAssignmentStatus: item.operatorAssignmentStatus,
         liveDate: item.liveDate,
         liveStartTime: item.liveStartTime,
         reviewStatus: item.reviewStatus,
@@ -90,7 +95,6 @@ export function getMockSubmissionDetail(recordId: string): SubmissionDetailRespo
 
   return {
     item: JSON.parse(JSON.stringify(item)) as SubmissionDetailResponse['item'],
-    operators: getMockActivityDetail(item.activity.id).operators,
   }
 }
 
@@ -111,8 +115,14 @@ export function saveMockSubmission(
 
   const nextItem: SubmissionDetailResponse['item'] = {
     id: existing?.id ?? `record-${Date.now()}`,
-    anchorName: payload.anchorName,
-    operatorId: payload.operatorId,
+    anchorName:
+      existing?.anchorName ?? detail.anchorProfile.anchorDisplayName,
+    operatorId: existing?.operatorId ?? detail.anchorProfile.operator.id,
+    operatorName:
+      existing?.operatorName ?? detail.anchorProfile.operator.displayName,
+    operatorAssignmentStatus:
+      existing?.operatorAssignmentStatus ??
+      detail.anchorProfile.assignmentStatus,
     liveDate: payload.liveDate,
     liveStartTime: payload.liveStartTime,
     reviewStatus: 'pending',
@@ -133,7 +143,6 @@ export function saveMockSubmission(
 
   return {
     item: JSON.parse(JSON.stringify(nextItem)) as SubmissionDetailResponse['item'],
-    operators: detail.operators,
   }
 }
 
@@ -160,11 +169,6 @@ function resolveActivityIdByRecordId(recordId?: string) {
   }
 
   return mockSubmissionItems.find((item) => item.id === recordId)?.activity.id ?? 'activity-gift-1'
-}
-
-function getOperatorName(operatorId: string, activityId: string) {
-  const operator = getMockActivityDetail(activityId).operators.find((item) => item.id === operatorId)
-  return operator?.displayName ?? '运营老师'
 }
 
 function buildRewardSummary(activityId: string, items: SubmissionEntryItem[], pkValue: number | null) {

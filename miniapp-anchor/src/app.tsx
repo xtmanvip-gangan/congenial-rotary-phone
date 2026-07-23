@@ -48,7 +48,11 @@ export default App
 function routeByActivationStatus(
   session: NonNullable<ReturnType<typeof useSessionStore.getState>['session']>,
 ) {
-  if (session.mode === 'mock' || session.user.anchorProfileStatus === 'active') {
+  if (
+    session.mode === 'mock' ||
+    session.user.anchorProfileStatus === 'active' ||
+    session.user.anchorProfileStatus === 'pending_confirmation'
+  ) {
     return
   }
 

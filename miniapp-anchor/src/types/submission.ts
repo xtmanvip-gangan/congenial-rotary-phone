@@ -1,4 +1,4 @@
-import type { ActivityDetailItem, ActivityOperator, RewardRuleReference } from './activity'
+import type { ActivityDetailItem, RewardRuleReference } from './activity'
 
 export type ReviewStatus = 'pending' | 'approved' | 'rejected'
 export type GrantStatus = 'pending' | 'granted'
@@ -22,6 +22,7 @@ export type SubmissionRecordItem = {
   }
   anchorName: string
   operatorName: string
+  operatorAssignmentStatus: 'pending_confirmation' | 'confirmed'
   liveDate: string
   liveStartTime: string
   reviewStatus: ReviewStatus
@@ -41,6 +42,8 @@ export type SubmissionDetailItem = {
   id: string
   anchorName: string
   operatorId: string
+  operatorName: string
+  operatorAssignmentStatus: 'pending_confirmation' | 'confirmed'
   liveDate: string
   liveStartTime: string
   reviewStatus: ReviewStatus
@@ -55,7 +58,6 @@ export type SubmissionDetailItem = {
 
 export type SubmissionDetailResponse = {
   item: SubmissionDetailItem
-  operators: ActivityOperator[]
 }
 
 export type PreviewGiftResponse = {
@@ -78,8 +80,6 @@ export type PreviewResponse = PreviewGiftResponse | PreviewPkResponse
 
 export type CreateOrUpdateSubmissionPayload = {
   activityId?: string
-  anchorName: string
-  operatorId: string
   liveDate: string
   liveStartTime: string
   items?: SubmissionEntryItem[]

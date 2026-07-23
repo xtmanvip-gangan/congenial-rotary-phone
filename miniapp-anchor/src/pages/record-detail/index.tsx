@@ -83,6 +83,9 @@ export default function RecordDetailPage() {
         <View className="panelCard">
           <View className={styles.row}>
             <StatusTag text={item.activity.type.typeName} tone="brand" />
+            {item.operatorAssignmentStatus === 'pending_confirmation' ? (
+              <StatusTag text="归属待确认" tone="warning" />
+            ) : null}
             <StatusTag text={getReviewStatusText(item.reviewStatus)} tone={reviewTone} />
             <StatusTag text={getGrantStatusText(item.grantStatus)} tone={grantTone} />
           </View>
@@ -94,6 +97,7 @@ export default function RecordDetailPage() {
           <Text className="panelTitle">基础信息</Text>
           <View className={styles.section}>
             <Text className={styles.line}>主播姓名：{item.anchorName}</Text>
+            <Text className={styles.line}>固定运营：{item.operatorName}</Text>
             <Text className={styles.line}>
               直播时间：{item.liveDate} {item.liveStartTime}
             </Text>

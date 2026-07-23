@@ -153,6 +153,11 @@ export function getMockActivityDetail(activityId: string): ActivityDetailRespons
 
   return {
     item: JSON.parse(JSON.stringify(item)) as ActivityDetailItem,
-    operators: operators.map((operator) => ({ ...operator })),
+    anchorProfile: {
+      id: 'profile-mock-1',
+      anchorDisplayName: '主播小鹿',
+      assignmentStatus: 'confirmed',
+      operator: { ...operators[0] },
+    },
   }
 }
