@@ -1,6 +1,7 @@
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { AuthGate } from './components/AuthGate'
+import { RoleWorkspaceSwitcher } from './components/RoleWorkspaceSwitcher'
 import { useAuth } from './auth/AuthContext'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { AnchorActivitiesPage } from './pages/AnchorActivitiesPage'
@@ -9,12 +10,16 @@ import { ActivityManagementPage } from './pages/ActivityManagementPage'
 import { AdminRecordActivityDetailPage } from './pages/AdminRecordActivityDetailPage'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { AdminRecordsPage } from './pages/AdminRecordsPage'
+import { AuditActivationPage } from './pages/AuditActivationPage'
 import { ExportCenterPage } from './pages/ExportCenterPage'
 import { LoginPage } from './pages/LoginPage'
 import { MyRecordsPage } from './pages/MyRecordsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
-import { OperatorManagementPage } from './pages/OperatorManagementPage'
+import { OperatorAnchorsPage } from './pages/OperatorAnchorsPage'
 import { RuleManagementPage } from './pages/RuleManagementPage'
+import { StaffHomePage } from './pages/StaffHomePage'
+import { StaffManagementPage } from './pages/StaffManagementPage'
+import type { AppRole } from './lib/auth'
 
 function App() {
   const { session, logout } = useAuth()
@@ -63,6 +68,7 @@ function App() {
                   </p>
                   <p className="mt-1 text-sm text-slate-500">当前角色：{formatRole(session.user.role)}</p>
                 </div>
+                <RoleWorkspaceSwitcher />
                 <button
                   type="button"
                   onClick={logout}
@@ -115,6 +121,14 @@ function App() {
               }
             />
             <Route
+              path="/admin/staff"
+              element={
+                <AuthGate allowRoles={['super_admin']}>
+                  <StaffManagementPage />
+                </AuthGate>
+              }
+            />
+            <Route
               path="/admin/dashboard"
               element={
                 <AuthGate allowRoles={['super_admin']}>
@@ -158,7 +172,38 @@ function App() {
               path="/admin/operators"
               element={
                 <AuthGate allowRoles={['super_admin']}>
-                  <OperatorManagementPage />
+                  <Navigate to="/admin/staff" replace />
+                </AuthGate>
+              }
+            />
+            <Route
+              path="/audit/activations"
+              element={
+                <AuthGate allowRoles={['audit_teacher', 'training_admin']}>
+                  <AuditActivationPage />
+                </AuthGate>
+              }
+            />
+            <Route
+              path="/operator/anchors"
+              element={
+                <AuthGate allowRoles={['operator']}>
+                  <OperatorAnchorsPage />
+                </AuthGate>
+              }
+            />
+            <Route
+              path="/staff/home"
+              element={
+                <AuthGate
+                  allowRoles={[
+                    'audit_teacher',
+                    'operator',
+                    'training_teacher',
+                    'training_admin',
+                  ]}
+                >
+                  <StaffHomePage />
                 </AuthGate>
               }
             />
@@ -185,7 +230,7 @@ type NavigationItem = {
   to: string
 }
 
-function HeaderNavigation({ role }: { role: 'anchor' | 'operator' | 'super_admin' }) {
+function HeaderNavigation({ role }: { role: AppRole }) {
   const items = getNavigationItems(role)
 
   return (
@@ -218,7 +263,7 @@ function HeaderNavigation({ role }: { role: 'anchor' | 'operator' | 'super_admin
   )
 }
 
-function getNavigationItems(role: 'anchor' | 'operator' | 'super_admin'): NavigationItem[] {
+function getNavigationItems(role: AppRole): NavigationItem[] {
   if (role === 'anchor') {
     return [
       { label: '活动列表', to: '/app/activities' },
@@ -228,7 +273,7 @@ function getNavigationItems(role: 'anchor' | 'operator' | 'super_admin'): Naviga
 
   if (role === 'super_admin') {
     return [
-      { label: '运营老师管理', to: '/admin/operators' },
+      { label: '员工与角色', to: '/admin/staff' },
       { label: '后台首页', to: '/admin/dashboard' },
       { label: '活动记录', to: '/admin/records' },
       { label: '活动管理', to: '/admin/activities' },
@@ -237,20 +282,44 @@ function getNavigationItems(role: 'anchor' | 'operator' | 'super_admin'): Naviga
     ]
   }
 
-  return [
-    { label: '活动记录', to: '/admin/records' },
-    { label: '规则管理', to: '/admin/rules' },
-    { label: '导出中心', to: '/admin/exports' },
-  ]
+  if (role === 'operator') {
+    return [
+      { label: '我的主播', to: '/operator/anchors' },
+      { label: '活动记录', to: '/admin/records' },
+      { label: '规则管理', to: '/admin/rules' },
+      { label: '导出中心', to: '/admin/exports' },
+    ]
+  }
+
+  if (role === 'audit_teacher' || role === 'training_admin') {
+    return [
+      { label: '主播激活', to: '/audit/activations' },
+      { label: '工作台', to: '/staff/home' },
+    ]
+  }
+
+  return [{ label: '工作台', to: '/staff/home' }]
 }
 
-function formatRole(role: 'anchor' | 'operator' | 'super_admin') {
+function formatRole(role: AppRole) {
   if (role === 'anchor') {
     return '主播'
   }
 
   if (role === 'operator') {
     return '运营老师'
+  }
+
+  if (role === 'audit_teacher') {
+    return '审核老师'
+  }
+
+  if (role === 'training_teacher') {
+    return '培训老师'
+  }
+
+  if (role === 'training_admin') {
+    return '培训管理员'
   }
 
   return '超级管理员'

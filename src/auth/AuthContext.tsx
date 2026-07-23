@@ -12,11 +12,13 @@ import {
   persistSession,
   type StoredSession,
 } from '../lib/auth'
+import type { AppRole } from '../lib/auth'
 
 type AuthContextValue = {
   session: StoredSession | null
   hydrated: boolean
   setSession: (session: StoredSession) => void
+  selectRole: (role: AppRole) => void
   logout: () => void
 }
 
@@ -38,6 +40,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(nextSession) {
         persistSession(nextSession)
         setSessionState(nextSession)
+      },
+      selectRole(role) {
+        setSessionState((current) => {
+          if (!current || !current.user.roles.includes(role)) {
+            return current
+          }
+
+          const nextSession = {
+            ...current,
+            user: {
+              ...current.user,
+              role,
+            },
+          }
+          persistSession(nextSession)
+          return nextSession
+        })
       },
       logout() {
         clearStoredSession()

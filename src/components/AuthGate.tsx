@@ -25,7 +25,11 @@ export function AuthGate({ children, allowRoles }: AuthGateProps) {
     return <Navigate to="/" replace />
   }
 
-  if (allowRoles && !allowRoles.includes(session.user.role)) {
+  const hasAllowedRole =
+    !allowRoles ||
+    allowRoles.some((role) => session.user.roles.includes(role))
+
+  if (!hasAllowedRole) {
     return <Navigate to={getRoleHomePath(session.user.role)} replace />
   }
 

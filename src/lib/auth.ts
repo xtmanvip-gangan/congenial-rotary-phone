@@ -1,4 +1,10 @@
-export type AppRole = 'anchor' | 'operator' | 'super_admin'
+export type StaffRole =
+  | 'audit_teacher'
+  | 'operator'
+  | 'training_teacher'
+  | 'training_admin'
+
+export type AppRole = 'anchor' | StaffRole | 'super_admin'
 
 export type AuthenticatedUser = {
   accountId?: string | null
@@ -6,7 +12,13 @@ export type AuthenticatedUser = {
   name: string
   avatarUrl: string | null
   role: AppRole
-  loginType?: 'wecom' | 'password'
+  roles: AppRole[]
+  loginType: 'wecom_staff' | 'wecom_miniapp' | 'password_admin'
+  anchorProfileStatus?:
+    | 'not_eligible'
+    | 'not_activated'
+    | 'pending_confirmation'
+    | 'active'
 }
 
 export type StoredSession = {
@@ -49,12 +61,20 @@ export function getToken() {
 
 export function getRoleHomePath(role: AppRole) {
   if (role === 'anchor') {
-    return '/app/activities'
+    return '/'
   }
 
   if (role === 'super_admin') {
-    return '/admin/operators'
+    return '/admin/staff'
   }
 
-  return '/admin/records'
+  if (role === 'audit_teacher' || role === 'training_admin') {
+    return '/audit/activations'
+  }
+
+  if (role === 'operator') {
+    return '/operator/anchors'
+  }
+
+  return '/staff/home'
 }
