@@ -30,10 +30,10 @@ CREATE TYPE "OperatorAssignmentStatus" AS ENUM (
 -- super administrators can be created without a WeCom user id.
 ALTER TABLE "operator_accounts"
   ALTER COLUMN "wecom_user_id" DROP NOT NULL,
-  ADD COLUMN "username" VARCHAR(64),
-  ADD COLUMN "password_hash" TEXT;
+  ADD COLUMN IF NOT EXISTS "username" VARCHAR(64),
+  ADD COLUMN IF NOT EXISTS "password_hash" TEXT;
 
-CREATE UNIQUE INDEX "operator_accounts_username_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "operator_accounts_username_key"
   ON "operator_accounts"("username");
 
 CREATE TABLE "staff_role_assignments" (
