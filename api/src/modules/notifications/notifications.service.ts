@@ -121,8 +121,8 @@ export class NotificationsService {
         return { item: existing, duplicate: true }
       }
       if (existing) {
-        await this.deliver(existing.id, payload)
-        return { item: existing, duplicate: true }
+        const delivered = await this.deliver(existing.id, payload)
+        return { item: delivered, duplicate: true }
       }
     }
 
@@ -143,8 +143,8 @@ export class NotificationsService {
         maxAttempts: payload.maxAttempts ?? 3,
       },
     })
-    await this.deliver(log.id, payload)
-    return { item: log, duplicate: false }
+    const delivered = await this.deliver(log.id, payload)
+    return { item: delivered, duplicate: false }
   }
 
   async retryFailed(limit = 50) {
@@ -224,7 +224,7 @@ export class NotificationsService {
         `${payload.messageTitle}\n${payload.messageContent}`,
       )
 
-      await this.prisma.notificationLog.update({
+      const updated = await this.prisma.notificationLog.update({
         where: {
           id: logId,
         },
@@ -242,6 +242,7 @@ export class NotificationsService {
         businessType: payload.businessType,
         businessId: payload.businessId ?? logId,
       })
+      return updated
     } catch (error) {
       const message = error instanceof Error ? error.message : '通知发送失败'
 
@@ -249,7 +250,7 @@ export class NotificationsService {
         `通知发送失败 templateCode=${payload.templateCode} receiver=${payload.receiverWecomUserId} error=${message}`,
       )
 
-      await this.prisma.notificationLog.update({
+      const updated = await this.prisma.notificationLog.update({
         where: {
           id: logId,
         },
@@ -267,6 +268,7 @@ export class NotificationsService {
         businessId: payload.businessId ?? logId,
         error,
       })
+      return updated
     }
   }
 }

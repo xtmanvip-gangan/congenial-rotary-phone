@@ -7,7 +7,6 @@ import {
 import { PrismaService } from '../../prisma/prisma.service.js'
 import { AccessService } from '../access/access.service.js'
 import type { AuthenticatedUser } from '../auth/auth.types.js'
-import type { ActivateAnchorDto } from './dto/activate-anchor.dto.js'
 
 const profileInclude = {
   wecomUser: {
@@ -56,13 +55,41 @@ export class AnchorsService {
     }
   }
 
-  async activate(currentUser: AuthenticatedUser, dto: ActivateAnchorDto) {
+  async getMyActivation(currentUser: AuthenticatedUser) {
     this.requireAnchorSession(currentUser)
-    const anchorDisplayName = dto.anchorDisplayName.trim()
+    const task = await this.prisma.anchorActivationTask.findUnique({
+      where: {
+        expectedWecomUserId: currentUser.wecomUserId,
+      },
+      include: {
+        operator: {
+          select: {
+            id: true,
+            displayName: true,
+          },
+        },
+      },
+    })
 
-    if (!anchorDisplayName) {
-      throw new BadRequestException('主播展示名不能为空')
+    if (
+      !task ||
+      (task.status !== 'pending' && task.status !== 'invited') ||
+      !task.operator
+    ) {
+      return { item: null }
     }
+
+    return {
+      item: {
+        anchorDisplayName: task.wecomDisplayNameSnapshot,
+        membershipCompletedAt: task.membershipCompletedAt.toISOString(),
+        operator: task.operator,
+      },
+    }
+  }
+
+  async activate(currentUser: AuthenticatedUser) {
+    this.requireAnchorSession(currentUser)
 
     const wecomUser = await this.prisma.wecomUser.findUnique({
       where: {
@@ -95,43 +122,39 @@ export class AnchorsService {
         where: {
           expectedWecomUserId: currentUser.wecomUserId,
         },
+        include: {
+          operator: {
+            select: {
+              id: true,
+              displayName: true,
+              status: true,
+              staffRoles: {
+                select: {
+                  role: true,
+                },
+              },
+            },
+          },
+        },
       })
 
       if (
         !task ||
         (task.status !== 'pending' && task.status !== 'invited') ||
         !task.membershipCompletedAt ||
-        !task.deviceReadyAt
+        !task.operatorId ||
+        !task.operator ||
+        task.operator.status !== 'active' ||
+        !task.operator.staffRoles.some((item) => item.role === 'operator')
       ) {
         throw new BadRequestException('尚未具备档案激活条件，请联系审核老师')
-      }
-
-      const operator = await tx.operatorAccount.findFirst({
-        where: {
-          id: dto.operatorId,
-          role: 'operator',
-          status: 'active',
-          staffRoles: {
-            some: {
-              role: 'operator',
-            },
-          },
-        },
-        select: {
-          id: true,
-          displayName: true,
-        },
-      })
-
-      if (!operator) {
-        throw new BadRequestException('所选运营老师当前不可用')
       }
 
       const profile = await tx.anchorProfile.create({
         data: {
           wecomUserRecordId: wecomUser.id,
-          anchorDisplayName,
-          currentOperatorId: operator.id,
+          anchorDisplayName: task.wecomDisplayNameSnapshot,
+          currentOperatorId: task.operator.id,
           assignmentStatus: 'pending_confirmation',
           source: 'activation',
           status: 'active',
@@ -142,7 +165,7 @@ export class AnchorsService {
       await tx.anchorOperatorAssignment.create({
         data: {
           anchorProfileId: profile.id,
-          operatorId: operator.id,
+          operatorId: task.operator.id,
           status: 'pending_confirmation',
           initiatedBy: currentUser.wecomUserId,
         },
@@ -217,60 +240,8 @@ export class AnchorsService {
 
   async selectOperator(currentUser: AuthenticatedUser, operatorId: string) {
     this.requireAnchorSession(currentUser)
-    const profile = await this.findProfileForUser(currentUser.wecomUserId)
-
-    if (!profile) {
-      throw new NotFoundException('主播档案尚未激活')
-    }
-
-    if (
-      profile.assignmentStatus === 'pending_confirmation' ||
-      profile.assignmentStatus === 'confirmed'
-    ) {
-      throw new BadRequestException('当前已有待确认或已确认的运营归属')
-    }
-
-    const operator = await this.prisma.operatorAccount.findFirst({
-      where: {
-        id: operatorId,
-        role: 'operator',
-        status: 'active',
-        staffRoles: {
-          some: {
-            role: 'operator',
-          },
-        },
-      },
-      select: {
-        id: true,
-      },
-    })
-
-    if (!operator) {
-      throw new BadRequestException('所选运营老师当前不可用')
-    }
-
-    await this.prisma.$transaction([
-      this.prisma.anchorOperatorAssignment.create({
-        data: {
-          anchorProfileId: profile.id,
-          operatorId,
-          status: 'pending_confirmation',
-          initiatedBy: currentUser.wecomUserId,
-        },
-      }),
-      this.prisma.anchorProfile.update({
-        where: {
-          id: profile.id,
-        },
-        data: {
-          currentOperatorId: operatorId,
-          assignmentStatus: 'pending_confirmation',
-        },
-      }),
-    ])
-
-    return this.getMyProfile(currentUser)
+    void operatorId
+    throw new BadRequestException('运营归属由审核老师分配，请联系审核老师处理')
   }
 
   async listPendingAssignments(currentUser: AuthenticatedUser) {

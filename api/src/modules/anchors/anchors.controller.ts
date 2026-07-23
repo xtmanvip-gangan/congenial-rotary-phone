@@ -9,7 +9,6 @@ import {
 } from '@nestjs/common'
 import { AuthService } from '../auth/auth.service.js'
 import { AnchorsService } from './anchors.service.js'
-import { ActivateAnchorDto } from './dto/activate-anchor.dto.js'
 import { RejectAssignmentDto } from './dto/reject-assignment.dto.js'
 import { SelectOperatorDto } from './dto/select-operator.dto.js'
 import { UpdateAnchorDisplayNameDto } from './dto/update-anchor-display-name.dto.js'
@@ -28,14 +27,19 @@ export class AnchorsController {
     )
   }
 
+  @Get('me/activation')
+  activation(@Headers('authorization') authorization?: string) {
+    return this.anchorsService.getMyActivation(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+    )
+  }
+
   @Post('activate')
   activate(
     @Headers('authorization') authorization: string | undefined,
-    @Body() dto: ActivateAnchorDto,
   ) {
     return this.anchorsService.activate(
       this.authService.getCurrentUserFromAuthHeader(authorization),
-      dto,
     )
   }
 

@@ -266,6 +266,7 @@ model OperatorAccount {
   rewardGrants                RewardGrant[]
   staffRoles                  StaffRoleAssignment[]
   activationTasks             AnchorActivationTask[]         @relation("ActivationAuditTeacher")
+  assignedActivationTasks     AnchorActivationTask[]         @relation("ActivationAssignedOperator")
   currentAnchors              AnchorProfile[]                @relation("CurrentAnchorOperator")
   anchorAssignments           AnchorOperatorAssignment[]     @relation("AssignmentOperator")
   trainingSessions            TrainingSession[]              @relation("TrainingSessionTeacher")
@@ -297,8 +298,8 @@ model AnchorActivationTask {
   expectedWecomUserId      String               @unique @map("expected_wecom_user_id") @db.VarChar(64)
   wecomDisplayNameSnapshot String               @map("wecom_display_name_snapshot") @db.VarChar(100)
   auditTeacherId           String               @map("audit_teacher_id") @db.Uuid
+  operatorId               String?              @map("operator_id") @db.Uuid
   membershipCompletedAt    DateTime             @map("membership_completed_at")
-  deviceReadyAt            DateTime             @map("device_ready_at")
   status                   ActivationTaskStatus @default(pending)
   invitationSentAt         DateTime?            @map("invitation_sent_at")
   invitationCount          Int                  @default(0) @map("invitation_count")
@@ -306,8 +307,10 @@ model AnchorActivationTask {
   createdAt                DateTime             @default(now()) @map("created_at")
   updatedAt                DateTime             @updatedAt @map("updated_at")
   auditTeacher             OperatorAccount      @relation("ActivationAuditTeacher", fields: [auditTeacherId], references: [id])
+  operator                 OperatorAccount?     @relation("ActivationAssignedOperator", fields: [operatorId], references: [id])
   activatedAnchorProfile   AnchorProfile?       @relation(fields: [activatedAnchorProfileId], references: [id])
 
+  @@index([operatorId])
   @@index([status, createdAt])
   @@map("anchor_activation_tasks")
 }

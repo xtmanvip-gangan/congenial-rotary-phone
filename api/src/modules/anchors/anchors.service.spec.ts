@@ -42,13 +42,38 @@ describe('AnchorsService', () => {
     const access = {}
     const service = new AnchorsService(prisma as never, access as never)
 
-    const result = await service.activate(anchorUser, {
-      anchorDisplayName: '小鹿',
-      operatorId: 'operator-1',
-    })
+    const result = await service.activate(anchorUser)
 
     expect(result.item.id).toBe('anchor-1')
     expect(prisma.$transaction).not.toHaveBeenCalled()
+  })
+
+  it('previews only the current anchor task snapshot', async () => {
+    const prisma = {
+      anchorActivationTask: {
+        findUnique: vi.fn().mockResolvedValue({
+          status: 'invited',
+          wecomDisplayNameSnapshot: '主播小鹿',
+          membershipCompletedAt: new Date('2026-07-23T09:00:00.000Z'),
+          operator: {
+            id: 'operator-1',
+            displayName: '运营A',
+          },
+        }),
+      },
+    }
+    const service = new AnchorsService(prisma as never, {} as never)
+
+    const result = await service.getMyActivation(anchorUser)
+
+    expect(result.item).toEqual({
+      anchorDisplayName: '主播小鹿',
+      membershipCompletedAt: '2026-07-23T09:00:00.000Z',
+      operator: {
+        id: 'operator-1',
+        displayName: '运营A',
+      },
+    })
   })
 
   it('creates a profile and pending assignment from a valid activation task', async () => {
@@ -57,16 +82,17 @@ describe('AnchorsService', () => {
         findUnique: vi.fn().mockResolvedValue({
           id: 'task-1',
           status: 'invited',
+          wecomDisplayNameSnapshot: '主播小鹿',
+          operatorId: 'operator-1',
           membershipCompletedAt: new Date(),
-          deviceReadyAt: new Date(),
+          operator: {
+            id: 'operator-1',
+            displayName: '运营A',
+            status: 'active',
+            staffRoles: [{ role: 'operator' }],
+          },
         }),
         update: vi.fn().mockResolvedValue({}),
-      },
-      operatorAccount: {
-        findFirst: vi.fn().mockResolvedValue({
-          id: 'operator-1',
-          displayName: '运营A',
-        }),
       },
       anchorProfile: {
         create: vi.fn().mockResolvedValue({
@@ -101,14 +127,12 @@ describe('AnchorsService', () => {
     }
     const service = new AnchorsService(prisma as never, {} as never)
 
-    await service.activate(anchorUser, {
-      anchorDisplayName: '小鹿',
-      operatorId: 'operator-1',
-    })
+    await service.activate(anchorUser)
 
     expect(tx.anchorProfile.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         wecomUserRecordId: 'wecom-record-1',
+        anchorDisplayName: '主播小鹿',
         currentOperatorId: 'operator-1',
         assignmentStatus: 'pending_confirmation',
       }),

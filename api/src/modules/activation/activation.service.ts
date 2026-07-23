@@ -8,13 +8,31 @@ import type { ActivationTaskStatus } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service.js'
 import { AccessService } from '../access/access.service.js'
 import type { AuthenticatedUser } from '../auth/auth.types.js'
+import { NotificationsService } from '../notifications/notifications.service.js'
 import type { CreateActivationTaskDto } from './dto/create-activation-task.dto.js'
+import type { UpdateActivationTaskDto } from './dto/update-activation-task.dto.js'
+
+const taskInclude = {
+  operator: {
+    select: {
+      id: true,
+      displayName: true,
+    },
+  },
+  activatedAnchorProfile: {
+    select: {
+      id: true,
+      assignmentStatus: true,
+    },
+  },
+} as const
 
 @Injectable()
 export class ActivationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(currentUser: AuthenticatedUser, dto: CreateActivationTaskDto) {
@@ -27,11 +45,12 @@ export class ActivationService {
     const expectedWecomUserId = dto.expectedWecomUserId.trim()
     const wecomDisplayName = dto.wecomDisplayName.trim()
     const membershipCompletedAt = new Date(dto.membershipCompletedAt)
-    const deviceReadyAt = new Date(dto.deviceReadyAt)
 
     if (!expectedWecomUserId || !wecomDisplayName) {
       throw new BadRequestException('主播企微UID和企微展示名不能为空')
     }
+
+    await this.requireActiveOperator(dto.operatorId)
 
     const existing = await this.prisma.anchorActivationTask.findUnique({
       where: {
@@ -51,12 +70,13 @@ export class ActivationService {
         data: {
           wecomDisplayNameSnapshot: wecomDisplayName,
           auditTeacherId: currentUser.accountId,
+          operatorId: dto.operatorId,
           membershipCompletedAt,
-          deviceReadyAt,
           status: 'pending',
           invitationSentAt: null,
           invitationCount: 0,
         },
+        include: taskInclude,
       })
 
       return {
@@ -73,15 +93,93 @@ export class ActivationService {
         expectedWecomUserId,
         wecomDisplayNameSnapshot: wecomDisplayName,
         auditTeacherId: currentUser.accountId,
+        operatorId: dto.operatorId,
         membershipCompletedAt,
-        deviceReadyAt,
         status: 'pending',
       },
+      include: taskInclude,
     })
 
     return {
       item: this.toItem(task),
     }
+  }
+
+  async update(
+    currentUser: AuthenticatedUser,
+    taskId: string,
+    dto: UpdateActivationTaskDto,
+  ) {
+    await this.requireManagePermission(currentUser)
+    const task = await this.findOwnedTask(currentUser, taskId)
+
+    if (task.activatedAnchorProfileId || task.status === 'activated') {
+      throw new BadRequestException('主播已经开通档案，不能修改开通资料')
+    }
+
+    const expectedWecomUserId = dto.expectedWecomUserId.trim()
+    const wecomDisplayName = dto.wecomDisplayName.trim()
+    if (!expectedWecomUserId || !wecomDisplayName) {
+      throw new BadRequestException('主播企微UID和企微展示名不能为空')
+    }
+
+    await this.requireActiveOperator(dto.operatorId)
+    const updated = await this.prisma.anchorActivationTask.update({
+      where: { id: task.id },
+      data: {
+        expectedWecomUserId,
+        wecomDisplayNameSnapshot: wecomDisplayName,
+        operatorId: dto.operatorId,
+        membershipCompletedAt: new Date(dto.membershipCompletedAt),
+      },
+      include: taskInclude,
+    })
+
+    return { item: this.toItem(updated) }
+  }
+
+  async reassignOperator(
+    currentUser: AuthenticatedUser,
+    taskId: string,
+    operatorId: string,
+  ) {
+    await this.requireManagePermission(currentUser)
+    const task = await this.findOwnedTask(currentUser, taskId)
+    const profile = task.activatedAnchorProfile
+
+    if (
+      !task.activatedAnchorProfileId ||
+      !profile ||
+      profile.assignmentStatus !== 'rejected'
+    ) {
+      throw new BadRequestException('只有运营已驳回的主播才能重新分配')
+    }
+
+    await this.requireActiveOperator(operatorId)
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.anchorOperatorAssignment.create({
+        data: {
+          anchorProfileId: profile.id,
+          operatorId,
+          status: 'pending_confirmation',
+          initiatedBy: currentUser.wecomUserId,
+        },
+      })
+      await tx.anchorProfile.update({
+        where: { id: profile.id },
+        data: {
+          currentOperatorId: operatorId,
+          assignmentStatus: 'pending_confirmation',
+        },
+      })
+      return tx.anchorActivationTask.update({
+        where: { id: task.id },
+        data: { operatorId },
+        include: taskInclude,
+      })
+    })
+
+    return { item: this.toItem(updated) }
   }
 
   async list(
@@ -100,6 +198,7 @@ export class ActivationService {
       orderBy: {
         createdAt: 'desc',
       },
+      include: taskInclude,
     })
 
     return {
@@ -115,6 +214,37 @@ export class ActivationService {
       throw new BadRequestException('当前激活任务不能再次发送提醒')
     }
 
+    if (!task.operator) {
+      throw new BadRequestException('请先为主播分配运营老师')
+    }
+
+    const membershipTime = new Intl.DateTimeFormat('zh-CN', {
+      timeZone: 'Asia/Shanghai',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(task.membershipCompletedAt)
+    const notification = await this.notifications.sendBusinessNotification({
+      businessType: 'anchor_activation',
+      businessId: task.id,
+      templateCode: 'anchor_activation_invitation',
+      receiverWecomUserId: task.expectedWecomUserId,
+      receiverRole: 'anchor',
+      messageTitle: '【悦总统】主播档案开通提醒',
+      messageContent: [
+        `主播：${task.wecomDisplayNameSnapshot}`,
+        `所属运营：${task.operator.displayName}`,
+        `入会时间：${membershipTime}`,
+        '请打开主播小程序，核对资料后完成档案开通。',
+      ].join('\n'),
+    })
+
+    if (notification.item.status !== 'success') {
+      return {
+        notificationStatus: 'failed' as const,
+        errorMessage: notification.item.errorMessage ?? '企微提醒发送失败',
+      }
+    }
+
     const updated = await this.prisma.anchorActivationTask.update({
       where: {
         id: task.id,
@@ -126,11 +256,12 @@ export class ActivationService {
           increment: 1,
         },
       },
+      include: taskInclude,
     })
 
     return {
       item: this.toItem(updated),
-      notificationStatus: 'not_configured' as const,
+      notificationStatus: 'success' as const,
     }
   }
 
@@ -149,6 +280,7 @@ export class ActivationService {
       data: {
         status: 'cancelled',
       },
+      include: taskInclude,
     })
 
     return {
@@ -164,6 +296,7 @@ export class ActivationService {
       where: {
         id: taskId,
       },
+      include: taskInclude,
     })
 
     if (!task) {
@@ -179,6 +312,30 @@ export class ActivationService {
     }
 
     return task
+  }
+
+  private async requireActiveOperator(operatorId: string) {
+    const operator = await this.prisma.operatorAccount.findFirst({
+      where: {
+        id: operatorId,
+        status: 'active',
+        staffRoles: {
+          some: {
+            role: 'operator',
+          },
+        },
+      },
+      select: {
+        id: true,
+        displayName: true,
+      },
+    })
+
+    if (!operator) {
+      throw new BadRequestException('所选运营老师当前不可用')
+    }
+
+    return operator
   }
 
   private async requireManagePermission(currentUser: AuthenticatedUser) {
@@ -201,9 +358,17 @@ export class ActivationService {
     invitationSentAt: Date | null
     invitationCount: number
     membershipCompletedAt: Date
-    deviceReadyAt: Date
     createdAt: Date
     updatedAt: Date
+    operatorId?: string | null
+    operator?: {
+      id: string
+      displayName: string
+    } | null
+    activatedAnchorProfile?: {
+      id: string
+      assignmentStatus: string | null
+    } | null
   }) {
     return {
       id: task.id,
@@ -213,7 +378,8 @@ export class ActivationService {
       invitationSentAt: task.invitationSentAt?.toISOString() ?? null,
       invitationCount: task.invitationCount,
       membershipCompletedAt: task.membershipCompletedAt.toISOString(),
-      deviceReadyAt: task.deviceReadyAt.toISOString(),
+      operator: task.operator ?? null,
+      assignmentStatus: task.activatedAnchorProfile?.assignmentStatus ?? null,
       createdAt: task.createdAt.toISOString(),
       updatedAt: task.updatedAt.toISOString(),
     }

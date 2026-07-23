@@ -23,7 +23,7 @@ describe('NotificationsService generic business notifications', () => {
     }
     const service = new NotificationsService(prisma as never, wecom as never)
 
-    await service.sendBusinessNotification({
+    const result = await service.sendBusinessNotification({
       businessType: 'training_registration',
       businessId: 'registration-1',
       templateCode: 'training_registered',
@@ -47,6 +47,7 @@ describe('NotificationsService generic business notifications', () => {
       'anchor-uid',
       '【培训中心】报名成功\n课程：平台违规红线',
     )
+    expect(result.item.status).toBe('success')
   })
 
   it('相同幂等键已发送成功时不重复发送', async () => {
@@ -91,7 +92,11 @@ describe('NotificationsService generic business notifications', () => {
           messageTitle: '开课提醒',
           messageContent: '课程将在一小时后开始',
         }),
-        update: vi.fn().mockResolvedValue({}),
+        update: vi.fn().mockResolvedValue({
+          id: 'notification-1',
+          status: 'failed',
+          errorMessage: '企微接口暂不可用',
+        }),
       },
     }
     const wecom = {
@@ -101,7 +106,7 @@ describe('NotificationsService generic business notifications', () => {
     }
     const service = new NotificationsService(prisma as never, wecom as never)
 
-    await service.sendBusinessNotification({
+    const result = await service.sendBusinessNotification({
       businessType: 'training_reminder',
       businessId: 'registration-1',
       templateCode: 'training_one_hour_reminder',
@@ -120,6 +125,10 @@ describe('NotificationsService generic business notifications', () => {
         lastAttemptAt: expect.any(Date),
         errorMessage: '企微接口暂不可用',
       }),
+    })
+    expect(result.item).toMatchObject({
+      status: 'failed',
+      errorMessage: '企微接口暂不可用',
     })
   })
 })

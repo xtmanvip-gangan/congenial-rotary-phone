@@ -2,6 +2,7 @@ import {
   IsDateString,
   IsNotEmpty,
   IsString,
+  IsUUID,
   MaxLength,
 } from 'class-validator'
 
@@ -16,9 +17,9 @@ export class CreateActivationTaskDto {
   @MaxLength(100)
   wecomDisplayName!: string
 
-  @IsDateString()
-  membershipCompletedAt!: string
+  @IsUUID()
+  operatorId!: string
 
   @IsDateString()
-  deviceReadyAt!: string
+  membershipCompletedAt!: string
 }
