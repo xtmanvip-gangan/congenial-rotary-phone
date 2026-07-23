@@ -29,13 +29,13 @@ export class CreateSubmissionDto {
   activityId!: string
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(100)
-  anchorName!: string
+  anchorName?: string
 
   @IsString()
-  @IsNotEmpty()
-  operatorId!: string
+  @IsOptional()
+  operatorId?: string
 
   @IsDateString()
   liveDate!: string

@@ -20,6 +20,7 @@ export class ExportsService {
     const operatorAccount = await this.ensureAdmin(currentUser)
     const items = await this.prisma.submission.findMany({
       where: {
+        operatorAssignmentStatus: 'confirmed',
         ...(operatorAccount ? { operatorId: operatorAccount.id } : {}),
         ...(query.reviewStatus ? { reviewStatus: query.reviewStatus } : {}),
         ...(query.grantStatus ? { grantStatus: query.grantStatus } : {}),

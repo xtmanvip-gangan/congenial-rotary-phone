@@ -25,13 +25,13 @@ export class UpdateSubmissionItemDto {
 
 export class UpdateSubmissionDto {
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(100)
-  anchorName!: string
+  anchorName?: string
 
   @IsString()
-  @IsNotEmpty()
-  operatorId!: string
+  @IsOptional()
+  operatorId?: string
 
   @IsDateString()
   liveDate!: string

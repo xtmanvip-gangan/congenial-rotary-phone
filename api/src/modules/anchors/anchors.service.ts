@@ -307,14 +307,40 @@ export class AnchorsService {
         currentOperatorId: currentUser.accountId ?? '',
         assignmentStatus: 'confirmed',
       },
-      include: profileInclude,
+      include: {
+        ...profileInclude,
+        onboardingProgress: {
+          include: {
+            milestones: true,
+          },
+        },
+      },
       orderBy: {
         activatedAt: 'desc',
       },
     })
 
     return {
-      items: items.map((item) => this.toProfileItem(item)),
+      items: items.map((item) => ({
+        ...this.toProfileItem(item),
+        onboarding: item.onboardingProgress
+          ? {
+              completedCount: item.onboardingProgress.milestones.filter(
+                (milestone) => milestone.status === 'completed',
+              ).length,
+              totalCount: onboardingTypes.length,
+              nextMilestone:
+                onboardingTypes.find(
+                  (type) =>
+                    !item.onboardingProgress?.milestones.some(
+                      (milestone) =>
+                        milestone.type === type &&
+                        milestone.status === 'completed',
+                    ),
+                ) ?? null,
+            }
+          : null,
+      })),
     }
   }
 

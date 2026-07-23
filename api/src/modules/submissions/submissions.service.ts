@@ -61,21 +61,12 @@ export class SubmissionsService {
     this.ensureAnchor(currentUser)
 
     const activity = await this.findActiveActivity(activityId)
-
-    const operators = await this.prisma.operatorAccount.findMany({
-      where: {
-        role: 'operator',
-        status: 'active',
-      },
-      orderBy: [{ displayName: 'asc' }],
-    })
+    const anchorUser = await this.ensureAnchorUser(currentUser)
+    const identity = await this.resolveSubmissionIdentity(anchorUser.id)
 
     return {
       item: this.formatActivityDetail(activity),
-      operators: operators.map((operator: any) => ({
-        id: operator.id,
-        displayName: operator.displayName,
-      })),
+      anchorProfile: this.formatSubmissionIdentity(identity),
     }
   }
 
@@ -84,22 +75,7 @@ export class SubmissionsService {
 
     const activity = await this.findActiveActivity(dto.activityId)
     const anchorUser = await this.ensureAnchorUser(currentUser)
-    const operator = await this.prisma.operatorAccount.findFirst({
-      where: {
-        id: dto.operatorId,
-        role: 'operator',
-        status: 'active',
-      },
-    })
-
-    if (!operator) {
-      throw new BadRequestException('请选择有效的运营老师')
-    }
-
-    const anchorName = dto.anchorName.trim()
-    if (!anchorName) {
-      throw new BadRequestException('主播姓名不能为空')
-    }
+    const identity = await this.resolveSubmissionIdentity(anchorUser.id)
 
     const liveDate = this.parseLiveDate(dto.liveDate)
     const liveStartTime = this.parseLiveStartTime(dto.liveStartTime)
@@ -123,8 +99,13 @@ export class SubmissionsService {
       data: {
         activityId: activity.id,
         anchorUserId: anchorUser.id,
-        anchorName,
-        operatorId: operator.id,
+        anchorName: identity.anchorDisplayName,
+        operatorId: identity.operator.id,
+        anchorProfileId: identity.profileId,
+        operatorAssignmentId: identity.assignment.id,
+        anchorDisplayNameSnapshot: identity.anchorDisplayName,
+        operatorNameSnapshot: identity.operator.displayName,
+        operatorAssignmentStatus: identity.assignmentStatus,
         liveDate,
         liveStartTime,
         rewardSnapshot,
@@ -148,9 +129,11 @@ export class SubmissionsService {
       include: this.getSubmissionInclude(),
     })
 
-    await this.safeNotify(() =>
-      this.notificationsService.notifySubmissionCreated(this.buildNotificationPayload(created)),
-    )
+    if (identity.assignmentStatus === 'confirmed') {
+      await this.safeNotify(() =>
+        this.notificationsService.notifySubmissionCreated(this.buildNotificationPayload(created)),
+      )
+    }
 
     return {
       item: this.formatSubmission(created),
@@ -201,20 +184,9 @@ export class SubmissionsService {
 
     const submission = await this.findSubmissionForAnchor(submissionId, anchorUser.id)
     const activity = await this.findActivityWithConfig(submission.activityId)
-    const operators = await this.prisma.operatorAccount.findMany({
-      where: {
-        role: 'operator',
-        status: 'active',
-      },
-      orderBy: [{ displayName: 'asc' }],
-    })
 
     return {
       item: this.formatEditableSubmission(submission, activity),
-      operators: operators.map((operator: any) => ({
-        id: operator.id,
-        displayName: operator.displayName,
-      })),
     }
   }
 
@@ -354,8 +326,11 @@ export class SubmissionsService {
       where: operatorAccount
         ? {
             operatorId: operatorAccount.id,
+            operatorAssignmentStatus: 'confirmed',
           }
-        : undefined,
+        : {
+            operatorAssignmentStatus: 'confirmed',
+          },
       include: this.getSubmissionInclude(),
       orderBy: [{ createdAt: 'desc' }],
     })
@@ -384,22 +359,7 @@ export class SubmissionsService {
     }
 
     const activity = await this.findActivityWithConfig(submission.activityId)
-    const operator = await this.prisma.operatorAccount.findFirst({
-      where: {
-        id: dto.operatorId,
-        role: 'operator',
-        status: 'active',
-      },
-    })
-
-    if (!operator) {
-      throw new BadRequestException('请选择有效的运营老师')
-    }
-
-    const anchorName = dto.anchorName.trim()
-    if (!anchorName) {
-      throw new BadRequestException('主播姓名不能为空')
-    }
+    const identity = await this.resolveSubmissionIdentity(anchorUser.id)
 
     const liveDate = this.parseLiveDate(dto.liveDate)
     const liveStartTime = this.parseLiveStartTime(dto.liveStartTime)
@@ -430,8 +390,13 @@ export class SubmissionsService {
           id: submission.id,
         },
         data: {
-          anchorName,
-          operatorId: operator.id,
+          anchorName: identity.anchorDisplayName,
+          operatorId: identity.operator.id,
+          anchorProfileId: identity.profileId,
+          operatorAssignmentId: identity.assignment.id,
+          anchorDisplayNameSnapshot: identity.anchorDisplayName,
+          operatorNameSnapshot: identity.operator.displayName,
+          operatorAssignmentStatus: identity.assignmentStatus,
           liveDate,
           liveStartTime,
           reviewStatus: 'pending',
@@ -475,11 +440,13 @@ export class SubmissionsService {
 
     await this.cleanupUnusedAttachments(removedSubmissionProofs)
 
-    await this.safeNotify(() =>
-      this.notificationsService.notifySubmissionCreated(this.buildNotificationPayload(updated), {
-        resubmitted: true,
-      }),
-    )
+    if (identity.assignmentStatus === 'confirmed') {
+      await this.safeNotify(() =>
+        this.notificationsService.notifySubmissionCreated(this.buildNotificationPayload(updated), {
+          resubmitted: true,
+        }),
+      )
+    }
 
     return {
       item: this.formatSubmission(updated),
@@ -771,6 +738,72 @@ export class SubmissionsService {
     })
   }
 
+  private async resolveSubmissionIdentity(anchorUserId: string) {
+    const profile = await this.prisma.anchorProfile.findFirst({
+      where: {
+        wecomUserRecordId: anchorUserId,
+        status: 'active',
+        currentOperatorId: {
+          not: null,
+        },
+      },
+      include: {
+        currentOperator: true,
+        assignments: {
+          where: {
+            status: {
+              in: ['pending_confirmation', 'confirmed'],
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+      },
+    })
+
+    const assignment = profile?.assignments.find(
+      (item) =>
+        item.operatorId === profile.currentOperatorId &&
+        item.status === profile.assignmentStatus,
+    )
+
+    if (!profile || !profile.currentOperator || !assignment) {
+      throw new BadRequestException('主播档案尚未完成运营归属，请联系审核老师')
+    }
+    if (profile.currentOperator.status !== 'active') {
+      throw new BadRequestException('固定运营当前不可用，请联系管理员')
+    }
+    if (
+      profile.assignmentStatus !== 'confirmed' &&
+      profile.assignmentStatus !== 'pending_confirmation'
+    ) {
+      throw new BadRequestException('主播档案尚未完成运营归属，请联系审核老师')
+    }
+
+    return {
+      profileId: profile.id,
+      anchorDisplayName: profile.anchorDisplayName,
+      assignmentStatus: profile.assignmentStatus,
+      operator: profile.currentOperator,
+      assignment,
+    }
+  }
+
+  private formatSubmissionIdentity(
+    identity: Awaited<ReturnType<SubmissionsService['resolveSubmissionIdentity']>>,
+  ) {
+    return {
+      id: identity.profileId,
+      anchorDisplayName: identity.anchorDisplayName,
+      assignmentStatus: identity.assignmentStatus,
+      operator: {
+        id: identity.operator.id,
+        displayName: identity.operator.displayName,
+      },
+    }
+  }
+
   private normalizeGiftItems(items: Array<{ itemName: string; quantity: number }>) {
     const totals = new Map<string, number>()
 
@@ -804,6 +837,7 @@ export class SubmissionsService {
             activityId: activity.id,
             anchorUserId,
             liveDate,
+            operatorAssignmentStatus: 'confirmed',
             ...(excludeSubmissionId
               ? {
                   id: {
@@ -938,6 +972,7 @@ export class SubmissionsService {
     const submission = await this.prisma.submission.findFirst({
       where: {
         id: submissionId,
+        operatorAssignmentStatus: 'confirmed',
         ...(operatorId ? { operatorId } : {}),
       },
       include: this.getSubmissionInclude(),
@@ -1153,6 +1188,8 @@ export class SubmissionsService {
       anchorUserId: submission.anchorUserId,
       anchorName: submission.anchorName,
       operatorName: submission.operator.displayName,
+      operatorAssignmentStatus:
+        submission.operatorAssignmentStatus ?? 'confirmed',
       liveDate: submission.liveDate.toISOString().slice(0, 10),
       liveStartTime: submission.liveStartTime.toISOString().slice(11, 16),
       reviewStatus: submission.reviewStatus,
@@ -1181,6 +1218,9 @@ export class SubmissionsService {
       id: submission.id,
       anchorName: submission.anchorName,
       operatorId: submission.operatorId,
+      operatorName: submission.operator.displayName,
+      operatorAssignmentStatus:
+        submission.operatorAssignmentStatus ?? 'confirmed',
       liveDate: submission.liveDate.toISOString().slice(0, 10),
       liveStartTime: submission.liveStartTime.toISOString().slice(11, 16),
       reviewStatus: submission.reviewStatus,
