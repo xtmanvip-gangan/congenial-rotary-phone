@@ -60,6 +60,65 @@ enum SubmissionAssignmentStatus {
   confirmed
 }
 
+enum TrainingCourseLevel {
+  basic_required
+  growth
+  advanced
+  special
+}
+
+enum TrainingWeekParity {
+  every
+  a
+  b
+}
+
+enum TrainingSessionStatus {
+  draft
+  published
+  in_progress
+  ended
+  cancelled
+  rescheduled
+  publish_failed
+}
+
+enum TrainingRegistrationStatus {
+  registered
+  waitlisted
+  cancelled
+  learned
+  leave
+  absent
+  abnormal_exit
+  needs_makeup
+}
+
+enum TrainingRegistrationSource {
+  anchor
+  operator
+  training_staff
+}
+
+enum TrainingLearningType {
+  first_learning
+  review
+  makeup
+}
+
+enum TrainingProgressStatus {
+  not_started
+  registered
+  learned
+}
+
+enum TrainingMakeupStatus {
+  none
+  needs_relearning
+  waiting_makeup
+  made_up
+}
+
 enum ActivityStatus {
   draft
   active
@@ -119,6 +178,8 @@ model OperatorAccount {
   activationTasks   AnchorActivationTask[]     @relation("ActivationAuditTeacher")
   currentAnchors    AnchorProfile[]            @relation("CurrentAnchorOperator")
   anchorAssignments AnchorOperatorAssignment[] @relation("AssignmentOperator")
+  trainingSessions  TrainingSession[]          @relation("TrainingSessionTeacher")
+  scheduleTemplates TrainingScheduleTemplate[] @relation("TrainingTemplateTeacher")
 
   @@map("operator_accounts")
 }
@@ -173,9 +234,140 @@ model AnchorProfile {
   nameHistory       AnchorNameHistory[]
   onboardingProgress AnchorOnboardingProgress?
   submissions       Submission[]
+  trainingRegistrations TrainingRegistration[]
+  trainingProgress  TrainingLearningProgress[]
 
   @@index([currentOperatorId, assignmentStatus])
   @@map("anchor_profiles")
+}
+
+model TrainingCourse {
+  id             String                     @id @default(uuid()) @db.Uuid
+  code           String                     @unique @db.VarChar(30)
+  title          String                     @db.VarChar(120)
+  level          TrainingCourseLevel
+  sequence       Int?
+  summary        String?
+  objectives     Json                       @default("[]")
+  practiceTasks  Json                       @default("[]") @map("practice_tasks")
+  faq            Json                       @default("[]")
+  status         String                     @default("active") @db.VarChar(20)
+  createdBy      String?                    @map("created_by") @db.Uuid
+  createdAt      DateTime                   @default(now()) @map("created_at")
+  updatedAt      DateTime                   @updatedAt @map("updated_at")
+  materialLinks  TrainingMaterialLink[]
+  templates      TrainingScheduleTemplate[]
+  sessions       TrainingSession[]
+  learningProgress TrainingLearningProgress[]
+
+  @@index([status, sequence])
+  @@map("training_courses")
+}
+
+model TrainingMaterialLink {
+  id        String         @id @default(uuid()) @db.Uuid
+  courseId  String         @map("course_id") @db.Uuid
+  title     String         @db.VarChar(120)
+  url       String
+  sortOrder Int            @default(0) @map("sort_order")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+  course    TrainingCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId, sortOrder])
+  @@map("training_material_links")
+}
+
+model TrainingScheduleTemplate {
+  id              String             @id @default(uuid()) @db.Uuid
+  courseId        String             @map("course_id") @db.Uuid
+  teacherId       String?            @map("teacher_id") @db.Uuid
+  weekday         Int
+  weekParity      TrainingWeekParity @default(every) @map("week_parity")
+  startTime       String             @map("start_time") @db.VarChar(5)
+  durationMinutes Int                @default(60) @map("duration_minutes")
+  capacity        Int                @default(50)
+  active          Boolean            @default(true)
+  createdBy       String?            @map("created_by") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  course          TrainingCourse     @relation(fields: [courseId], references: [id])
+  teacher         OperatorAccount?   @relation("TrainingTemplateTeacher", fields: [teacherId], references: [id])
+  sessions        TrainingSession[]
+
+  @@index([active, weekday])
+  @@map("training_schedule_templates")
+}
+
+model TrainingSession {
+  id                String                @id @default(uuid()) @db.Uuid
+  courseId          String                @map("course_id") @db.Uuid
+  scheduleTemplateId String?              @map("schedule_template_id") @db.Uuid
+  teacherId         String?               @map("teacher_id") @db.Uuid
+  scheduledStartAt  DateTime              @map("scheduled_start_at")
+  scheduledEndAt    DateTime              @map("scheduled_end_at")
+  capacity          Int                   @default(50)
+  status            TrainingSessionStatus @default(draft)
+  publishedAt       DateTime?             @map("published_at")
+  cancellationReason String?              @map("cancellation_reason")
+  createdBy         String?               @map("created_by") @db.Uuid
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+  course            TrainingCourse        @relation(fields: [courseId], references: [id])
+  scheduleTemplate  TrainingScheduleTemplate? @relation(fields: [scheduleTemplateId], references: [id])
+  teacher           OperatorAccount?      @relation("TrainingSessionTeacher", fields: [teacherId], references: [id])
+  registrations     TrainingRegistration[]
+
+  @@unique([scheduleTemplateId, scheduledStartAt])
+  @@index([status, scheduledStartAt])
+  @@index([courseId, scheduledStartAt])
+  @@map("training_sessions")
+}
+
+model TrainingRegistration {
+  id                   String                     @id @default(uuid()) @db.Uuid
+  anchorProfileId      String                     @map("anchor_profile_id") @db.Uuid
+  sessionId            String                     @map("session_id") @db.Uuid
+  operatorIdSnapshot   String?                    @map("operator_id_snapshot") @db.Uuid
+  operatorNameSnapshot String?                    @map("operator_name_snapshot") @db.VarChar(100)
+  anchorNameSnapshot   String                     @map("anchor_name_snapshot") @db.VarChar(100)
+  source               TrainingRegistrationSource
+  status               TrainingRegistrationStatus
+  learningType         TrainingLearningType       @map("learning_type")
+  waitlistPosition     Int?                       @map("waitlist_position")
+  registeredBy         String                     @map("registered_by") @db.VarChar(64)
+  registeredAt         DateTime                   @default(now()) @map("registered_at")
+  cancelledAt          DateTime?                  @map("cancelled_at")
+  outcomeReason        String?                    @map("outcome_reason")
+  outcomeBy            String?                    @map("outcome_by") @db.VarChar(64)
+  outcomeAt            DateTime?                  @map("outcome_at")
+  createdAt            DateTime                   @default(now()) @map("created_at")
+  updatedAt            DateTime                   @updatedAt @map("updated_at")
+  anchorProfile        AnchorProfile              @relation(fields: [anchorProfileId], references: [id])
+  session              TrainingSession            @relation(fields: [sessionId], references: [id])
+
+  @@unique([anchorProfileId, sessionId])
+  @@index([sessionId, status, waitlistPosition])
+  @@index([anchorProfileId, status])
+  @@map("training_registrations")
+}
+
+model TrainingLearningProgress {
+  id               String                 @id @default(uuid()) @db.Uuid
+  anchorProfileId  String                 @map("anchor_profile_id") @db.Uuid
+  courseId         String                 @map("course_id") @db.Uuid
+  status           TrainingProgressStatus @default(not_started)
+  makeupStatus     TrainingMakeupStatus   @default(none) @map("makeup_status")
+  firstLearnedAt   DateTime?              @map("first_learned_at")
+  lastLearnedAt    DateTime?              @map("last_learned_at")
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+  anchorProfile    AnchorProfile          @relation(fields: [anchorProfileId], references: [id], onDelete: Cascade)
+  course           TrainingCourse         @relation(fields: [courseId], references: [id])
+
+  @@unique([anchorProfileId, courseId])
+  @@index([anchorProfileId, status])
+  @@map("training_learning_progress")
 }
 
 model AnchorNameHistory {

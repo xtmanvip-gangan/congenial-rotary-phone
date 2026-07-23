@@ -14,6 +14,7 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module.js'
 import { OperatorsModule } from './modules/operators/operators.module.js'
 import { SubmissionsModule } from './modules/submissions/submissions.module.js'
 import { StaffModule } from './modules/staff/staff.module.js'
+import { TrainingModule } from './modules/training/training.module.js'
 import { PrismaModule } from './prisma/prisma.module.js'
 
 @Module({
@@ -35,6 +36,7 @@ import { PrismaModule } from './prisma/prisma.module.js'
     NotificationsModule,
     OnboardingModule,
     StaffModule,
+    TrainingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
