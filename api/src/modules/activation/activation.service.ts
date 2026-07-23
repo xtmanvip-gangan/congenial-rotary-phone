@@ -43,6 +43,27 @@ export class ActivationService {
       },
     })
 
+    if (existing?.status === 'cancelled') {
+      const reopened = await this.prisma.anchorActivationTask.update({
+        where: {
+          id: existing.id,
+        },
+        data: {
+          wecomDisplayNameSnapshot: wecomDisplayName,
+          auditTeacherId: currentUser.accountId,
+          membershipCompletedAt,
+          deviceReadyAt,
+          status: 'pending',
+          invitationSentAt: null,
+          invitationCount: 0,
+        },
+      })
+
+      return {
+        item: this.toItem(reopened),
+      }
+    }
+
     if (existing) {
       throw new BadRequestException('该主播已经存在激活任务')
     }

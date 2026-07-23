@@ -90,4 +90,49 @@ describe('ActivationService', () => {
       }),
     })
   })
+
+  it('reopens a cancelled task instead of creating a duplicate uid', async () => {
+    const reopened = {
+      id: 'task-1',
+      expectedWecomUserId: 'anchor-uid',
+      wecomDisplayNameSnapshot: '主播企微名',
+      status: 'pending',
+      invitationSentAt: null,
+      invitationCount: 0,
+      membershipCompletedAt: new Date('2026-07-23T09:00:00.000Z'),
+      deviceReadyAt: new Date('2026-07-23T10:00:00.000Z'),
+      createdAt: new Date('2026-07-23T10:00:00.000Z'),
+      updatedAt: new Date('2026-07-23T10:00:00.000Z'),
+    }
+    const prisma = {
+      anchorActivationTask: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          status: 'cancelled',
+        }),
+        update: vi.fn().mockResolvedValue(reopened),
+        create: vi.fn(),
+      },
+    }
+    const access = {
+      requireAnyRole: vi.fn().mockResolvedValue(undefined),
+    }
+    const service = new ActivationService(prisma as never, access as never)
+
+    await service.create(auditTeacher, {
+      expectedWecomUserId: 'anchor-uid',
+      wecomDisplayName: '主播企微名',
+      membershipCompletedAt: '2026-07-23T09:00:00.000Z',
+      deviceReadyAt: '2026-07-23T10:00:00.000Z',
+    })
+
+    expect(prisma.anchorActivationTask.update).toHaveBeenCalledWith({
+      where: { id: 'task-1' },
+      data: expect.objectContaining({
+        status: 'pending',
+        auditTeacherId: 'audit-1',
+      }),
+    })
+    expect(prisma.anchorActivationTask.create).not.toHaveBeenCalled()
+  })
 })
