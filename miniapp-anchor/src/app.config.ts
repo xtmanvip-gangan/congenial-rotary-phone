@@ -2,6 +2,7 @@ export default defineAppConfig({
   pages: [
     'pages/activate/index',
     'pages/activities/index',
+    'pages/training/index',
     'pages/records/index',
     'pages/mine/index',
     'pages/activity-records/index',
@@ -24,6 +25,12 @@ export default defineAppConfig({
       {
         pagePath: 'pages/activities/index',
         text: '活动',
+        iconPath: 'assets/tabbar/activities.png',
+        selectedIconPath: 'assets/tabbar/activities-selected.png',
+      },
+      {
+        pagePath: 'pages/training/index',
+        text: '培训',
         iconPath: 'assets/tabbar/activities.png',
         selectedIconPath: 'assets/tabbar/activities-selected.png',
       },

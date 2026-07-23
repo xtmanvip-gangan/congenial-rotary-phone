@@ -98,6 +98,14 @@ export default function MinePage() {
             <Button
               className="secondaryButton"
               onClick={() => {
+                Taro.switchTab({ url: '/pages/training/index' })
+              }}
+            >
+              去培训中心
+            </Button>
+            <Button
+              className="secondaryButton"
+              onClick={() => {
                 Taro.switchTab({ url: '/pages/records/index' })
               }}
             >

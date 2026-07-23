@@ -1,0 +1,81 @@
+.tabs {
+  display: flex;
+  gap: 12px;
+}
+
+.tab {
+  flex: 1;
+  margin: 0;
+}
+
+.sessionHeader,
+.progressHeader,
+.metaRow,
+.actionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sessionHeader,
+.progressHeader {
+  align-items: flex-start;
+}
+
+.title {
+  display: block;
+  color: #1d2129;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.eyebrow {
+  display: block;
+  color: #3a8e52;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.metaRow {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  margin-top: 20px;
+}
+
+.actionRow {
+  margin-top: 24px;
+}
+
+.progressList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.progressStatus {
+  flex-shrink: 0;
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: #edf5ee;
+  color: #3a8e52;
+  font-size: 22px;
+}
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.task {
+  color: #4e5969;
+  font-size: 25px;
+  line-height: 1.6;
+}
+
+.materialButton {
+  margin: 16px 0 0;
+}
