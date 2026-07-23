@@ -74,7 +74,7 @@ Expected: FAIL，缺少岗前模型、服务和礼物归属字段。
 **Files:**
 
 - Modify: `api/prisma/schema.prisma`
-- Create: `api/prisma/migrations/202607230002_add_onboarding_and_fixed_submission_operator/migration.sql`
+- Create: `migrations/202607230002_add_onboarding_and_fixed_submission_operator.sql`
 
 - [ ] **Step 1: 新增枚举**
 

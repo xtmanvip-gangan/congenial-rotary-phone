@@ -20,13 +20,15 @@ npx prisma validate
 npx prisma generate
 ```
 
-## 阶段A模块
+## 阶段A、B模块
 
 - `auth`：外部超管密码、企微员工、企微小程序三类登录。
 - `access`：后端实时角色和账号状态校验。
 - `staff`：员工企微UID、多角色和启停。
 - `activation`：审核老师创建主播激活任务。
 - `anchors`：主播本人激活档案及运营归属确认。
+- `onboarding`：运营维护岗前、首播和首播复盘八节点。
+- `submissions`：礼物提报从主播档案自动读取固定运营；待确认归属记录隔离处理。
 
 ## 登录规则
 
@@ -43,8 +45,11 @@ npx prisma generate
 1. 备份数据库。
 2. 确认已经执行旧礼物业务迁移。
 3. 执行 `migrations/202607230001_add_identity_and_anchor_profiles.sql`。
-4. 运行 `npx prisma generate`。
-5. 启动API并使用测试账号验证三类登录。
+4. 执行 `migrations/202607230002_add_onboarding_and_fixed_submission_operator.sql`。
+5. 运行 `npx prisma generate`。
+6. 启动API并使用测试账号验证三类登录。
+
+正式升级时必须按“备份数据库 → 执行SQL → 部署API → 部署Web → 部署小程序”的顺序进行。迁移前后核对提报总数；本仓库的验证命令只校验Schema，不会连接或修改真实数据库。
 
 不要在生产库上无确认执行整库清理或覆盖。
 
