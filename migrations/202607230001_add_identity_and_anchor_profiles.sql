@@ -25,6 +25,17 @@ CREATE TYPE "OperatorAssignmentStatus" AS ENUM (
   'ended'
 );
 
+-- Upgrade the original gift-system account table for the three isolated
+-- login channels. Existing staff keep their WeCom identity; password-only
+-- super administrators can be created without a WeCom user id.
+ALTER TABLE "operator_accounts"
+  ALTER COLUMN "wecom_user_id" DROP NOT NULL,
+  ADD COLUMN "username" VARCHAR(64),
+  ADD COLUMN "password_hash" TEXT;
+
+CREATE UNIQUE INDEX "operator_accounts_username_key"
+  ON "operator_accounts"("username");
+
 CREATE TABLE "staff_role_assignments" (
   "id" UUID NOT NULL,
   "account_id" UUID NOT NULL,
@@ -39,6 +50,23 @@ CREATE TABLE "staff_role_assignments" (
 
 CREATE UNIQUE INDEX "staff_role_assignments_account_id_role_key"
   ON "staff_role_assignments"("account_id", "role");
+
+-- Preserve access for existing gift-system operators after multi-role login
+-- becomes mandatory. Super administrators deliberately remain password-only.
+INSERT INTO "staff_role_assignments" (
+  "id",
+  "account_id",
+  "role",
+  "created_at"
+)
+SELECT
+  gen_random_uuid(),
+  "id",
+  'operator'::"StaffRole",
+  CURRENT_TIMESTAMP
+FROM "operator_accounts"
+WHERE "role" = 'operator'
+ON CONFLICT ("account_id", "role") DO NOTHING;
 
 CREATE TABLE "anchor_profiles" (
   "id" UUID NOT NULL,
