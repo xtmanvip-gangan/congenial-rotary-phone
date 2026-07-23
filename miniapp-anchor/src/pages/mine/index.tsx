@@ -1,13 +1,29 @@
 import { Button, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { useEffect, useState } from 'react'
 import StateBlock from '@/components/StateBlock'
+import { getMyAnchorProfile } from '@/services/anchors'
 import { clearAppSession, ensureAppSession } from '@/services/auth'
 import { useSessionStore } from '@/store/session'
+import type { AnchorProfile } from '@/types/anchor'
 import { buildInitials } from '@/utils/format'
 import styles from './index.module.scss'
 
 export default function MinePage() {
   const { session, authLoading, authError } = useSessionStore()
+  const [profile, setProfile] = useState<AnchorProfile | null>(null)
+
+  useEffect(() => {
+    if (!session || session.mode === 'mock') {
+      return
+    }
+
+    void getMyAnchorProfile()
+      .then((result) => setProfile(result.item))
+      .catch((error) => {
+        console.error('[Mine] 主播档案加载失败', error)
+      })
+  }, [session])
 
   if (!session && authLoading) {
     return (
@@ -50,6 +66,19 @@ export default function MinePage() {
               <Text className={styles.name}>{session.user.name}</Text>
               <Text className={styles.metaLabel}>企业微信 ID</Text>
               <Text className={styles.metaValue}>{session.user.wecomUserId}</Text>
+              {profile ? (
+                <>
+                  <Text className={styles.metaLabel}>主播展示名</Text>
+                  <Text className={styles.metaValue}>{profile.anchorDisplayName}</Text>
+                  <Text className={styles.metaLabel}>所属运营</Text>
+                  <Text className={styles.metaValue}>
+                    {profile.operator?.displayName || '等待选择'}
+                    {profile.assignmentStatus === 'pending_confirmation'
+                      ? '（待确认）'
+                      : ''}
+                  </Text>
+                </>
+              ) : null}
             </View>
           </View>
         </View>

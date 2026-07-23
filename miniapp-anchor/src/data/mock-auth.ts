@@ -8,5 +8,8 @@ export const mockSession: StoredSession = {
     name: '预览主播小雨',
     avatarUrl: null,
     role: 'anchor',
+    roles: ['anchor'],
+    loginType: 'wecom_miniapp',
+    anchorProfileStatus: 'active',
   },
 }
