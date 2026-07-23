@@ -1,24 +1,23 @@
-import { Button, Input, Picker, Text, View } from '@tarojs/components'
+import { Button, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import dayjs from 'dayjs'
 import { useEffect, useState } from 'react'
 import StateBlock from '@/components/StateBlock'
 import {
   activateAnchor,
+  getMyActivation,
   getMyAnchorProfile,
-  listActiveOperators,
-  selectOperator,
 } from '@/services/anchors'
 import { refreshCurrentUser } from '@/services/auth'
-import { useSessionStore } from '@/store/session'
-import type { AnchorProfile, OperatorOption } from '@/types/anchor'
+import type {
+  AnchorActivationPreview,
+  AnchorProfile,
+} from '@/types/anchor'
 import styles from './index.module.scss'
 
 export default function ActivatePage() {
-  const session = useSessionStore((state) => state.session)
   const [profile, setProfile] = useState<AnchorProfile | null>(null)
-  const [operators, setOperators] = useState<OperatorOption[]>([])
-  const [anchorDisplayName, setAnchorDisplayName] = useState('')
-  const [operatorIndex, setOperatorIndex] = useState(0)
+  const [preview, setPreview] = useState<AnchorActivationPreview | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -27,14 +26,16 @@ export default function ActivatePage() {
     setLoading(true)
     setError(null)
     try {
-      const [profileResult, operatorResult] = await Promise.all([
+      const [profileResult, activationResult] = await Promise.all([
         getMyAnchorProfile(),
-        listActiveOperators(),
+        getMyActivation(),
       ])
       setProfile(profileResult.item)
-      setOperators(operatorResult.items)
+      setPreview(activationResult.item)
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : '档案状态加载失败')
+      setError(
+        nextError instanceof Error ? nextError.message : '档案状态加载失败',
+      )
     } finally {
       setLoading(false)
     }
@@ -43,6 +44,22 @@ export default function ActivatePage() {
   useEffect(() => {
     void load()
   }, [])
+
+  async function submitActivation() {
+    setSubmitting(true)
+    try {
+      const result = await activateAnchor()
+      setProfile(result.item)
+      await refreshCurrentUser()
+    } catch (nextError) {
+      Taro.showToast({
+        title: nextError instanceof Error ? nextError.message : '开通失败',
+        icon: 'none',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -66,27 +83,15 @@ export default function ActivatePage() {
     )
   }
 
-  const status = session?.user.anchorProfileStatus
-
-  if (status === 'not_eligible') {
-    return (
-      <View className="pageShell">
-        <StateBlock
-          title="请先联系审核老师"
-          description="系统还没有收到你的入会及设备调试完成记录，审核老师建立激活任务后即可继续。"
-        />
-      </View>
-    )
-  }
-
   if (profile?.assignmentStatus === 'pending_confirmation') {
     return (
       <View className="pageShell">
         <View className="panelCard">
-          <Text className="panelTitle">档案已激活</Text>
+          <Text className="panelTitle">档案已开通</Text>
           <Text className="panelDesc">
-            已选择{profile.operator?.displayName || '运营老师'}，正在等待运营确认归属。
+            所属运营：{profile.operator?.displayName || '运营老师'}
           </Text>
+          <Text className="panelDesc">正在等待运营老师确认归属。</Text>
           <Button
             className={`secondaryButton ${styles.actionButton}`}
             onClick={() => {
@@ -103,39 +108,24 @@ export default function ActivatePage() {
   if (profile?.assignmentStatus === 'rejected') {
     return (
       <View className="pageShell">
-        <View className="panelCard">
-          <Text className="panelTitle">重新选择运营老师</Text>
-          <Text className="panelDesc">原归属未确认，请选择审核部实际分配给你的运营老师。</Text>
-          <OperatorPicker
-            operators={operators}
-            operatorIndex={operatorIndex}
-            onChange={setOperatorIndex}
-          />
-          <Button
-            className={`primaryButton ${styles.actionButton}`}
-            disabled={submitting || operators.length === 0}
-            onClick={() => {
-              const operator = operators[operatorIndex]
-              if (!operator) return
-              setSubmitting(true)
-              void selectOperator({ operatorId: operator.id })
-                .then((result) => setProfile(result.item))
-                .finally(() => setSubmitting(false))
-            }}
-          >
-            提交运营归属
-          </Button>
-        </View>
+        <StateBlock
+          title="请联系审核老师"
+          description="原运营未确认归属，审核老师重新分配运营后，你无需再次开通档案。"
+          actionText="刷新分配状态"
+          onAction={() => void load()}
+        />
       </View>
     )
   }
 
-  if (profile?.assignmentStatus === 'confirmed' || status === 'active') {
+  if (profile?.assignmentStatus === 'confirmed') {
     return (
       <View className="pageShell">
         <View className="panelCard">
           <Text className="panelTitle">主播档案已启用</Text>
-          <Text className="panelDesc">所属运营：{profile?.operator?.displayName || '已确认'}</Text>
+          <Text className="panelDesc">
+            所属运营：{profile.operator?.displayName || '已确认'}
+          </Text>
           <Button
             className={`primaryButton ${styles.actionButton}`}
             onClick={() => Taro.switchTab({ url: '/pages/activities/index' })}
@@ -147,93 +137,51 @@ export default function ActivatePage() {
     )
   }
 
-  async function submitActivation() {
-    const operator = operators[operatorIndex]
-    if (!anchorDisplayName.trim() || !operator) {
-      Taro.showToast({ title: '请填写主播名并选择运营', icon: 'none' })
-      return
-    }
-
-    setSubmitting(true)
-    try {
-      const result = await activateAnchor({
-        anchorDisplayName: anchorDisplayName.trim(),
-        operatorId: operator.id,
-      })
-      setProfile(result.item)
-      await refreshCurrentUser()
-    } catch (nextError) {
-      Taro.showToast({
-        title: nextError instanceof Error ? nextError.message : '激活失败',
-        icon: 'none',
-      })
-    } finally {
-      setSubmitting(false)
-    }
+  if (!preview) {
+    return (
+      <View className="pageShell">
+        <StateBlock
+          title="请先联系审核老师"
+          description="系统还没有收到你的档案开通任务，审核老师建立任务并发送提醒后即可继续。"
+          actionText="刷新开通任务"
+          onAction={() => void load()}
+        />
+      </View>
+    )
   }
 
   return (
     <View className="pageShell">
       <View className="heroCard">
         <Text className="heroEyebrow">首次使用</Text>
-        <Text className="heroTitle">激活主播档案</Text>
-        <Text className="heroDesc">档案必须由主播本人通过企微身份建立。</Text>
+        <Text className="heroTitle">确认主播档案</Text>
+        <Text className="heroDesc">
+          以下资料由审核老师预先填写，请核对后开通。
+        </Text>
       </View>
       <View className="panelCard">
         <View className="fieldBlock">
-          <Text className="fieldLabel">企微展示名</Text>
-          <View className="fieldValue">{session?.user.name || ''}</View>
+          <Text className="fieldLabel">主播昵称</Text>
+          <View className="fieldValue">{preview.anchorDisplayName}</View>
         </View>
         <View className={`fieldBlock ${styles.fieldSpacing}`}>
-          <Text className="fieldLabel">主播展示名／抖音昵称</Text>
-          <Input
-            className="fieldInput"
-            value={anchorDisplayName}
-            maxlength={100}
-            placeholder="请输入当前主播名"
-            onInput={(event) => setAnchorDisplayName(event.detail.value)}
-          />
+          <Text className="fieldLabel">所属运营</Text>
+          <View className="fieldValue">{preview.operator.displayName}</View>
         </View>
-        <OperatorPicker
-          operators={operators}
-          operatorIndex={operatorIndex}
-          onChange={setOperatorIndex}
-        />
+        <View className={`fieldBlock ${styles.fieldSpacing}`}>
+          <Text className="fieldLabel">入会时间</Text>
+          <View className="fieldValue">
+            {dayjs(preview.membershipCompletedAt).format('YYYY-MM-DD HH:mm')}
+          </View>
+        </View>
         <Button
           className={`primaryButton ${styles.actionButton}`}
-          disabled={submitting || operators.length === 0}
+          disabled={submitting}
           onClick={() => void submitActivation()}
         >
-          {submitting ? '正在激活…' : '确认并激活档案'}
+          {submitting ? '正在开通…' : '确认并开通档案'}
         </Button>
       </View>
-    </View>
-  )
-}
-
-function OperatorPicker({
-  operators,
-  operatorIndex,
-  onChange,
-}: {
-  operators: OperatorOption[]
-  operatorIndex: number
-  onChange: (index: number) => void
-}) {
-  return (
-    <View className={`fieldBlock ${styles.fieldSpacing}`}>
-      <Text className="fieldLabel">已分配的运营老师</Text>
-      <Picker
-        mode="selector"
-        range={operators}
-        rangeKey="displayName"
-        value={operatorIndex}
-        onChange={(event) => onChange(Number(event.detail.value))}
-      >
-        <View className="fieldValue">
-          {operators[operatorIndex]?.displayName || '暂无可选运营，请联系审核老师'}
-        </View>
-      </Picker>
     </View>
   )
 }

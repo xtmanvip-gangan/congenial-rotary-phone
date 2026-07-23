@@ -3,6 +3,12 @@ export type OperatorOption = {
   displayName: string
 }
 
+export type AnchorActivationPreview = {
+  anchorDisplayName: string
+  membershipCompletedAt: string
+  operator: OperatorOption
+}
+
 export type AnchorProfile = {
   id: string
   wecomName: string
