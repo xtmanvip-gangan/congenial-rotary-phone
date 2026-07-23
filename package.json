@@ -12,6 +12,7 @@
     "build:api": "npm --prefix api run build",
     "check": "tsc -b && npm --prefix api run build",
     "lint": "oxlint",
+    "test:web": "vitest run",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -26,15 +27,18 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.4.21",
+    "jsdom": "^27.4.0",
     "oxlint": "^1.71.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "vite": "^8.1.1",
+    "vitest": "^4.1.10"
   }
 }

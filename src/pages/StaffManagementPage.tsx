@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LoaderCircle, Plus, RefreshCw } from 'lucide-react'
+import { LoaderCircle, Pencil, Plus, RefreshCw } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { apiJson } from '../lib/api'
 import { formatDateTime } from '../lib/dateTime'
@@ -33,6 +33,13 @@ export function StaffManagementPage() {
   const [wecomUserId, setWecomUserId] = useState('')
   const [roles, setRoles] = useState<StaffRole[]>(['operator'])
   const [error, setError] = useState<string | null>(null)
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null)
+  const [draftRoles, setDraftRoles] = useState<StaffRole[]>([])
+  const [rolesFeedback, setRolesFeedback] = useState<{
+    staffId: string
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
   const staffQuery = useQuery({
     queryKey,
     queryFn: () => apiJson<StaffResponse>('/staff'),
@@ -75,7 +82,24 @@ export function StaffManagementPage() {
         method: 'PATCH',
         body: JSON.stringify({ roles: payload.roles }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: async (_, payload) => {
+      setEditingStaffId(null)
+      setDraftRoles([])
+      setRolesFeedback({
+        staffId: payload.staffId,
+        type: 'success',
+        message: '角色已保存',
+      })
+      await queryClient.invalidateQueries({ queryKey })
+    },
+    onError: (nextError, payload) => {
+      setRolesFeedback({
+        staffId: payload.staffId,
+        type: 'error',
+        message:
+          nextError instanceof Error ? nextError.message : '角色保存失败',
+      })
+    },
   })
 
   function toggleRole(role: StaffRole) {
@@ -95,13 +119,40 @@ export function StaffManagementPage() {
     createMutation.mutate({ displayName, wecomUserId, roles })
   }
 
+  function startEditing(item: StaffItem) {
+    setEditingStaffId(item.id)
+    setDraftRoles(item.roles)
+    setRolesFeedback(null)
+  }
+
+  function toggleDraftRole(role: StaffRole) {
+    setDraftRoles((current) =>
+      current.includes(role)
+        ? current.filter((item) => item !== role)
+        : [...current, role],
+    )
+  }
+
+  function saveRoles(staffId: string) {
+    if (draftRoles.length === 0) {
+      setRolesFeedback({
+        staffId,
+        type: 'error',
+        message: '至少保留一个员工角色',
+      })
+      return
+    }
+
+    rolesMutation.mutate({ staffId, roles: draftRoles })
+  }
+
   return (
     <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
         <p className="text-sm font-medium text-brand-600">超级管理员</p>
         <h2 className="mt-2 text-2xl font-semibold text-slate-900">员工与企微角色</h2>
         <p className="mt-3 text-sm leading-6 text-slate-500">
-          员工只使用企微UID登录，不创建独立账号和密码。
+          员工只使用企微UID登录，不创建独立账号和密码。同一员工可同时拥有多个角色。
         </p>
         <form className="mt-6 space-y-4" onSubmit={submit}>
           <label className="block">
@@ -194,48 +245,102 @@ export function StaffManagementPage() {
                       更新：{formatDateTime(item.updatedAt)}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="app-btn-secondary"
-                    onClick={() =>
-                      statusMutation.mutate({
-                        staffId: item.id,
-                        status: item.status === 'active' ? 'disabled' : 'active',
-                      })
-                    }
-                  >
-                    {item.status === 'active' ? '停用' : '启用'}
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="app-btn-secondary"
+                      onClick={() => startEditing(item)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      编辑角色
+                    </button>
+                    <button
+                      type="button"
+                      className="app-btn-secondary"
+                      onClick={() =>
+                        statusMutation.mutate({
+                          staffId: item.id,
+                          status: item.status === 'active' ? 'disabled' : 'active',
+                        })
+                      }
+                    >
+                      {item.status === 'active' ? '停用' : '启用'}
+                    </button>
+                  </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {roleOptions.map((roleItem) => {
-                    const checked = item.roles.includes(roleItem.role)
-                    return (
+                {editingStaffId === item.id ? (
+                  <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+                    <p className="text-sm font-medium text-slate-700">
+                      勾选该员工需要使用的全部角色
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {roleOptions.map((roleItem) => (
+                        <label
+                          key={roleItem.role}
+                          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={draftRoles.includes(roleItem.role)}
+                            onChange={() => toggleDraftRole(roleItem.role)}
+                          />
+                          {roleItem.label}
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
                       <button
                         type="button"
-                        key={roleItem.role}
-                        className={`rounded-full px-3 py-1 text-xs ${
-                          checked
-                            ? 'bg-brand-600 text-white'
-                            : 'bg-slate-100 text-slate-500'
-                        }`}
+                        className="app-btn-primary"
+                        disabled={rolesMutation.isPending}
+                        onClick={() => saveRoles(item.id)}
+                      >
+                        {rolesMutation.isPending ? (
+                          <LoaderCircle className="h-4 w-4 animate-spin" />
+                        ) : null}
+                        保存角色
+                      </button>
+                      <button
+                        type="button"
+                        className="app-btn-secondary"
+                        disabled={rolesMutation.isPending}
                         onClick={() => {
-                          const nextRoles = checked
-                            ? item.roles.filter((role) => role !== roleItem.role)
-                            : [...item.roles, roleItem.role]
-                          if (nextRoles.length > 0) {
-                            rolesMutation.mutate({
-                              staffId: item.id,
-                              roles: nextRoles,
-                            })
-                          }
+                          setEditingStaffId(null)
+                          setDraftRoles([])
+                          setRolesFeedback(null)
                         }}
                       >
-                        {roleItem.label}
+                        取消
                       </button>
-                    )
-                  })}
-                </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {item.roles.map((role) => (
+                      <span
+                        key={role}
+                        className="rounded-full bg-brand-600 px-3 py-1 text-xs text-white"
+                      >
+                        {roleOptions.find((item) => item.role === role)?.label ??
+                          role}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {rolesFeedback?.staffId === item.id ? (
+                  <p
+                    className={`mt-3 text-sm ${
+                      rolesFeedback.type === 'success'
+                        ? 'text-emerald-600'
+                        : 'text-rose-600'
+                    }`}
+                  >
+                    {rolesFeedback.message}
+                    {rolesFeedback.type === 'success'
+                      ? '，该员工重新进入企微应用后即可切换工作台。'
+                      : ''}
+                  </p>
+                ) : null}
               </article>
             ))}
           </div>
