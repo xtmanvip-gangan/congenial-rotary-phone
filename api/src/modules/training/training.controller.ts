@@ -22,6 +22,11 @@ import {
 } from './dto/register-session.dto.js'
 import { UpdateCourseDto } from './dto/update-course.dto.js'
 import { RescheduleSessionDto } from './dto/reschedule-session.dto.js'
+import {
+  ResolveAttendanceMatchDto,
+  ResolveAttendanceOutcomeDto,
+} from './dto/resolve-attendance.dto.js'
+import { TrainingAttendanceService } from './training-attendance.service.js'
 import { TrainingService } from './training.service.js'
 
 @Controller('training')
@@ -29,6 +34,7 @@ export class TrainingController {
   constructor(
     private readonly authService: AuthService,
     private readonly trainingService: TrainingService,
+    private readonly trainingAttendanceService: TrainingAttendanceService,
   ) {}
 
   private user(authorization?: string) {
@@ -257,6 +263,55 @@ export class TrainingController {
     return this.trainingService.listSessionRoster(
       this.user(authorization),
       sessionId,
+    )
+  }
+
+  @Post('sessions/:sessionId/attendance/sync')
+  syncAttendance(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.trainingAttendanceService.syncFromTencentMeeting(
+      this.user(authorization),
+      sessionId,
+    )
+  }
+
+  @Get('sessions/:sessionId/attendance')
+  attendance(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('sessionId') sessionId: string,
+  ) {
+    return this.trainingAttendanceService.listSessionAttendance(
+      this.user(authorization),
+      sessionId,
+    )
+  }
+
+  @Patch('attendance/:attendanceRecordId/match')
+  resolveAttendanceMatch(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('attendanceRecordId') attendanceRecordId: string,
+    @Body() dto: ResolveAttendanceMatchDto,
+  ) {
+    return this.trainingAttendanceService.resolveMatch(
+      this.user(authorization),
+      attendanceRecordId,
+      dto,
+    )
+  }
+
+  @Patch('attendance/:attendanceRecordId/outcome')
+  resolveAttendanceOutcome(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('attendanceRecordId') attendanceRecordId: string,
+    @Body() dto: ResolveAttendanceOutcomeDto,
+  ) {
+    return this.trainingAttendanceService.resolveOutcome(
+      this.user(authorization),
+      attendanceRecordId,
+      dto.outcome,
+      dto.reason,
     )
   }
 

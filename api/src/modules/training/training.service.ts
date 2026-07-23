@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common'
 import type {
   TrainingLearningType,
@@ -19,6 +20,7 @@ import type { CreateScheduleTemplateDto } from './dto/create-schedule-template.d
 import type { CreateSessionDto } from './dto/create-session.dto.js'
 import type { UpdateCourseDto } from './dto/update-course.dto.js'
 import type { RescheduleSessionDto } from './dto/reschedule-session.dto.js'
+import { TrainingMeetingsService } from './training-meetings.service.js'
 
 const courseInclude = {
   materialLinks: {
@@ -47,6 +49,17 @@ const sessionInclude = {
       learningType: true,
     },
   },
+  meeting: {
+    select: {
+      externalMeetingId: true,
+      meetingCode: true,
+      joinUrl: true,
+      createStatus: true,
+      createAttempts: true,
+      lastError: true,
+      lastSyncAt: true,
+    },
+  },
 } as const
 
 @Injectable()
@@ -54,6 +67,7 @@ export class TrainingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
+    @Optional() private readonly meetings?: TrainingMeetingsService,
   ) {}
 
   async listCourses(currentUser: AuthenticatedUser) {
@@ -275,14 +289,22 @@ export class TrainingService {
       where: { id: sessionId },
     })
     if (!item) throw new NotFoundException('未找到培训场次')
-    if (item.status !== 'draft' && item.status !== 'rescheduled') {
+    if (
+      item.status !== 'draft' &&
+      item.status !== 'rescheduled' &&
+      item.status !== 'publish_failed'
+    ) {
       throw new BadRequestException('当前场次不能发布')
     }
-    const updated = await this.prisma.trainingSession.update({
+    if (!this.meetings) {
+      throw new BadRequestException('腾讯会议服务不可用')
+    }
+    await this.meetings.publishSession(sessionId)
+    const updated = await this.prisma.trainingSession.findUnique({
       where: { id: sessionId },
-      data: { status: 'published', publishedAt: new Date() },
       include: sessionInclude,
     })
+    if (!updated) throw new NotFoundException('未找到培训场次')
     return { item: this.formatSession(updated) }
   }
 
@@ -364,6 +386,7 @@ export class TrainingService {
     await this.requireTrainingAdmin(currentUser)
     const reason = reasonInput.trim()
     if (!reason) throw new BadRequestException('请填写取消原因')
+    await this.meetings?.cancelSession(sessionId, reason)
     await this.prisma.$transaction([
       this.prisma.trainingSession.update({
         where: { id: sessionId },
@@ -1058,6 +1081,16 @@ export class TrainingService {
         : [],
       faq: Array.isArray(item.faq) ? item.faq : [],
       status: item.status,
+      meeting: item.meeting
+        ? {
+            meetingCode: item.meeting.meetingCode,
+            joinUrl: item.meeting.joinUrl,
+            createStatus: item.meeting.createStatus,
+            createAttempts: item.meeting.createAttempts,
+            lastError: item.meeting.lastError,
+            lastSyncAt: item.meeting.lastSyncAt?.toISOString() ?? null,
+          }
+        : null,
       materialLinks: item.materialLinks ?? [],
     }
   }

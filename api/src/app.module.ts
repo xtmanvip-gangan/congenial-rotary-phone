@@ -9,6 +9,7 @@ import { ActivationModule } from './modules/activation/activation.module.js'
 import { AnchorsModule } from './modules/anchors/anchors.module.js'
 import { AuthModule } from './modules/auth/auth.module.js'
 import { HealthModule } from './modules/health/health.module.js'
+import { TencentMeetingModule } from './modules/integrations/tencent-meeting/tencent-meeting.module.js'
 import { NotificationsModule } from './modules/notifications/notifications.module.js'
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js'
 import { OperatorsModule } from './modules/operators/operators.module.js'
@@ -28,6 +29,7 @@ import { PrismaModule } from './prisma/prisma.module.js'
     ActivationModule,
     AnchorsModule,
     HealthModule,
+    TencentMeetingModule,
     AuthModule,
     ExportsModule,
     ActivitiesModule,
