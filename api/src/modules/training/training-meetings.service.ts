@@ -12,6 +12,7 @@ import {
   type TencentMeetingGateway,
 } from '../integrations/tencent-meeting/tencent-meeting.types.js'
 import { NotificationsService } from '../notifications/notifications.service.js'
+import { IncidentsService } from '../operations/incidents.service.js'
 
 @Injectable()
 export class TrainingMeetingsService {
@@ -20,6 +21,7 @@ export class TrainingMeetingsService {
     @Inject(TENCENT_MEETING_GATEWAY)
     private readonly gateway: TencentMeetingGateway,
     @Optional() private readonly notifications?: NotificationsService,
+    @Optional() private readonly incidents?: IncidentsService,
   ) {}
 
   async publishSession(sessionId: string) {
@@ -123,11 +125,24 @@ export class TrainingMeetingsService {
           lastError: null,
         },
       })
+      await this.incidents?.recover({
+        provider: 'tencent_meeting',
+        operation: 'cancel_meeting',
+        businessType: 'training_session',
+        businessId: sessionId,
+      })
     } catch (error) {
       const message = this.errorMessage(error)
       await this.prisma.trainingMeeting.update({
         where: { sessionId },
         data: { lastError: message },
+      })
+      await this.incidents?.capture({
+        provider: 'tencent_meeting',
+        operation: 'cancel_meeting',
+        businessType: 'training_session',
+        businessId: sessionId,
+        error,
       })
       throw new BadRequestException(`腾讯会议取消失败：${message}`)
     }
@@ -150,6 +165,13 @@ export class TrainingMeetingsService {
       data: { status: 'publish_failed' },
     })
     await this.notifyMeetingFailure(sessionId, message)
+    await this.incidents?.capture({
+      provider: 'tencent_meeting',
+      operation: 'publish_meeting',
+      businessType: 'training_session',
+      businessId: sessionId,
+      error,
+    })
     throw new BadRequestException(`腾讯会议创建或更新失败：${message}`)
   }
 

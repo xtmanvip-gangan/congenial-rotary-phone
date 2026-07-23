@@ -11,6 +11,7 @@ import { TrainingNotificationsService } from './training-notifications.service.j
 import { TrainingRecommendationsService } from './training-recommendations.service.js'
 import { TrainingOperationsService } from './training-operations.service.js'
 import { TrainingService } from './training.service.js'
+import { OperationsModule } from '../operations/operations.module.js'
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { TrainingService } from './training.service.js'
     AuthModule,
     TencentMeetingModule,
     NotificationsModule,
+    OperationsModule,
   ],
   controllers: [TrainingController],
   providers: [

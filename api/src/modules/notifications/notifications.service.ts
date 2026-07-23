@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, Optional } from '@nestjs/common'
 import { PrismaService } from '../../prisma/prisma.service.js'
 import { WecomService } from '../auth/wecom.service.js'
+import { IncidentsService } from '../operations/incidents.service.js'
 
 type SubmissionNotificationPayload = {
   submissionId: string
@@ -36,6 +37,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly wecomService: WecomService,
+    @Optional() private readonly incidents?: IncidentsService,
   ) {}
 
   async notifySubmissionCreated(payload: SubmissionNotificationPayload, options?: { resubmitted?: boolean }) {
@@ -234,6 +236,12 @@ export class NotificationsService {
           errorMessage: null,
         },
       })
+      await this.incidents?.recover({
+        provider: 'wecom',
+        operation: 'send_message',
+        businessType: payload.businessType,
+        businessId: payload.businessId ?? logId,
+      })
     } catch (error) {
       const message = error instanceof Error ? error.message : '通知发送失败'
 
@@ -251,6 +259,13 @@ export class NotificationsService {
           lastAttemptAt: new Date(),
           errorMessage: message,
         },
+      })
+      await this.incidents?.capture({
+        provider: 'wecom',
+        operation: 'send_message',
+        businessType: payload.businessType,
+        businessId: payload.businessId ?? logId,
+        error,
       })
     }
   }
