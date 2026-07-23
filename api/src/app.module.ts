@@ -8,6 +8,7 @@ import { AccessModule } from './modules/access/access.module.js'
 import { ActivationModule } from './modules/activation/activation.module.js'
 import { AnchorsModule } from './modules/anchors/anchors.module.js'
 import { AuthModule } from './modules/auth/auth.module.js'
+import { DashboardModule } from './modules/dashboard/dashboard.module.js'
 import { HealthModule } from './modules/health/health.module.js'
 import { TencentMeetingModule } from './modules/integrations/tencent-meeting/tencent-meeting.module.js'
 import { TrainingJobsModule } from './modules/jobs/training-jobs.module.js'
@@ -33,6 +34,7 @@ import { PrismaModule } from './prisma/prisma.module.js'
     TencentMeetingModule,
     TrainingJobsModule,
     AuthModule,
+    DashboardModule,
     ExportsModule,
     ActivitiesModule,
     OperatorsModule,
