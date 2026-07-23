@@ -17,7 +17,9 @@ export class MiniappAuthController {
 
   @Get('me')
   getCurrentUser(@Headers('authorization') authorization?: string) {
-    return this.authService.getCurrentUserFromAuthHeader(authorization)
+    return this.authService.refreshMiniappCurrentUser(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+    )
   }
 
   @Post('logout')

@@ -187,6 +187,58 @@ export class AuthService {
     })
   }
 
+  async refreshMiniappCurrentUser(
+    currentUser: AuthenticatedUser,
+  ): Promise<AuthenticatedUser> {
+    if (
+      currentUser.role !== 'anchor' ||
+      currentUser.loginType !== 'wecom_miniapp'
+    ) {
+      throw new UnauthorizedException('当前登录态不是主播小程序登录')
+    }
+
+    const wecomUser = await this.prisma.wecomUser.upsert({
+      where: {
+        wecomUserId: currentUser.wecomUserId,
+      },
+      update: {
+        wecomName: currentUser.name,
+        avatarUrl: currentUser.avatarUrl,
+      },
+      create: {
+        wecomUserId: currentUser.wecomUserId,
+        wecomName: currentUser.name,
+        avatarUrl: currentUser.avatarUrl,
+      },
+    })
+    const [anchorProfile, activationTask] = await Promise.all([
+      this.prisma.anchorProfile.findUnique({
+        where: {
+          wecomUserRecordId: wecomUser.id,
+        },
+        select: {
+          assignmentStatus: true,
+        },
+      }),
+      this.prisma.anchorActivationTask.findUnique({
+        where: {
+          expectedWecomUserId: currentUser.wecomUserId,
+        },
+        select: {
+          status: true,
+        },
+      }),
+    ])
+
+    return {
+      ...currentUser,
+      anchorProfileStatus: this.resolveAnchorProfileStatus(
+        anchorProfile?.assignmentStatus,
+        activationTask?.status,
+      ),
+    }
+  }
+
   getCurrentUserFromAuthHeader(authorization?: string) {
     const token = this.extractBearerToken(authorization)
     return this.getCurrentUserFromToken(token)

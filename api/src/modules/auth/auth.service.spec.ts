@@ -155,4 +155,35 @@ describe('AuthService entry isolation', () => {
       anchorProfileStatus: 'not_activated',
     })
   })
+
+  it('refreshes miniapp activation status from current database state', async () => {
+    const { service, prisma } = createSubject()
+    prisma.wecomUser.upsert.mockResolvedValue({
+      id: 'wecom-record-1',
+      wecomUserId: 'anchor-uid',
+      wecomName: '主播企微名',
+      avatarUrl: null,
+    })
+    prisma.anchorProfile.findUnique.mockResolvedValue({
+      assignmentStatus: 'confirmed',
+    })
+    prisma.anchorActivationTask.findUnique.mockResolvedValue({
+      status: 'activated',
+    })
+
+    const result = await service.refreshMiniappCurrentUser(anchorSession)
+
+    expect(result.anchorProfileStatus).toBe('active')
+  })
 })
+
+const anchorSession = {
+  accountId: null,
+  wecomUserId: 'anchor-uid',
+  name: '主播企微名',
+  avatarUrl: null,
+  role: 'anchor' as const,
+  roles: ['anchor' as const],
+  loginType: 'wecom_miniapp' as const,
+  anchorProfileStatus: 'not_activated' as const,
+}
