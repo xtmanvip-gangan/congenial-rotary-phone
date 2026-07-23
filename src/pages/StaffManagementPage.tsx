@@ -337,7 +337,7 @@ export function StaffManagementPage() {
                   >
                     {rolesFeedback.message}
                     {rolesFeedback.type === 'success'
-                      ? '，该员工重新进入企微应用后即可切换工作台。'
+                      ? '，该员工退出当前企微登录并重新登录后即可切换工作台。'
                       : ''}
                   </p>
                 ) : null}
