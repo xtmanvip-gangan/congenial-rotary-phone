@@ -20,7 +20,7 @@ npx prisma validate
 npx prisma generate
 ```
 
-## 阶段A、B模块
+## 阶段A、B、C模块
 
 - `auth`：外部超管密码、企微员工、企微小程序三类登录。
 - `access`：后端实时角色和账号状态校验。
@@ -29,6 +29,7 @@ npx prisma generate
 - `anchors`：主播本人激活档案及运营归属确认。
 - `onboarding`：运营维护岗前、首播和首播复盘八节点。
 - `submissions`：礼物提报从主播档案自动读取固定运营；待确认归属记录隔离处理。
+- `training`：课程、资料、排课模板、场次、报名候补、取消补位和学习进度。
 
 ## 登录规则
 
@@ -46,10 +47,13 @@ npx prisma generate
 2. 确认已经执行旧礼物业务迁移。
 3. 执行 `migrations/202607230001_add_identity_and_anchor_profiles.sql`。
 4. 执行 `migrations/202607230002_add_onboarding_and_fixed_submission_operator.sql`。
-5. 运行 `npx prisma generate`。
-6. 启动API并使用测试账号验证三类登录。
+5. 执行 `migrations/202607230003_add_training_core.sql`。
+6. 运行 `npx prisma generate`。
+7. 启动API并使用测试账号验证三类登录。
 
 正式升级时必须按“备份数据库 → 执行SQL → 部署API → 部署Web → 部署小程序”的顺序进行。迁移前后核对提报总数；本仓库的验证命令只校验Schema，不会连接或修改真实数据库。
+
+阶段C不调用腾讯会议开放平台。发布场次只发布内部报名信息，外部会议创建和参会自动判断在阶段D通过独立适配层接入。
 
 不要在生产库上无确认执行整库清理或覆盖。
 
