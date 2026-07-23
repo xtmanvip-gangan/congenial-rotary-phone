@@ -81,6 +81,15 @@ export class JobRunService {
       throw new Error(safeError)
     }
   }
+
+  async list() {
+    return {
+      items: await this.prisma.systemJobRun.findMany({
+        orderBy: { startedAt: 'desc' },
+        take: 100,
+      }),
+    }
+  }
 }
 
 export function sanitizeError(error: unknown) {

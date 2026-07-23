@@ -21,11 +21,23 @@ describe('TrainingJobsService', () => {
       notifyOneHourReminder: vi.fn().mockResolvedValue({}),
     }
     const notifications = { retryFailed: vi.fn() }
+    const jobRuns = {
+      run: vi.fn().mockImplementation(async (_input, operation) => {
+        const value = await operation()
+        return {
+          status: 'succeeded',
+          scannedCount: value.scanned,
+          successCount: value.succeeded,
+          failureCount: value.failed,
+        }
+      }),
+    }
     const service = new TrainingJobsService(
       prisma as never,
       access as never,
       trainingNotifications as never,
       notifications as never,
+      jobRuns as never,
     )
 
     const result = await service.sendOneHourReminders(
@@ -41,7 +53,20 @@ describe('TrainingJobsService', () => {
       now,
     )
 
-    expect(result).toEqual({ scanned: 1, sent: 1 })
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'succeeded',
+        scannedCount: 1,
+        successCount: 1,
+      }),
+    )
+    expect(jobRuns.run).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobCode: 'training.one_hour_reminders',
+        idempotencyKey: '2026-07-23T11',
+      }),
+      expect.any(Function),
+    )
     expect(prisma.trainingRegistration.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({

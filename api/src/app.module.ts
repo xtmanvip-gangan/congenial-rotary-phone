@@ -13,6 +13,7 @@ import { HealthModule } from './modules/health/health.module.js'
 import { TencentMeetingModule } from './modules/integrations/tencent-meeting/tencent-meeting.module.js'
 import { TrainingJobsModule } from './modules/jobs/training-jobs.module.js'
 import { NotificationsModule } from './modules/notifications/notifications.module.js'
+import { OperationsModule } from './modules/operations/operations.module.js'
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js'
 import { OperatorsModule } from './modules/operators/operators.module.js'
 import { SubmissionsModule } from './modules/submissions/submissions.module.js'
@@ -40,6 +41,7 @@ import { PrismaModule } from './prisma/prisma.module.js'
     OperatorsModule,
     SubmissionsModule,
     NotificationsModule,
+    OperationsModule,
     OnboardingModule,
     StaffModule,
     TrainingModule,
