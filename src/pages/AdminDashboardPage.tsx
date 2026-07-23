@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import {
   Activity,
+  AlertTriangle,
+  BookOpenCheck,
   CheckCircle2,
   ClipboardList,
   LoaderCircle,
@@ -14,6 +16,7 @@ import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
 import { LoadingBlock } from '../components/LoadingBlock'
 import { apiJson } from '../lib/api'
+import type { DashboardResponse } from '../lib/dashboard'
 import { formatDateTime, formatDateTimeRange } from '../lib/dateTime'
 import {
   activityStatusClassMap,
@@ -87,6 +90,11 @@ export function AdminDashboardPage() {
     enabled: session?.user.role === 'super_admin',
     queryKey: ['operators', 'dashboard'],
     queryFn: () => apiJson<OperatorsResponse>('/operators'),
+  })
+  const platformDashboardQuery = useQuery({
+    enabled: session?.user.role === 'super_admin',
+    queryKey: ['dashboard', 'super_admin'],
+    queryFn: () => apiJson<DashboardResponse>('/dashboard'),
   })
 
   const summary = useMemo(() => {
@@ -191,6 +199,39 @@ export function AdminDashboardPage() {
           loading={loading}
         />
       </div>
+
+      {session?.user.role === 'super_admin' ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard
+            icon={<UsersRound className="h-5 w-5" />}
+            label="有效主播档案"
+            value={platformDashboardQuery.data?.metrics.activeAnchors ?? 0}
+            helper="已经激活且仍在合作"
+            loading={platformDashboardQuery.isLoading}
+          />
+          <SummaryCard
+            icon={<BookOpenCheck className="h-5 w-5" />}
+            label="执行中培训场次"
+            value={platformDashboardQuery.data?.metrics.trainingSessions ?? 0}
+            helper="已发布或正在进行"
+            loading={platformDashboardQuery.isLoading}
+          />
+          <SummaryCard
+            icon={<AlertTriangle className="h-5 w-5" />}
+            label="开放接口异常"
+            value={platformDashboardQuery.data?.metrics.openIncidents ?? 0}
+            helper="企微或腾讯会议待处理"
+            loading={platformDashboardQuery.isLoading}
+          />
+          <SummaryCard
+            icon={<Activity className="h-5 w-5" />}
+            label="异常任务运行"
+            value={platformDashboardQuery.data?.metrics.failedJobs ?? 0}
+            helper="失败或部分失败"
+            loading={platformDashboardQuery.isLoading}
+          />
+        </div>
+      ) : null}
 
       {session?.user.role === 'super_admin' ? (
         <div className="grid gap-4 md:grid-cols-2">

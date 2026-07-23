@@ -25,6 +25,7 @@ import { TrainingSessionsPage } from './pages/TrainingSessionsPage'
 import { OperatorTrainingPage } from './pages/OperatorTrainingPage'
 import { TrainingAttendancePage } from './pages/TrainingAttendancePage'
 import { TrainingOperationsPage } from './pages/TrainingOperationsPage'
+import { OperationsCenterPage } from './pages/OperationsCenterPage'
 import type { AppRole } from './lib/auth'
 
 function App() {
@@ -275,6 +276,14 @@ function App() {
               }
             />
             <Route
+              path="/operations"
+              element={
+                <AuthGate allowRoles={['training_admin', 'super_admin']}>
+                  <OperationsCenterPage />
+                </AuthGate>
+              }
+            />
+            <Route
               path="/admin/exports"
               element={
                 <AuthGate allowRoles={['operator', 'super_admin']}>
@@ -348,6 +357,7 @@ function getNavigationItems(role: AppRole): NavigationItem[] {
       { label: '导出中心', to: '/admin/exports' },
       { label: '参会导入', to: '/training/attendance' },
       { label: '培训运营', to: '/training/operations' },
+      { label: '任务与异常', to: '/operations' },
     ]
   }
 
@@ -370,6 +380,7 @@ function getNavigationItems(role: AppRole): NavigationItem[] {
       { label: '问题与周会', to: '/training/operations' },
       { label: '主播激活', to: '/audit/activations' },
       { label: '工作台', to: '/staff/home' },
+      { label: '任务与异常', to: '/operations' },
     ]
   }
 
