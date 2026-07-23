@@ -1,0 +1,212 @@
+@use '@/styles/compat.scss';
+@use '@/styles/variables.scss' as *;
+
+page {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: $font-size-md;
+  line-height: $line-height-normal;
+  color: #1d1d1f;
+  background: #f5f5f7; /* iOS 经典的浅灰背景 */
+}
+
+view,
+text,
+button,
+input,
+picker,
+image,
+scroll-view {
+  box-sizing: border-box;
+}
+
+.pageShell {
+  min-height: 100vh;
+  padding: 32rpx $page-padding 48rpx;
+}
+
+/* 彻底抛弃渐变，改为 Apple 风格的极简毛玻璃或纯净白卡 */
+.heroCard {
+  padding: 40rpx 32rpx;
+  border-radius: 40rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.03); /* 极度轻微的 iOS 阴影 */
+  margin-bottom: 32rpx;
+}
+
+.heroEyebrow {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #86868b; /* iOS 次级文字灰 */
+  text-transform: uppercase;
+  letter-spacing: 2rpx;
+}
+
+.heroTitle {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 48rpx;
+  font-weight: 700;
+  letter-spacing: -1rpx;
+  color: #1d1d1f; /* iOS 主文字黑 */
+}
+
+.heroDesc {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 28rpx;
+  line-height: 1.5;
+  color: #86868b;
+}
+
+.sectionStack {
+  display: flex;
+  flex-direction: column;
+  gap: 32rpx; /* 增加呼吸感 */
+}
+
+/* 取消所有外阴影，改用大圆角纯白卡片，这是 Apple UI 的精髓 */
+.panelCard {
+  padding: 32rpx;
+  border-radius: 40rpx;
+  background: #ffffff;
+  box-shadow: none; /* 去除俗气的投影 */
+}
+
+.panelTitle {
+  display: block;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.panelDesc {
+  display: block;
+  margin-top: 12rpx;
+  font-size: $font-size-sm;
+  line-height: $line-height-loose;
+  color: $color-text-secondary;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  @include button-reset;
+  height: 96rpx; /* Apple 按钮足够大，容易点击 */
+  padding: 0 40rpx;
+  border-radius: 48rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.97);
+  }
+}
+
+.primaryButton {
+  border: none;
+  background: #000000; /* iOS 经典的极简纯黑主按钮 */
+  color: #ffffff;
+}
+
+.secondaryButton {
+  border: none;
+  background: #f5f5f7; /* iOS 次级按钮浅灰 */
+  color: #1d1d1f;
+}
+
+.dangerButton {
+  border: none;
+  background: #fef0f0;
+  color: #ff3b30; /* iOS 经典红 */
+}
+
+.tinyButton {
+  @include button-reset;
+  min-width: 120rpx;
+  height: 64rpx;
+  padding: 0 24rpx;
+  border: none;
+  border-radius: 32rpx;
+  background: #f5f5f7;
+  color: #1d1d1f;
+  font-size: 26rpx;
+  font-weight: 500;
+  transition: all $transition-fast;
+
+  &:active {
+    opacity: 0.8;
+    background: #e5e5ea;
+  }
+}
+
+.fieldBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.fieldLabel {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1d1d1f;
+  margin-left: 8rpx;
+}
+
+.fieldValue,
+.fieldInput {
+  width: 100%;
+  min-height: 100rpx;
+  padding: 0 32rpx;
+  border: none;
+  border-radius: 24rpx;
+  background: #f5f5f7;
+  font-size: 30rpx;
+  color: #1d1d1f;
+  transition: all 0.2s ease;
+}
+
+.fieldInput:focus {
+  background: #ffffff;
+  box-shadow: 0 0 0 4rpx rgba(0, 0, 0, 0.05);
+}
+
+.fieldValue {
+  display: flex;
+  align-items: center;
+}
+
+.fieldHint {
+  font-size: 24rpx;
+  color: #86868b;
+  margin-left: 8rpx;
+}
+
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.chip {
+  padding: 12rpx 24rpx;
+  border-radius: 32rpx;
+  background: #f5f5f7;
+  font-size: 24rpx;
+  font-weight: 500;
+  color: #1d1d1f;
+}
+
+.dividerLine {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.errorText {
+  color: #ff3b30;
+}
+
+.successText {
+  color: #34c759;
+}

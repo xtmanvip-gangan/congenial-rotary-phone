@@ -1,0 +1,238 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountRole {
+  operator
+  super_admin
+}
+
+enum ActivityStatus {
+  draft
+  active
+  ended
+  disabled
+}
+
+enum ReviewStatus {
+  pending
+  approved
+  rejected
+}
+
+enum GrantStatus {
+  pending
+  granted
+}
+
+enum AttachmentType {
+  submission_proof
+  grant_proof
+}
+
+enum NotificationStatus {
+  pending
+  success
+  failed
+}
+
+model WecomUser {
+  id           String       @id @default(uuid()) @db.Uuid
+  wecomUserId  String       @unique @map("wecom_user_id") @db.VarChar(64)
+  wecomName    String?      @map("wecom_name") @db.VarChar(100)
+  avatarUrl    String?      @map("avatar_url")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  submissions  Submission[]
+
+  @@map("wecom_users")
+}
+
+model OperatorAccount {
+  id           String        @id @default(uuid()) @db.Uuid
+  wecomUserId  String?       @unique @map("wecom_user_id") @db.VarChar(64)
+  username     String?       @unique @db.VarChar(64)
+  passwordHash String?       @map("password_hash")
+  role         AccountRole
+  displayName  String        @map("display_name") @db.VarChar(100)
+  status       String        @default("active") @db.VarChar(20)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  submissions  Submission[]
+  reviewLogs   ReviewLog[]
+  rewardGrants RewardGrant[]
+
+  @@map("operator_accounts")
+}
+
+model ActivityType {
+  id              String     @id @default(uuid()) @db.Uuid
+  typeCode        String     @unique @map("type_code") @db.VarChar(50)
+  typeName        String     @map("type_name") @db.VarChar(50)
+  aggregationMode String     @map("aggregation_mode") @db.VarChar(30)
+  entrySchema     Json       @map("entry_schema")
+  metricUnit      String?    @map("metric_unit") @db.VarChar(30)
+  createdAt       DateTime   @default(now()) @map("created_at")
+  activities      Activity[]
+
+  @@map("activity_types")
+}
+
+model Activity {
+  id          String         @id @default(uuid()) @db.Uuid
+  name        String         @db.VarChar(100)
+  typeId      String         @map("type_id") @db.Uuid
+  startAt     DateTime       @map("start_at")
+  endAt       DateTime       @map("end_at")
+  status      ActivityStatus @default(draft)
+  description String?
+  coverUrl    String?        @map("cover_url")
+  createdBy   String?        @map("created_by") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  type        ActivityType   @relation(fields: [typeId], references: [id])
+  items       ActivityItem[]
+  rules       RewardRule[]
+  submissions Submission[]
+
+  @@map("activities")
+}
+
+model ActivityItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  activityId String  @map("activity_id") @db.Uuid
+  itemCode  String   @map("item_code") @db.VarChar(50)
+  itemName  String   @map("item_name") @db.VarChar(100)
+  itemType  String   @map("item_type") @db.VarChar(30)
+  sortOrder Int      @default(0) @map("sort_order")
+  enabled   Boolean  @default(true)
+  activity  Activity @relation(fields: [activityId], references: [id])
+  rules     RewardRule[]
+  submissionItems SubmissionItem[]
+
+  @@map("activity_items")
+}
+
+model RewardRule {
+  id           String        @id @default(uuid()) @db.Uuid
+  activityId   String        @map("activity_id") @db.Uuid
+  itemId       String?       @map("item_id") @db.Uuid
+  compareMode  String        @default("gte") @map("compare_mode") @db.VarChar(20)
+  threshold    Decimal       @db.Decimal(18, 2)
+  rewardType   String        @map("reward_type") @db.VarChar(20)
+  rewardLabel  String        @map("reward_label") @db.VarChar(200)
+  rewardValueCents Int       @default(0) @map("reward_value_cents")
+  rewardPayload Json?        @map("reward_payload")
+  sortOrder    Int           @default(0) @map("sort_order")
+  enabled      Boolean       @default(true)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  activity     Activity      @relation(fields: [activityId], references: [id])
+  item         ActivityItem? @relation(fields: [itemId], references: [id])
+
+  @@map("reward_rules")
+}
+
+model Submission {
+  id            String             @id @default(uuid()) @db.Uuid
+  activityId    String             @map("activity_id") @db.Uuid
+  anchorUserId  String             @map("anchor_user_id") @db.Uuid
+  anchorName    String             @map("anchor_name") @db.VarChar(100)
+  operatorId    String             @map("operator_id") @db.Uuid
+  liveDate      DateTime           @map("live_date") @db.Date
+  liveStartTime DateTime           @map("live_start_time") @db.Time(0)
+  reviewStatus  ReviewStatus       @default(pending) @map("review_status")
+  grantStatus   GrantStatus        @default(pending) @map("grant_status")
+  rejectReason  String?            @map("reject_reason")
+  rewardSnapshot Json?             @map("reward_snapshot")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+  activity      Activity           @relation(fields: [activityId], references: [id])
+  anchorUser    WecomUser          @relation(fields: [anchorUserId], references: [id])
+  operator      OperatorAccount    @relation(fields: [operatorId], references: [id])
+  items         SubmissionItem[]
+  attachments   Attachment[]
+  reviewLogs    ReviewLog[]
+  rewardGrants  RewardGrant[]
+  notifications NotificationLog[]
+
+  @@index([activityId, operatorId, liveDate], map: "idx_submissions_activity_operator_date")
+  @@index([anchorUserId, activityId, liveDate], map: "idx_submissions_anchor_activity_date")
+  @@map("submissions")
+}
+
+model SubmissionItem {
+  id           String      @id @default(uuid()) @db.Uuid
+  submissionId String      @map("submission_id") @db.Uuid
+  itemId       String?     @map("item_id") @db.Uuid
+  itemName     String      @map("item_name") @db.VarChar(100)
+  quantity     Decimal     @db.Decimal(18, 2)
+  extraPayload Json?       @map("extra_payload")
+  submission   Submission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  item         ActivityItem? @relation(fields: [itemId], references: [id])
+
+  @@map("submission_items")
+}
+
+model Attachment {
+  id           String         @id @default(uuid()) @db.Uuid
+  submissionId String?        @map("submission_id") @db.Uuid
+  bucket       String         @db.VarChar(100)
+  objectKey    String         @map("object_key") @db.VarChar(255)
+  fileType     AttachmentType @map("file_type")
+  fileUrl      String         @map("file_url")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  submission   Submission?    @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+}
+
+model ReviewLog {
+  id                String           @id @default(uuid()) @db.Uuid
+  submissionId      String           @map("submission_id") @db.Uuid
+  action            String           @db.VarChar(30)
+  operatorAccountId String?          @map("operator_account_id") @db.Uuid
+  note              String?
+  createdAt         DateTime         @default(now()) @map("created_at")
+  submission        Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  operatorAccount   OperatorAccount? @relation(fields: [operatorAccountId], references: [id])
+
+  @@map("review_logs")
+}
+
+model RewardGrant {
+  id                String           @id @default(uuid()) @db.Uuid
+  submissionId      String           @map("submission_id") @db.Uuid
+  status            GrantStatus
+  grantedBy         String?          @map("granted_by") @db.Uuid
+  grantedAt         DateTime?        @map("granted_at")
+  remark            String?
+  proofAttachmentId String?          @map("proof_attachment_id") @db.Uuid
+  submission        Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  operatorAccount   OperatorAccount? @relation(fields: [grantedBy], references: [id])
+
+  @@map("reward_grants")
+}
+
+model NotificationLog {
+  id                 String             @id @default(uuid()) @db.Uuid
+  submissionId       String             @map("submission_id") @db.Uuid
+  notificationType   String             @map("notification_type") @db.VarChar(50)
+  receiverWecomUserId String            @map("receiver_wecom_user_id") @db.VarChar(64)
+  receiverRole       String             @map("receiver_role") @db.VarChar(20)
+  messageTitle       String             @map("message_title") @db.VarChar(200)
+  messageContent     String             @map("message_content")
+  status             NotificationStatus @default(pending)
+  errorMessage       String?            @map("error_message")
+  sentAt             DateTime?          @map("sent_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  submission         Submission         @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId, notificationType], map: "idx_notification_logs_submission_type")
+  @@map("notification_logs")
+}

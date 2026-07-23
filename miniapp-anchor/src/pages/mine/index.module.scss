@@ -1,0 +1,87 @@
+@use 'sass:color';
+@use '@/styles/variables.scss' as *;
+
+.profilePanel {
+  padding-top: 28rpx;
+}
+
+.profileHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.sectionEyebrow {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $color-text-tertiary;
+}
+
+.modeBadge {
+  padding: 10rpx 18rpx;
+  border-radius: $radius-round;
+  background: color.adjust($color-primary, $alpha: -0.88);
+  font-size: $font-size-xs;
+  color: $color-primary;
+}
+
+.profileCard {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.avatar {
+  @include flex-center;
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: $radius-round;
+  background: linear-gradient(135deg, rgba(58, 142, 82, 0.14) 0%, rgba(89, 181, 116, 0.22) 100%);
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+}
+
+.profileInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  min-width: 0;
+  flex: 1;
+}
+
+.name {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  @include text-ellipsis;
+}
+
+.metaLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.metaValue {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: $line-height-normal;
+  word-break: break-all;
+}
+
+.buttonStack {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  margin-top: 20rpx;
+}
+
+.shortcutHint {
+  display: block;
+  margin-top: 12rpx;
+  font-size: $font-size-sm;
+  line-height: $line-height-loose;
+  color: $color-text-secondary;
+}

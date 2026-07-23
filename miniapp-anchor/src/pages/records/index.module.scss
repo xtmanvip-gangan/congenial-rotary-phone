@@ -1,0 +1,42 @@
+@use '@/styles/variables.scss' as *;
+
+.recordCard {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.title {
+  max-width: 100%;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  @include text-ellipsis;
+}
+
+.infoBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.infoLine {
+  font-size: $font-size-sm;
+  line-height: $line-height-loose;
+  color: $color-text-secondary;
+}
+
+.actionRow {
+  display: flex;
+  gap: 16rpx;
+}
+
+.actionButton {
+  flex: 1;
+}

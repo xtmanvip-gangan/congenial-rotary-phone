@@ -1,0 +1,29 @@
+@use '@/styles/variables.scss' as *;
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.line {
+  font-size: $font-size-sm;
+  line-height: $line-height-loose;
+  color: $color-text-secondary;
+}
+
+.attachmentList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.attachmentButton {
+  min-width: 180rpx;
+}

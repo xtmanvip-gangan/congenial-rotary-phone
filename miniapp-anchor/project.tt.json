@@ -1,0 +1,13 @@
+{
+  "miniprogramRoot": "./",
+  "projectname": "悦总统",
+  "description": "悦总统",
+  "appid": "wx5794b32a2844244f",
+  "setting": {
+    "urlCheck": true,
+    "es6": false,
+    "postcss": false,
+    "minified": false
+  },
+  "compileType": "miniprogram"
+}
