@@ -8,7 +8,11 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import {
+  ActionChipLink,
+  StatusPill,
+  liveStatusPillTone,
+} from '../components/listChips'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
 import { LoadingBlock } from '../components/LoadingBlock'
@@ -189,30 +193,43 @@ export function OperatorReviewsListPage() {
                       <td className="px-3 py-2.5 text-slate-600">
                         {item.wecomName || '—'}
                       </td>
-                      <td className="px-3 py-2.5 text-slate-600">
-                        {liveStatusLabels[item.liveStatus] ?? item.liveStatus}
+                      <td className="px-3 py-2.5">
+                        <StatusPill
+                          label={
+                            liveStatusLabels[item.liveStatus] ??
+                            item.liveStatus
+                          }
+                          tone={liveStatusPillTone(item.liveStatus)}
+                        />
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-slate-700">
-                        <span title="答疑条数 / 日复盘条数">
-                          {item.qaCount}/{item.reviewCount}
-                        </span>
+                      <td className="px-3 py-2.5">
+                        <StatusPill
+                          label={`${item.qaCount}/${item.reviewCount}`}
+                          tone={
+                            item.qaCount + item.reviewCount === 0
+                              ? 'slate'
+                              : item.qaCount > 0 && item.reviewCount > 0
+                                ? 'emerald'
+                                : item.qaCount > 0
+                                  ? 'sky'
+                                  : 'violet'
+                          }
+                        />
                       </td>
                       <td className="px-3 py-2.5">
                         <div className="flex flex-nowrap items-center gap-2 whitespace-nowrap">
-                          <Link
+                          <ActionChipLink
                             to={`/operator/anchors/${item.id}/qa`}
-                            className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-200/70 hover:bg-sky-100"
-                          >
-                            <MessageCircle className="h-3.5 w-3.5" />
-                            答疑
-                          </Link>
-                          <Link
+                            label="答疑"
+                            icon={MessageCircle}
+                            tone="sky"
+                          />
+                          <ActionChipLink
                             to={`/operator/anchors/${item.id}/reviews`}
-                            className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-200/70 hover:bg-violet-100"
-                          >
-                            <ClipboardList className="h-3.5 w-3.5" />
-                            复盘
-                          </Link>
+                            label="复盘"
+                            icon={ClipboardList}
+                            tone="violet"
+                          />
                         </div>
                       </td>
                     </tr>

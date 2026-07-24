@@ -1,7 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, RefreshCw, Search } from 'lucide-react'
+import { ListChecks, RefreshCw, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import {
+  ActionChipLink,
+  StatusPill,
+  milestonePillTone,
+  onboardingProgressPillTone,
+} from '../components/listChips'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
 import { LoadingBlock } from '../components/LoadingBlock'
@@ -195,12 +200,18 @@ export function OperatorOnboardingListPage() {
                   {filtered.map((item) => {
                     const done = item.onboarding?.completedCount ?? 0
                     const total = item.onboarding?.totalCount ?? 7
-                    const next = item.onboarding?.nextMilestone
-                      ? milestoneLabels[item.onboarding.nextMilestone] ??
-                        item.onboarding.nextMilestone
-                      : done >= total
+                    const nextType = item.onboarding?.nextMilestone ?? null
+                    const nextLabel = nextType
+                      ? milestoneLabels[nextType] ?? nextType
+                      : done >= total && total > 0
                         ? '已完成'
-                        : '—'
+                        : '未开始'
+                    const progressTone = onboardingProgressPillTone(done, total)
+                    const nodeTone =
+                      done >= total && total > 0
+                        ? 'emerald'
+                        : milestonePillTone(nextType)
+
                     return (
                       <tr
                         key={item.id}
@@ -212,18 +223,24 @@ export function OperatorOnboardingListPage() {
                         <td className="px-3 py-2.5 text-slate-600">
                           {item.wecomName || '—'}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-slate-700">
-                          {item.onboarding ? `${done}/${total}` : '—'}
-                        </td>
-                        <td className="px-3 py-2.5 text-slate-600">{next}</td>
                         <td className="px-3 py-2.5">
-                          <Link
-                            className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-600 hover:text-brand-700"
+                          <StatusPill
+                            label={
+                              item.onboarding ? `${done}/${total}` : '—'
+                            }
+                            tone={progressTone}
+                          />
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <StatusPill label={nextLabel} tone={nodeTone} />
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <ActionChipLink
                             to={`/operator/anchors/${item.id}/onboarding`}
-                          >
-                            进入
-                            <ArrowRight className="h-3.5 w-3.5" />
-                          </Link>
+                            label="进入"
+                            icon={ListChecks}
+                            tone="brand"
+                          />
                         </td>
                       </tr>
                     )

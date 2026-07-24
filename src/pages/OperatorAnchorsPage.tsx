@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CheckCircle2,
   ClipboardList,
+  FolderOpen,
   LoaderCircle,
   RefreshCw,
   Search,
@@ -12,6 +13,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AnchorStatusSelect } from '../components/AnchorStatusSelect'
+import { ActionChipLink } from '../components/listChips'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
 import { LoadingBlock } from '../components/LoadingBlock'
@@ -630,12 +632,12 @@ export function OperatorAnchorsPage() {
                                 : '—'}
                             </td>
                             <td className="px-3 py-2.5">
-                              <Link
-                                className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                              <ActionChipLink
                                 to={`/operator/anchors/${item.id}`}
-                              >
-                                档案
-                              </Link>
+                                label="档案"
+                                icon={FolderOpen}
+                                tone="brand"
+                              />
                             </td>
                           </tr>
                         )
