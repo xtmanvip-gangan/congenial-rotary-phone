@@ -124,6 +124,10 @@ export class ActivationService {
     }
 
     await this.requireActiveOperator(dto.operatorId)
+
+    // 已取消任务保存资料时自动重新开启，避免“取消后无法继续操作”
+    const reopenCancelled = task.status === 'cancelled'
+
     const updated = await this.prisma.anchorActivationTask.update({
       where: { id: task.id },
       data: {
@@ -131,6 +135,43 @@ export class ActivationService {
         wecomDisplayNameSnapshot: wecomDisplayName,
         operatorId: dto.operatorId,
         membershipCompletedAt: new Date(dto.membershipCompletedAt),
+        ...(reopenCancelled
+          ? {
+              status: 'pending' as const,
+              invitationSentAt: null,
+              invitationCount: 0,
+            }
+          : {}),
+      },
+      include: taskInclude,
+    })
+
+    return { item: this.toItem(updated) }
+  }
+
+  /** 将已取消任务重新开启为「待发送」，保留原资料可再编辑/发提醒 */
+  async reopen(currentUser: AuthenticatedUser, taskId: string) {
+    await this.requireManagePermission(currentUser)
+    const task = await this.findOwnedTask(currentUser, taskId)
+
+    if (task.status !== 'cancelled') {
+      throw new BadRequestException('只有已取消的任务可以重新开启')
+    }
+
+    if (task.activatedAnchorProfileId) {
+      throw new BadRequestException('主播已经开通档案，不能重新开启任务')
+    }
+
+    if (!task.operatorId) {
+      throw new BadRequestException('请先编辑并补充运营老师后再重新开启')
+    }
+
+    const updated = await this.prisma.anchorActivationTask.update({
+      where: { id: task.id },
+      data: {
+        status: 'pending',
+        invitationSentAt: null,
+        invitationCount: 0,
       },
       include: taskInclude,
     })
@@ -271,6 +312,10 @@ export class ActivationService {
 
     if (task.status === 'activated') {
       throw new BadRequestException('主播已经激活，不能取消任务')
+    }
+
+    if (task.status === 'cancelled') {
+      throw new BadRequestException('任务已取消')
     }
 
     const updated = await this.prisma.anchorActivationTask.update({

@@ -4,6 +4,7 @@ import {
   LoaderCircle,
   Pencil,
   RefreshCw,
+  RotateCcw,
   Send,
   UserPlus,
   XCircle,
@@ -12,6 +13,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
 import { LoadingBlock } from '../components/LoadingBlock'
+import { useConfirmDialog } from '../components/useConfirmDialog'
 import { apiJson } from '../lib/api'
 import { formatDateTime } from '../lib/dateTime'
 
@@ -110,8 +112,10 @@ function toLocalDateTime(value: string) {
 
 export function AuditActivationPage() {
   const queryClient = useQueryClient()
+  const { confirm, dialog: confirmDialog } = useConfirmDialog()
   const [form, setForm] = useState<TaskForm>(emptyForm)
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [editingWasCancelled, setEditingWasCancelled] = useState(false)
   const [reassignments, setReassignments] = useState<Record<string, string>>({})
   const [message, setMessage] = useState<{
     type: 'success' | 'error'
@@ -147,11 +151,17 @@ export function AuditActivationPage() {
       ),
     onSuccess: async () => {
       const wasEditing = Boolean(editingTaskId)
+      const reopenedByEdit = wasEditing && editingWasCancelled
       setForm(emptyForm)
       setEditingTaskId(null)
+      setEditingWasCancelled(false)
       setMessage({
         type: 'success',
-        text: wasEditing ? '开通资料已更新' : '档案开通任务已创建',
+        text: reopenedByEdit
+          ? '资料已更新，任务已重新开启为「待发送」'
+          : wasEditing
+            ? '开通资料已更新'
+            : '档案开通任务已创建',
       })
       await queryClient.invalidateQueries({ queryKey })
     },
@@ -190,13 +200,33 @@ export function AuditActivationPage() {
     mutationFn: (taskId: string) =>
       apiJson(`/activation-tasks/${taskId}/cancel`, { method: 'POST' }),
     onSuccess: async () => {
-      setMessage({ type: 'success', text: '任务已取消' })
+      setMessage({
+        type: 'success',
+        text: '任务已作废（可随时重新开启，不会删除记录）',
+      })
       await queryClient.invalidateQueries({ queryKey })
     },
     onError: (error) =>
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : '取消失败',
+        text: error instanceof Error ? error.message : '作废失败',
+      }),
+  })
+
+  const reopenMutation = useMutation({
+    mutationFn: (taskId: string) =>
+      apiJson(`/activation-tasks/${taskId}/reopen`, { method: 'POST' }),
+    onSuccess: async () => {
+      setMessage({
+        type: 'success',
+        text: '任务已重新开启，可编辑资料或发送提醒',
+      })
+      await queryClient.invalidateQueries({ queryKey })
+    },
+    onError: (error) =>
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : '重新开启失败',
       }),
   })
 
@@ -262,6 +292,7 @@ export function AuditActivationPage() {
     saveMutation.isPending ||
     sendMutation.isPending ||
     cancelMutation.isPending ||
+    reopenMutation.isPending ||
     reassignMutation.isPending
 
   function updateForm(field: keyof TaskForm, value: string) {
@@ -287,18 +318,40 @@ export function AuditActivationPage() {
 
   function beginEdit(item: ActivationTask) {
     setEditingTaskId(item.id)
+    setEditingWasCancelled(item.status === 'cancelled')
     setForm({
       expectedWecomUserId: item.expectedWecomUserId,
       wecomDisplayName: item.wecomDisplayName,
       operatorId: item.operator?.id ?? '',
       membershipCompletedAt: toLocalDateTime(item.membershipCompletedAt),
     })
-    setMessage(null)
+    setMessage(
+      item.status === 'cancelled'
+        ? {
+            type: 'success',
+            text: '正在编辑已作废任务：保存后将自动重新开启为「待发送」',
+          }
+        : null,
+    )
   }
 
   function stopEdit() {
     setEditingTaskId(null)
+    setEditingWasCancelled(false)
     setForm(emptyForm)
+  }
+
+  async function requestCancel(item: ActivationTask) {
+    const ok = await confirm({
+      title: '作废开通任务？',
+      message: `将作废「${item.wecomDisplayName}」的开通任务。记录会保留，之后可重新开启、编辑资料或再发提醒；不会删除，也不能用删除代替。`,
+      confirmText: '确认作废',
+      cancelText: '返回',
+      variant: 'danger',
+    })
+    if (ok) {
+      cancelMutation.mutate(item.id)
+    }
   }
 
   const filterTabs: { key: StatusFilter; label: string; count: number }[] = [
@@ -312,6 +365,7 @@ export function AuditActivationPage() {
 
   return (
     <div className="space-y-6">
+      {confirmDialog}
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -320,7 +374,7 @@ export function AuditActivationPage() {
               主播档案开通
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              创建开通任务、分配运营并发送企微提醒。主播完成激活后进入运营确认；若运营拒绝，可在此重新分配。
+              创建开通任务、分配运营并发送企微提醒。作废只是暂停流程，任务仍会保留，可随时重新开启；主播激活后若运营拒绝，可在此重新分配。
             </p>
           </div>
           <button
@@ -376,12 +430,18 @@ export function AuditActivationPage() {
             </span>
             <div>
               <h3 className="text-lg font-semibold text-slate-900">
-                {editingTaskId ? '编辑开通资料' : '新建开通任务'}
+                {editingTaskId
+                  ? editingWasCancelled
+                    ? '编辑并重新开启'
+                    : '编辑开通资料'
+                  : '新建开通任务'}
               </h3>
               <p className="text-xs text-slate-500">
                 {editingTaskId
-                  ? '修改后保存，可继续发送提醒'
-                  : '填写主播与运营信息后创建'}
+                  ? editingWasCancelled
+                    ? '保存后任务会回到「待发送」'
+                    : '修改后保存，可继续发送提醒'
+                  : '同一企微UID若曾作废，再创建会自动重开原任务'}
               </p>
             </div>
           </div>
@@ -471,7 +531,11 @@ export function AuditActivationPage() {
               ) : (
                 <UserPlus className="h-4 w-4" />
               )}
-              {editingTaskId ? '保存开通资料' : '创建档案开通任务'}
+              {editingTaskId
+                ? editingWasCancelled
+                  ? '保存并重新开启'
+                  : '保存开通资料'
+                : '创建档案开通任务'}
             </button>
             {editingTaskId ? (
               <button
@@ -568,6 +632,7 @@ export function AuditActivationPage() {
                   : null
               const actionable =
                 item.status === 'pending' || item.status === 'invited'
+              const isCancelled = item.status === 'cancelled'
               const needsReassign =
                 item.status === 'activated' &&
                 item.assignmentStatus === 'rejected'
@@ -575,7 +640,12 @@ export function AuditActivationPage() {
               return (
                 <article
                   key={item.id}
-                  className="rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300"
+                  className={[
+                    'rounded-2xl border p-4 transition hover:border-slate-300',
+                    isCancelled
+                      ? 'border-slate-200 bg-slate-50/60'
+                      : 'border-slate-200 bg-white',
+                  ].join(' ')}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -615,6 +685,11 @@ export function AuditActivationPage() {
                           ? ` · 最近 ${formatDateTime(item.invitationSentAt)}`
                           : ''}
                       </p>
+                      {isCancelled ? (
+                        <p className="mt-2 text-xs leading-5 text-slate-500">
+                          任务已作废，不会再发提醒；可「重新开启」继续流程，或「编辑资料」修正后自动开启。
+                        </p>
+                      ) : null}
                     </div>
                   </div>
 
@@ -646,10 +721,37 @@ export function AuditActivationPage() {
                         type="button"
                         className="app-btn-secondary text-rose-600 hover:bg-rose-50"
                         disabled={busy}
-                        onClick={() => cancelMutation.mutate(item.id)}
+                        onClick={() => void requestCancel(item)}
                       >
                         <XCircle className="h-3.5 w-3.5" />
-                        取消
+                        作废任务
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {isCancelled ? (
+                    <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                      <button
+                        type="button"
+                        className="app-btn-primary"
+                        disabled={!item.operator || busy}
+                        onClick={() => reopenMutation.mutate(item.id)}
+                      >
+                        {reopenMutation.isPending ? (
+                          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        )}
+                        重新开启
+                      </button>
+                      <button
+                        type="button"
+                        className="app-btn-secondary"
+                        disabled={busy}
+                        onClick={() => beginEdit(item)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        编辑资料
                       </button>
                     </div>
                   ) : null}

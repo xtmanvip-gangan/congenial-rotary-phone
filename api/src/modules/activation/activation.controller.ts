@@ -91,4 +91,15 @@ export class ActivationController {
       taskId,
     )
   }
+
+  @Post(':taskId/reopen')
+  reopen(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('taskId') taskId: string,
+  ) {
+    return this.activationService.reopen(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      taskId,
+    )
+  }
 }
