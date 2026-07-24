@@ -26,8 +26,8 @@ body {
     'Helvetica Neue',
     Arial,
     sans-serif;
-  /* 清爽运营台：浅灰底，减少花哨渐变 */
-  background: #f8fafc;
+  /* 贴合 logo 天蓝：极浅冷灰底 */
+  background: #f4f8fb;
 }
 
 * {

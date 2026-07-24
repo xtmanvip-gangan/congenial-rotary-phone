@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { formatRoleLabel, getStaffNavGroups, isStaffRole } from '../lib/navConfig'
+import { BrandLockup, CompanyLogo } from './BrandMark'
 import { RoleWorkspaceSwitcher } from './RoleWorkspaceSwitcher'
 
 const SIDEBAR_COLLAPSED_KEY = 'shouji-sidebar-collapsed'
@@ -53,19 +54,16 @@ export function AppShell() {
           ].join(' ')}
         >
           {!collapsed ? (
-            <div className="min-w-0 pl-1">
-              <p className="truncate text-sm font-semibold text-brand-700">悦总统</p>
-              <p className="truncate text-[11px] text-slate-400">培训中台</p>
+            <div className="min-w-0 flex-1 pl-0.5">
+              <BrandLockup compact />
             </div>
           ) : (
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-xs font-bold text-brand-700">
-              悦
-            </span>
+            <CompanyLogo className="h-8 w-8" />
           )}
           <button
             type="button"
             onClick={() => setCollapsed((value) => !value)}
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
+            className="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
             title={collapsed ? '展开导航' : '折叠导航'}
           >
             {collapsed ? (
@@ -146,10 +144,7 @@ export function AppShell() {
           />
           <aside className="absolute left-0 top-0 flex h-full w-[280px] flex-col bg-white shadow-soft">
             <div className="flex h-14 items-center justify-between border-b border-slate-100 px-4">
-              <div>
-                <p className="text-sm font-semibold text-brand-700">悦总统</p>
-                <p className="text-[11px] text-slate-400">培训中台</p>
-              </div>
+              <BrandLockup compact />
               <button
                 type="button"
                 className="rounded-lg p-2 text-slate-500 hover:bg-slate-50"
@@ -208,12 +203,10 @@ export function AppShell() {
               <Menu className="h-5 w-5" />
             </button>
             <div className="min-w-0 lg:hidden">
-              <p className="truncate text-sm font-semibold text-brand-700">悦总统</p>
+              <BrandLockup compact />
             </div>
             <div className="hidden min-w-0 sm:block lg:pl-0">
-              <p className="truncate text-sm text-slate-500">
-                礼物收集与培训运营
-              </p>
+              <p className="truncate text-sm text-secondary-500">主播服务中台</p>
             </div>
           </div>
 
