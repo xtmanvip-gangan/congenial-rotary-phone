@@ -1,5 +1,5 @@
 /**
- * logo-1：公司图形标
+ * logo.png：公司图形标（纯白，需放在品牌色底上）
  * logo-2：项目名「悦总统」字标（白底用 dark 版，蓝底用白字版）
  */
 
@@ -10,7 +10,7 @@ type BrandMarkProps = {
 export function CompanyLogo({ className = 'h-9 w-9' }: BrandMarkProps) {
   return (
     <img
-      src="/logo-1.png"
+      src="/logo.png"
       alt="公司标识"
       className={`object-contain ${className}`}
     />
@@ -39,17 +39,24 @@ export function BrandLockup({
   compact?: boolean
   onDark?: boolean
 }) {
+  // 纯白 logo 放在品牌色圆角底上，无阴影
+  const markBox = onDark
+    ? 'flex shrink-0 items-center justify-center rounded-lg bg-white/15'
+    : 'flex shrink-0 items-center justify-center rounded-lg bg-brand-600'
+
   return (
-    <div className={`flex items-center ${compact ? 'gap-2' : 'gap-2.5'}`}>
-      <CompanyLogo className={compact ? 'h-8 w-8' : 'h-9 w-9'} />
+    <div className={`flex items-center ${compact ? 'gap-1.5' : 'gap-1.5'}`}>
+      <div className={`${markBox} ${compact ? 'h-8 w-8 p-1' : 'h-9 w-9 p-1'}`}>
+        <CompanyLogo className="h-full w-full" />
+      </div>
       <div className="min-w-0">
         <ProjectWordmark
           variant={onDark ? 'light' : 'dark'}
-          className={compact ? 'h-5 max-w-[7.5rem]' : 'h-6 max-w-[9rem]'}
+          className={compact ? 'h-6 max-w-[8.5rem]' : 'h-7 max-w-[10rem]'}
         />
         <p
           className={[
-            'mt-0.5 truncate text-[11px] leading-none',
+            'mt-0 truncate text-[11px] leading-none',
             onDark ? 'text-blue-100/80' : 'text-secondary-500',
           ].join(' ')}
         >

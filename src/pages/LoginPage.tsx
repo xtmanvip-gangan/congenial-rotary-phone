@@ -110,11 +110,12 @@ export function LoginPage() {
             />
 
             <div className="relative z-10">
-              <CompanyLogo className="h-16 w-16 drop-shadow-md" />
-              <div className="mt-8">
-                <ProjectWordmark variant="light" className="h-10 max-w-[14rem]" />
+              {/* 纯白 logo，无阴影；与字标间距收紧 */}
+              <CompanyLogo className="h-16 w-16" />
+              <div className="mt-4">
+                <ProjectWordmark variant="light" className="h-12 max-w-[16rem]" />
               </div>
-              <p className="mt-3 text-base font-medium text-accent-100">主播服务中台</p>
+              <p className="mt-2 text-base font-medium text-accent-100">主播服务中台</p>
             </div>
 
             <p className="relative z-10 text-sm text-blue-100/70">内部系统</p>
