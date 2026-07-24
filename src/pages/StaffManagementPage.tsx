@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  ArrowRightLeft,
   LoaderCircle,
   Pencil,
   Plus,
   RefreshCw,
   Search,
+  Trash2,
   UserCog,
   Users,
 } from 'lucide-react'
@@ -23,8 +25,14 @@ type StaffItem = {
   wecomUserId: string
   roles: StaffRole[]
   status: 'active' | 'disabled'
+  managedAnchorCount?: number
   createdAt: string
   updatedAt: string
+}
+
+type OperatorOption = {
+  id: string
+  displayName: string
 }
 
 type StaffResponse = { items: StaffItem[] }
@@ -85,10 +93,19 @@ export function StaffManagementPage() {
   } | null>(null)
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [transferringStaff, setTransferringStaff] = useState<StaffItem | null>(
+    null,
+  )
+  const [transferTargetId, setTransferTargetId] = useState('')
 
   const staffQuery = useQuery({
     queryKey,
     queryFn: () => apiJson<StaffResponse>('/staff'),
+  })
+  const operatorsQuery = useQuery({
+    queryKey: ['active-operators'],
+    queryFn: () =>
+      apiJson<{ items: OperatorOption[] }>('/staff/operators/active'),
   })
 
   const createMutation = useMutation({
@@ -160,6 +177,50 @@ export function StaffManagementPage() {
         message:
           nextError instanceof Error ? nextError.message : '角色保存失败',
       })
+    },
+  })
+
+  const transferMutation = useMutation({
+    mutationFn: (payload: { staffId: string; targetOperatorId: string }) =>
+      apiJson<{ transferredCount: number; targetOperator: OperatorOption }>(
+        `/staff/${payload.staffId}/transfer-anchors`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            targetOperatorId: payload.targetOperatorId,
+          }),
+        },
+      ),
+    onSuccess: async (result) => {
+      setTransferringStaff(null)
+      setTransferTargetId('')
+      setSuccessMessage(
+        `已转交 ${result.transferredCount} 位主播给「${result.targetOperator.displayName}」，等待新运营确认归属`,
+      )
+      setError(null)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey }),
+        queryClient.invalidateQueries({
+          queryKey: ['operator-pending-assignments'],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['operator-anchors'] }),
+      ])
+    },
+    onError: (nextError) => {
+      setError(nextError instanceof Error ? nextError.message : '转交失败')
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (staffId: string) =>
+      apiJson(`/staff/${staffId}`, { method: 'DELETE' }),
+    onSuccess: async () => {
+      setSuccessMessage('员工已彻底删除')
+      setError(null)
+      await queryClient.invalidateQueries({ queryKey })
+    },
+    onError: (nextError) => {
+      setError(nextError instanceof Error ? nextError.message : '删除失败')
     },
   })
 
@@ -253,9 +314,13 @@ export function StaffManagementPage() {
   async function requestToggleStatus(item: StaffItem) {
     const nextStatus = item.status === 'active' ? 'disabled' : 'active'
     if (nextStatus === 'disabled') {
+      const managed = item.managedAnchorCount ?? 0
       const ok = await confirm({
         title: '停用该员工？',
-        message: `停用后，「${item.displayName}」将无法使用企微登录后台。可随时重新启用。`,
+        message:
+          managed > 0
+            ? `「${item.displayName}」仍有 ${managed} 位在管主播。停用后其无法登录，但主播仍挂在其名下。建议先「转交主播」再停用或删除。`
+            : `停用后，「${item.displayName}」将无法使用企微登录后台。可随时重新启用。`,
         confirmText: '确认停用',
         cancelText: '返回',
         variant: 'danger',
@@ -263,6 +328,35 @@ export function StaffManagementPage() {
       if (!ok) return
     }
     statusMutation.mutate({ staffId: item.id, status: nextStatus })
+  }
+
+  async function requestDelete(item: StaffItem) {
+    const managed = item.managedAnchorCount ?? 0
+    if (managed > 0) {
+      setError(
+        `「${item.displayName}」仍有 ${managed} 位在管主播，请先转交给其他运营后再删除`,
+      )
+      return
+    }
+    const ok = await confirm({
+      title: '彻底删除员工？',
+      message: `将永久删除「${item.displayName}」（${item.wecomUserId}）。不可恢复。若仍有历史提报等数据关联，系统会拒绝删除。`,
+      confirmText: '确认删除',
+      cancelText: '返回',
+      variant: 'danger',
+    })
+    if (ok) deleteMutation.mutate(item.id)
+  }
+
+  function submitTransfer() {
+    if (!transferringStaff || !transferTargetId) {
+      setError('请选择接收主播的运营老师')
+      return
+    }
+    transferMutation.mutate({
+      staffId: transferringStaff.id,
+      targetOperatorId: transferTargetId,
+    })
   }
 
   return (
@@ -277,7 +371,7 @@ export function StaffManagementPage() {
               员工与角色
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              员工仅用企微 UID 登录，不设独立密码。同一人可兼任多个角色；改角色后需重新企微登录才会生效。
+              员工仅用企微 UID 登录。离职时请先「转交主播」（新运营待确认），确认无在管主播后再硬删除账号。
             </p>
           </div>
           <button
@@ -530,6 +624,8 @@ export function StaffManagementPage() {
                         {item.wecomUserId}
                       </p>
                       <p className="mt-1 text-xs text-slate-400">
+                        在管主播 {item.managedAnchorCount ?? 0} 人
+                        <span className="mx-1.5">·</span>
                         更新 {formatDateTime(item.updatedAt)}
                       </p>
                     </div>
@@ -542,6 +638,21 @@ export function StaffManagementPage() {
                         <Pencil className="h-4 w-4" />
                         编辑角色
                       </button>
+                      {(item.managedAnchorCount ?? 0) > 0 ||
+                      item.roles.includes('operator') ? (
+                        <button
+                          type="button"
+                          className="app-btn-secondary"
+                          onClick={() => {
+                            setError(null)
+                            setTransferringStaff(item)
+                            setTransferTargetId('')
+                          }}
+                        >
+                          <ArrowRightLeft className="h-4 w-4" />
+                          转交主播
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className={[
@@ -552,6 +663,23 @@ export function StaffManagementPage() {
                         onClick={() => void requestToggleStatus(item)}
                       >
                         {isActive ? '停用' : '启用'}
+                      </button>
+                      <button
+                        type="button"
+                        className="app-btn-danger"
+                        disabled={
+                          deleteMutation.isPending ||
+                          (item.managedAnchorCount ?? 0) > 0
+                        }
+                        title={
+                          (item.managedAnchorCount ?? 0) > 0
+                            ? '请先转交主播'
+                            : '彻底删除'
+                        }
+                        onClick={() => void requestDelete(item)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        删除
                       </button>
                     </div>
                   </div>
@@ -647,6 +775,67 @@ export function StaffManagementPage() {
           </div>
         </section>
       </div>
+
+      {transferringStaff ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <p className="text-sm font-semibold text-slate-900">
+                转交主播 · {transferringStaff.displayName}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                当前在管约 {transferringStaff.managedAnchorCount ?? 0}{' '}
+                人。转交后归属变为「待确认」，需新运营在「主播与归属」中确认。
+              </p>
+            </div>
+            <div className="space-y-4 px-5 py-4">
+              <label className="block text-sm font-medium text-slate-700">
+                接收的运营老师
+                <select
+                  className="mt-2 app-field"
+                  value={transferTargetId}
+                  onChange={(event) => setTransferTargetId(event.target.value)}
+                >
+                  <option value="">请选择运营老师</option>
+                  {(operatorsQuery.data?.items ?? [])
+                    .filter((op) => op.id !== transferringStaff.id)
+                    .map((op) => (
+                      <option key={op.id} value={op.id}>
+                        {op.displayName}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </div>
+            <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="app-btn-secondary"
+                disabled={transferMutation.isPending}
+                onClick={() => {
+                  setTransferringStaff(null)
+                  setTransferTargetId('')
+                }}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="app-btn-primary"
+                disabled={transferMutation.isPending || !transferTargetId}
+                onClick={submitTransfer}
+              >
+                {transferMutation.isPending ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowRightLeft className="h-4 w-4" />
+                )}
+                确认转交
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

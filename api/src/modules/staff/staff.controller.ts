@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -9,6 +10,7 @@ import {
 } from '@nestjs/common'
 import { AuthService } from '../auth/auth.service.js'
 import { CreateStaffDto } from './dto/create-staff.dto.js'
+import { TransferStaffAnchorsDto } from './dto/transfer-staff-anchors.dto.js'
 import { UpdateStaffRolesDto } from './dto/update-staff-roles.dto.js'
 import { UpdateStaffStatusDto } from './dto/update-staff-status.dto.js'
 import { StaffService } from './staff.service.js'
@@ -23,6 +25,13 @@ export class StaffController {
   @Get()
   list(@Headers('authorization') authorization?: string) {
     return this.staffService.listStaff(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+    )
+  }
+
+  @Get('operators/active')
+  listActiveOperators(@Headers('authorization') authorization?: string) {
+    return this.staffService.listActiveOperators(
       this.authService.getCurrentUserFromAuthHeader(authorization),
     )
   }
@@ -64,10 +73,27 @@ export class StaffController {
     )
   }
 
-  @Get('operators/active')
-  listActiveOperators(@Headers('authorization') authorization?: string) {
-    return this.staffService.listActiveOperators(
+  @Post(':staffId/transfer-anchors')
+  transferAnchors(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('staffId') staffId: string,
+    @Body() dto: TransferStaffAnchorsDto,
+  ) {
+    return this.staffService.transferAnchors(
       this.authService.getCurrentUserFromAuthHeader(authorization),
+      staffId,
+      dto.targetOperatorId,
+    )
+  }
+
+  @Delete(':staffId')
+  remove(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('staffId') staffId: string,
+  ) {
+    return this.staffService.removeStaff(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      staffId,
     )
   }
 }
