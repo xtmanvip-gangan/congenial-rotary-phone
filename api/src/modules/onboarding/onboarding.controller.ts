@@ -131,27 +131,36 @@ function saveOnboardingImage(body: {
   base64Data?: string
 }) {
   const fileName = body.fileName?.trim()
-  const mimeType = body.mimeType?.trim().toLowerCase()
-  const base64Data = body.base64Data?.trim()
-  if (!fileName || !mimeType || !base64Data) {
+  const mimeType = body.mimeType?.trim().toLowerCase() || 'image/jpeg'
+  // 兼容 data URL 前缀：data:image/jpeg;base64,xxxx
+  const rawBase64 = body.base64Data?.trim() ?? ''
+  const base64Data = rawBase64.includes(',')
+    ? rawBase64.slice(rawBase64.indexOf(',') + 1)
+    : rawBase64
+  if (!fileName || !base64Data) {
     throw new BadRequestException('图片数据不完整')
   }
   if (!mimeType.startsWith('image/')) {
     throw new BadRequestException('仅支持图片')
   }
 
-  const buffer = Buffer.from(base64Data, 'base64')
+  let buffer: Buffer
+  try {
+    buffer = Buffer.from(base64Data, 'base64')
+  } catch {
+    throw new BadRequestException('图片数据无法解析')
+  }
   if (!buffer.length) {
     throw new BadRequestException('图片内容为空')
   }
   if (buffer.byteLength > maxImageBytes) {
-    throw new PayloadTooLargeException('图片不能超过 8MB')
+    throw new PayloadTooLargeException('图片不能超过 8MB，请压缩后重试')
   }
 
   mkdirSync(onboardingUploadDirectory, { recursive: true })
   const extension =
     extname(fileName).toLowerCase() ||
-    (mimeType === 'image/jpeg'
+    (mimeType === 'image/jpeg' || mimeType === 'image/jpg'
       ? '.jpg'
       : mimeType === 'image/webp'
         ? '.webp'

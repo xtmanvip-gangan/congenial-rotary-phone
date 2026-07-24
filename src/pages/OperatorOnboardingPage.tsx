@@ -348,29 +348,48 @@ export function OperatorOnboardingPage() {
   async function uploadFiles(files: FileList | null) {
     if (!files?.length) return
     setUploading(true)
+    setFeedback(null)
     try {
       const nextUrls: string[] = []
       for (const file of Array.from(files)) {
-        const base64Data = await fileToBase64(file)
+        if (!file.type.startsWith('image/') && file.type !== '') {
+          throw new Error(`不支持的文件类型：${file.type || file.name}`)
+        }
+        // 先压缩，避免企微/手机原图 base64 超过接口体积限制
+        const prepared = await compressImageForUpload(file)
         const result = await apiJson<{
           items: Array<{ fileUrl: string }>
         }>(`/operators/me/anchors/${anchorId}/onboarding/upload-images`, {
           method: 'POST',
           body: JSON.stringify({
-            fileName: file.name,
-            mimeType: file.type || 'image/png',
-            base64Data,
+            fileName: prepared.fileName,
+            mimeType: prepared.mimeType,
+            base64Data: prepared.base64Data,
           }),
         })
         if (result.items[0]?.fileUrl) {
           nextUrls.push(result.items[0].fileUrl)
         }
       }
+      if (nextUrls.length === 0) {
+        throw new Error('上传成功但未返回图片地址，请重试')
+      }
       setAttachmentUrls((current) => [...current, ...nextUrls])
+      setFeedback({
+        type: 'success',
+        text: `已上传 ${nextUrls.length} 张截图`,
+      })
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : '上传失败'
       setFeedback({
         type: 'error',
-        text: error instanceof Error ? error.message : '上传失败',
+        text:
+          message.includes('413') || message.includes('entity too large')
+            ? '图片过大，请换更小的截图或重试'
+            : message.includes('Failed to fetch') || message.includes('Load failed')
+              ? '网络或网关拦截了上传，请换外部浏览器重试或压缩后再传'
+              : message,
       })
     } finally {
       setUploading(false)
@@ -1112,12 +1131,59 @@ function EvidencePreview({
   return null
 }
 
-async function fileToBase64(file: File) {
-  const buffer = await file.arrayBuffer()
-  let binary = ''
-  const bytes = new Uint8Array(buffer)
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i]!)
+/** 压缩截图：最长边 1600，JPEG 0.82，降低 base64 体积，适配企微内置浏览器 */
+async function compressImageForUpload(file: File): Promise<{
+  fileName: string
+  mimeType: string
+  base64Data: string
+}> {
+  const maxEdge = 1600
+  const quality = 0.82
+
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ''))
+    reader.onerror = () => reject(new Error('读取图片失败'))
+    reader.readAsDataURL(file)
+  })
+
+  if (!dataUrl.startsWith('data:image/')) {
+    // 非图片或读取失败时退回原始 base64（小文件）
+    const raw = dataUrl.includes(',') ? dataUrl.slice(dataUrl.indexOf(',') + 1) : dataUrl
+    return {
+      fileName: file.name || 'upload.jpg',
+      mimeType: file.type || 'image/jpeg',
+      base64Data: raw,
+    }
   }
-  return btoa(binary)
+
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('图片解码失败，请换一张截图'))
+    img.src = dataUrl
+  })
+
+  const scale = Math.min(1, maxEdge / Math.max(image.width, image.height))
+  const width = Math.max(1, Math.round(image.width * scale))
+  const height = Math.max(1, Math.round(image.height * scale))
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    throw new Error('当前浏览器无法压缩图片')
+  }
+  ctx.drawImage(image, 0, 0, width, height)
+
+  const compressedDataUrl = canvas.toDataURL('image/jpeg', quality)
+  const base64Data = compressedDataUrl.slice(compressedDataUrl.indexOf(',') + 1)
+  const baseName = (file.name || 'screenshot').replace(/\.[^.]+$/, '')
+
+  return {
+    fileName: `${baseName}.jpg`,
+    mimeType: 'image/jpeg',
+    base64Data,
+  }
 }

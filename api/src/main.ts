@@ -9,10 +9,13 @@ import { securityHeaders } from './common/security/security-headers.middleware.j
 import { resolveApiListenHost } from './common/security/network-config.js'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule)
+  // 关闭 Nest 默认 100kb bodyParser，统一用下方 15mb，避免截图 base64 被拒
+  const app = await NestFactory.create(AppModule, { bodyParser: false })
   const uploadsRoot = join(process.cwd(), 'uploads')
 
   await mkdir(uploadsRoot, { recursive: true })
+  await mkdir(join(uploadsRoot, 'onboarding-proofs'), { recursive: true })
+  await mkdir(join(uploadsRoot, 'submission-proofs'), { recursive: true })
 
   const configuredOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? '')
     .split(',')
@@ -29,8 +32,9 @@ async function bootstrap() {
   })
   app.setGlobalPrefix('api')
   app.use(securityHeaders)
-  app.use(express.json({ limit: '2mb' }))
-  app.use(express.urlencoded({ extended: true, limit: '2mb' }))
+  // 岗前/提报截图走 base64 JSON（压缩后通常 <2MB，上限留余量）
+  app.use(express.json({ limit: '15mb' }))
+  app.use(express.urlencoded({ extended: true, limit: '15mb' }))
   app.use(
     '/api/uploads',
     express.static(uploadsRoot, {
