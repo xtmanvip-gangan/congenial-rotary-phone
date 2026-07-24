@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowRight,
   CheckCircle2,
   ClipboardList,
   LoaderCircle,
@@ -78,27 +77,6 @@ type AnchorsResponse = {
 }
 
 type LiveFilter = 'all' | LiveStatus
-
-const liveStatusLabels: Record<LiveStatus, string> = {
-  pending_first_live: '待首播',
-  incubating: '孵化中',
-  normal: '正常',
-  offline: '断播',
-  leave: '请假',
-  exited: '退会',
-}
-
-const liveStatusTone: Record<LiveStatus, string> = {
-  pending_first_live:
-    'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200/60',
-  incubating:
-    'bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200/60',
-  normal:
-    'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/60',
-  offline: 'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200/60',
-  leave: 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200/80',
-  exited: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/60',
-}
 
 /** 筛选 chip：选中 */
 const filterTabActiveTone: Record<LiveStatus, string> = {
@@ -300,7 +278,7 @@ export function OperatorAnchorsPage() {
           <div>
             <p className="text-sm font-medium text-brand-600">主播孵化</p>
             <h2 className="mt-1 text-2xl font-semibold text-slate-900">
-              我的主播
+              主播列表
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
               先处理待确认归属；已确认主播按直播状态跟进：待首播 → 孵化中（首播后
@@ -613,20 +591,12 @@ export function OperatorAnchorsPage() {
                         <th className="whitespace-nowrap px-3 py-3">
                           直播状态
                         </th>
-                        <th className="whitespace-nowrap px-3 py-3">岗前</th>
                         <th className="whitespace-nowrap px-3 py-3">首播时间</th>
                         <th className="whitespace-nowrap px-3 py-3">操作</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
                       {filteredAnchors.map((item) => {
-                        const done = item.onboarding?.completedCount ?? 0
-                        const total = item.onboarding?.totalCount ?? 7
-                        const status = item.liveStatus
-                        const tone =
-                          liveStatusTone[status] ??
-                          'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200/80'
-
                         return (
                           <tr
                             key={item.id}
@@ -644,26 +614,15 @@ export function OperatorAnchorsPage() {
                               {item.wecomName || '—'}
                             </td>
                             <td className="px-3 py-2.5">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span
-                                  className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${tone}`}
-                                >
-                                  {liveStatusLabels[status] ?? status}
-                                </span>
-                                {/* 稳定期四态可改；待首播/孵化中也可标断播请假 */}
-                                <AnchorStatusSelect
-                                  compact
-                                  anchorId={item.id}
-                                  status={item.status}
-                                  queryKeys={[
-                                    ['operator-anchors'],
-                                    ['dashboard'],
-                                  ]}
-                                />
-                              </div>
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-slate-700">
-                              {item.onboarding ? `${done}/${total}` : '—'}
+                              <AnchorStatusSelect
+                                compact
+                                anchorId={item.id}
+                                status={item.status}
+                                queryKeys={[
+                                  ['operator-anchors'],
+                                  ['dashboard'],
+                                ]}
+                              />
                             </td>
                             <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
                               {item.firstLiveAt
@@ -671,27 +630,12 @@ export function OperatorAnchorsPage() {
                                 : '—'}
                             </td>
                             <td className="px-3 py-2.5">
-                              <div className="flex flex-nowrap items-center gap-3 whitespace-nowrap">
-                                  <Link
-                                    className="text-xs font-medium text-slate-600 hover:text-brand-700"
-                                    to={`/operator/anchors/${item.id}`}
-                                  >
-                                    档案
-                                  </Link>
-                                  <Link
-                                    className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-600 hover:text-brand-700"
-                                    to={`/operator/anchors/${item.id}/onboarding`}
-                                  >
-                                    岗前
-                                    <ArrowRight className="h-3.5 w-3.5" />
-                                  </Link>
-                                  <Link
-                                    className="text-xs font-medium text-slate-600 hover:text-brand-700"
-                                    to={`/operator/anchors/${item.id}?tab=reviews`}
-                                  >
-                                    日复盘
-                                  </Link>
-                              </div>
+                              <Link
+                                className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                                to={`/operator/anchors/${item.id}`}
+                              >
+                                档案
+                              </Link>
                             </td>
                           </tr>
                         )

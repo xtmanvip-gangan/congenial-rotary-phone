@@ -94,7 +94,7 @@ const metricMeta: Record<string, MetricMeta> = {
     helper: '已首播未完成复盘节点',
     icon: <BookOpenCheck className="h-4 w-4" />,
     todo: true,
-    href: '/operator/anchors',
+    href: '/operator/onboarding',
   },
   offlineAnchors: {
     label: '断播',

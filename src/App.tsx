@@ -12,7 +12,9 @@ import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { OperatorAnchorDetailPage } from './pages/OperatorAnchorDetailPage'
 import { OperatorAnchorsPage } from './pages/OperatorAnchorsPage'
+import { OperatorOnboardingListPage } from './pages/OperatorOnboardingListPage'
 import { OperatorOnboardingPage } from './pages/OperatorOnboardingPage'
+import { OperatorReviewsListPage } from './pages/OperatorReviewsListPage'
 import { RuleManagementPage } from './pages/RuleManagementPage'
 import { StaffHomePage } from './pages/StaffHomePage'
 import { AdminAnchorDetailPage } from './pages/AdminAnchorDetailPage'
@@ -162,6 +164,22 @@ function App() {
           element={
             <AuthGate allowRoles={['operator', 'super_admin']}>
               <OperatorAnchorsPage />
+            </AuthGate>
+          }
+        />
+        <Route
+          path="/operator/onboarding"
+          element={
+            <AuthGate allowRoles={['operator', 'super_admin']}>
+              <OperatorOnboardingListPage />
+            </AuthGate>
+          }
+        />
+        <Route
+          path="/operator/reviews"
+          element={
+            <AuthGate allowRoles={['operator', 'super_admin']}>
+              <OperatorReviewsListPage />
             </AuthGate>
           }
         />

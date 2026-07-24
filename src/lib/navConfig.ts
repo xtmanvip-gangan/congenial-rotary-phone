@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Activity,
   BookOpen,
+  BookOpenCheck,
   CalendarDays,
   ClipboardList,
   Download,
@@ -99,7 +100,17 @@ export function getStaffNavGroups(role: AppRole): NavGroup[] {
       {
         title: '主播孵化',
         items: [
-          { label: '我的主播', to: '/operator/anchors', icon: UsersRound },
+          { label: '主播列表', to: '/operator/anchors', icon: UsersRound },
+          {
+            label: '岗前进度',
+            to: '/operator/onboarding',
+            icon: ListChecks,
+          },
+          {
+            label: '日复盘',
+            to: '/operator/reviews',
+            icon: BookOpenCheck,
+          },
         ],
       },
       {
