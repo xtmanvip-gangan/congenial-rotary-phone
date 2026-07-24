@@ -200,7 +200,10 @@ export function OperatorOnboardingPage() {
       setInitialForm(emptyInitialForm)
       setExtraForm({})
       setAttachmentUrls([])
-      setFeedback({ type: 'success', text: '已提交' })
+      setFeedback({
+        type: 'success',
+        text: '已提交；主播确认前仍可修改后重新提交',
+      })
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ['operator-onboarding', anchorId],
@@ -236,13 +239,14 @@ export function OperatorOnboardingPage() {
   )
 
   function beginEdit(milestone: Milestone) {
-    if (
-      milestone.status === 'completed' ||
-      milestone.status === 'awaiting_anchor_confirm'
-    ) {
+    if (milestone.status === 'completed') {
       return
     }
-    if (milestone.type !== nextType) {
+    // 待主播确认：允许运营修改重提；其它未完成节点仍须按序
+    if (
+      milestone.status !== 'awaiting_anchor_confirm' &&
+      milestone.type !== nextType
+    ) {
       setFeedback({ type: 'error', text: '请按顺序完成上一节点' })
       return
     }
@@ -488,9 +492,9 @@ export function OperatorOnboardingPage() {
       <section className="space-y-3">
         {progress.milestones.map((milestone, index) => {
           const canEdit =
-            milestone.type === nextType &&
             milestone.status !== 'completed' &&
-            milestone.status !== 'awaiting_anchor_confirm'
+            (milestone.status === 'awaiting_anchor_confirm' ||
+              milestone.type === nextType)
           const isEditing = activeType === milestone.type
 
           return (
@@ -581,7 +585,7 @@ export function OperatorOnboardingPage() {
                         已完成
                       </>
                     ) : milestone.status === 'awaiting_anchor_confirm' ? (
-                      '等待确认'
+                      '修改重提'
                     ) : canEdit ? (
                       '填写/提交'
                     ) : (

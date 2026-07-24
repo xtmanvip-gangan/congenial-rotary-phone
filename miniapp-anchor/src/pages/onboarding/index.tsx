@@ -296,17 +296,18 @@ function EvidenceBlock({ item }: { item: OnboardingMilestone }) {
     const goals = Array.isArray(evidence.liveGoals)
       ? evidence.liveGoals.join('、')
       : ''
+    // 不展示运营内部/AI 判断：basicConditionsJudgment、stabilityRisks
     const rows = [
       ['沟通方式', evidence.channel],
       ['可播时段', schedule],
       ['设备网络', evidence.deviceNetwork],
       ['声音特点', voice],
+      ['兴趣经历', evidence.interestsAndExperience],
       ['直播经验', evidence.liveExperience],
       ['投入意愿', evidence.learningCommitment],
       ['直播目标', goals],
+      ['担心顾虑', evidence.concerns],
       ['内容推荐', evidence.contentRecommendation],
-      ['基本条件', evidence.basicConditionsJudgment],
-      ['稳定风险', evidence.stabilityRisks],
     ] as const
     return (
       <View className={styles.evidence}>

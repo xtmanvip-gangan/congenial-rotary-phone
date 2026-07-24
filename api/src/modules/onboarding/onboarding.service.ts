@@ -51,12 +51,12 @@ export class OnboardingService {
 
   async getProgressForOperator(currentUser: AuthenticatedUser, anchorId: string) {
     const anchor = await this.findOwnedAnchor(currentUser, anchorId)
-    return { item: this.formatProgress(anchor) }
+    return { item: this.formatProgress(anchor, { forAnchor: false }) }
   }
 
   async getProgressForAnchor(currentUser: AuthenticatedUser) {
     const anchor = await this.findAnchorProfileForUser(currentUser)
-    return { item: this.formatProgress(anchor) }
+    return { item: this.formatProgress(anchor, { forAnchor: true }) }
   }
 
   async submitMilestone(
@@ -81,9 +81,7 @@ export class OnboardingService {
     if (target.status === 'completed') {
       throw new BadRequestException('该节点已完成，无需重复提交')
     }
-    if (target.status === 'awaiting_anchor_confirm') {
-      throw new BadRequestException('已提交，等待主播确认中')
-    }
+    // 待主播确认期间允许运营修改后重新提交
 
     const evidence = this.validateAndNormalizeEvidence(milestoneType, dto)
     const attachmentUrls = this.normalizeAttachmentUrls(dto.attachmentUrls)
@@ -773,35 +771,42 @@ export class OnboardingService {
     }
   }
 
-  private formatProgress(anchor: {
-    id: string
-    anchorDisplayName: string
-    onboardingProgress: {
-      currentStage: OnboardingMilestoneType
-      firstLiveAt: Date | null
-      firstReviewCompletedAt: Date | null
-      milestones: Array<{
-        id: string
-        type: OnboardingMilestoneType
-        status: OnboardingMilestoneStatus
-        completedAt: Date | null
-        note: string | null
-        evidence: Prisma.JsonValue
-        attachmentUrls: string[]
-        submittedAt: Date | null
-        submittedBy: string | null
-        anchorConfirmedAt: Date | null
-        anchorRejectedAt: Date | null
-        rejectReason: string | null
-      }>
-    } | null
-  }) {
+  private formatProgress(
+    anchor: {
+      id: string
+      anchorDisplayName: string
+      onboardingProgress: {
+        currentStage: OnboardingMilestoneType
+        firstLiveAt: Date | null
+        firstReviewCompletedAt: Date | null
+        milestones: Array<{
+          id: string
+          type: OnboardingMilestoneType
+          status: OnboardingMilestoneStatus
+          completedAt: Date | null
+          note: string | null
+          evidence: Prisma.JsonValue
+          attachmentUrls: string[]
+          submittedAt: Date | null
+          submittedBy: string | null
+          anchorConfirmedAt: Date | null
+          anchorRejectedAt: Date | null
+          rejectReason: string | null
+        }>
+      } | null
+    },
+    options: { forAnchor: boolean },
+  ) {
     const progress = this.requireProgress(anchor)
     const milestoneMap = new Map(
       progress.milestones.map((item) => [item.type, item]),
     )
     const milestones = ONBOARDING_PROGRESS_MILESTONES.map((type) => {
       const item = milestoneMap.get(type)
+      const rawEvidence = item?.evidence ?? null
+      const evidence = options.forAnchor
+        ? this.sanitizeEvidenceForAnchor(type, rawEvidence)
+        : rawEvidence
       return {
         id: item?.id ?? null,
         type,
@@ -811,7 +816,7 @@ export class OnboardingService {
         requiresScreenshot: SCREENSHOT_MILESTONES.has(type),
         completedAt: item?.completedAt?.toISOString() ?? null,
         note: item?.note ?? null,
-        evidence: item?.evidence ?? null,
+        evidence,
         attachmentUrls: item?.attachmentUrls ?? [],
         submittedAt: item?.submittedAt?.toISOString() ?? null,
         submittedBy: item?.submittedBy ?? null,
@@ -843,5 +848,24 @@ export class OnboardingService {
       initialCommunicationForm: INITIAL_COMMUNICATION_FORM_META,
       milestones,
     }
+  }
+
+  /** 主播端不可见：运营内部判断 / AI 草稿字段 */
+  private sanitizeEvidenceForAnchor(
+    type: ProgressMilestoneType,
+    evidence: Prisma.JsonValue | null,
+  ): Record<string, unknown> | null {
+    if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) {
+      return evidence as Record<string, unknown> | null
+    }
+    if (type !== 'initial_communication') {
+      return evidence as Record<string, unknown>
+    }
+    const {
+      basicConditionsJudgment: _basic,
+      stabilityRisks: _risks,
+      ...safe
+    } = evidence as Record<string, unknown>
+    return safe
   }
 }
