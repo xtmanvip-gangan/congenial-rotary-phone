@@ -196,27 +196,97 @@ export class DashboardService {
   }
 
   private async superAdminDashboard() {
+    const weekStart = startOfShanghaiWeek(new Date())
     const [
       activeAnchors,
       activeStaff,
-      giftTodos,
+      pendingActivation,
+      invitationsSent,
+      pendingOperatorConfirmation,
+      pendingFirstLive,
+      pendingFirstLiveReview,
+      pendingReview,
+      pendingGrant,
+      activeActivities,
       trainingSessions,
+      weeklyRegistrations,
+      waitlisted,
+      attendancePending,
+      needsMakeup,
+      feedbackPending,
+      openQuestions,
       failedNotifications,
       openIncidents,
       failedJobs,
     ] = await Promise.all([
       this.prisma.anchorProfile.count({ where: { status: 'active' } }),
       this.prisma.operatorAccount.count({ where: { status: 'active' } }),
+      this.prisma.anchorActivationTask.count({ where: { status: 'pending' } }),
+      this.prisma.anchorActivationTask.count({ where: { status: 'invited' } }),
+      this.prisma.anchorProfile.count({
+        where: { assignmentStatus: 'pending_confirmation' },
+      }),
+      this.prisma.anchorProfile.count({
+        where: {
+          status: 'active',
+          assignmentStatus: 'confirmed',
+          onboardingProgress: { firstLiveAt: null },
+        },
+      }),
+      this.prisma.anchorProfile.count({
+        where: {
+          status: 'active',
+          assignmentStatus: 'confirmed',
+          onboardingProgress: {
+            firstLiveAt: { not: null },
+            firstReviewCompletedAt: null,
+          },
+        },
+      }),
       this.prisma.submission.count({
         where: {
+          operatorAssignmentStatus: 'confirmed',
+          reviewStatus: 'pending',
+        },
+      }),
+      this.prisma.submission.count({
+        where: {
+          operatorAssignmentStatus: 'confirmed',
+          reviewStatus: 'approved',
+          grantStatus: 'pending',
+        },
+      }),
+      this.prisma.activity.count({ where: { status: 'active' } }),
+      this.prisma.trainingSession.count({
+        where: { status: { in: ['published', 'in_progress'] } },
+      }),
+      this.prisma.trainingRegistration.count({
+        where: {
+          registeredAt: { gte: weekStart },
+          status: { in: ['registered', 'waitlisted', 'learned'] },
+        },
+      }),
+      this.prisma.trainingRegistration.count({
+        where: { status: 'waitlisted' },
+      }),
+      this.prisma.trainingAttendanceRecord.count({
+        where: {
           OR: [
-            { reviewStatus: 'pending' },
-            { reviewStatus: 'approved', grantStatus: 'pending' },
+            { matchStatus: { in: ['conflict', 'unmatched'] } },
+            { outcome: 'pending_confirmation' },
           ],
         },
       }),
-      this.prisma.trainingSession.count({
-        where: { status: { in: ['published', 'in_progress'] } },
+      this.prisma.trainingRegistration.count({
+        where: {
+          status: { in: ['absent', 'abnormal_exit', 'needs_makeup'] },
+        },
+      }),
+      this.prisma.trainingApplicationFeedback.count({
+        where: { status: { in: ['unobserved', 'needs_support'] } },
+      }),
+      this.prisma.trainingQuestion.count({
+        where: { status: { notIn: ['resolved', 'transferred'] } },
       }),
       this.prisma.notificationLog.count({ where: { status: 'failed' } }),
       this.prisma.integrationIncident.count({ where: { status: 'open' } }),
@@ -226,10 +296,28 @@ export class DashboardService {
     ])
 
     return response('super_admin', {
+      // 人员与主播
       activeAnchors,
       activeStaff,
-      giftTodos,
+      pendingActivation,
+      invitationsSent,
+      pendingOperatorConfirmation,
+      pendingFirstLive,
+      pendingFirstLiveReview,
+      // 礼物
+      pendingReview,
+      pendingGrant,
+      giftTodos: pendingReview + pendingGrant,
+      activeActivities,
+      // 培训
       trainingSessions,
+      weeklyRegistrations,
+      waitlisted,
+      attendancePending,
+      needsMakeup,
+      feedbackPending,
+      openQuestions,
+      // 运维
       failedNotifications,
       openIncidents,
       failedJobs,
