@@ -347,9 +347,17 @@ export class AnchorsService {
       },
     })
 
-    return {
-      items: items.map((item) => ({
+    const mapped = items.map((item) => {
+      const firstLiveAt = item.onboardingProgress?.firstLiveAt ?? null
+      const liveStatus = resolveAnchorLiveStatus({
+        profileStatus: item.status,
+        firstLiveAt,
+      })
+      return {
         ...this.toProfileItem(item),
+        liveStatus,
+        firstLiveAt: firstLiveAt?.toISOString() ?? null,
+        incubationDays: INCUBATION_DAYS,
         onboarding: item.onboardingProgress
           ? {
               completedCount: item.onboardingProgress.milestones.filter(
@@ -371,7 +379,26 @@ export class AnchorsService {
                 ) ?? null,
             }
           : null,
-      })),
+      }
+    })
+
+    const summary = {
+      total: mapped.length,
+      pendingFirstLive: mapped.filter(
+        (item) => item.liveStatus === 'pending_first_live',
+      ).length,
+      incubating: mapped.filter((item) => item.liveStatus === 'incubating')
+        .length,
+      normal: mapped.filter((item) => item.liveStatus === 'normal').length,
+      offline: mapped.filter((item) => item.liveStatus === 'offline').length,
+      leave: mapped.filter((item) => item.liveStatus === 'leave').length,
+      exited: mapped.filter((item) => item.liveStatus === 'exited').length,
+    }
+
+    return {
+      items: mapped,
+      summary,
+      incubationDays: INCUBATION_DAYS,
     }
   }
 
