@@ -49,14 +49,13 @@ type PendingAssignment = {
 type ProgressFilter = 'all' | 'in_progress' | 'done' | 'not_started'
 
 const milestoneLabels: Record<string, string> = {
-  operator_received: '运营完成接收',
-  homepage_ready: '个人主页整理',
-  live_software_ready: '直播软件设置',
-  helper_software_ready: '辅助软件安装',
+  initial_communication: '初次沟通',
+  homepage_ready: '个人主页',
+  live_software_ready: '直播软件',
+  helper_software_ready: '辅助软件',
   prejob_learning_completed: '岗前基础学习',
-  prelive_check_completed: '开播前准备确认',
-  first_live_completed: '完成独立首播',
-  first_live_review_completed: '完成首播复盘',
+  first_live_completed: '独立首播',
+  first_live_review_completed: '首播复盘',
 }
 
 function progressRatio(item: AnchorItem) {

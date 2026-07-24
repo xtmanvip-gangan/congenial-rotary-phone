@@ -41,6 +41,7 @@ enum OperatorAssignmentStatus {
 
 enum OnboardingMilestoneType {
   operator_received
+  initial_communication
   homepage_ready
   live_software_ready
   helper_software_ready
@@ -52,6 +53,7 @@ enum OnboardingMilestoneType {
 
 enum OnboardingMilestoneStatus {
   pending
+  awaiting_anchor_confirm
   completed
 }
 
@@ -746,7 +748,7 @@ model AnchorOperatorAssignment {
 model AnchorOnboardingProgress {
   id                     String                      @id @default(uuid()) @db.Uuid
   anchorProfileId        String                      @unique @map("anchor_profile_id") @db.Uuid
-  currentStage           OnboardingMilestoneType     @default(operator_received) @map("current_stage")
+  currentStage           OnboardingMilestoneType     @default(initial_communication) @map("current_stage")
   firstLiveAt            DateTime?                   @map("first_live_at")
   firstLiveBlockedReason String?                     @map("first_live_blocked_reason")
   firstReviewCompletedAt DateTime?                   @map("first_review_completed_at")
@@ -759,16 +761,23 @@ model AnchorOnboardingProgress {
 }
 
 model AnchorOnboardingMilestone {
-  id          String                    @id @default(uuid()) @db.Uuid
-  progressId  String                    @map("progress_id") @db.Uuid
-  type        OnboardingMilestoneType
-  status      OnboardingMilestoneStatus @default(pending)
-  completedAt DateTime?                 @map("completed_at")
-  completedBy String?                   @map("completed_by") @db.VarChar(64)
-  note        String?
-  createdAt   DateTime                  @default(now()) @map("created_at")
-  updatedAt   DateTime                  @updatedAt @map("updated_at")
-  progress    AnchorOnboardingProgress  @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  id                String                    @id @default(uuid()) @db.Uuid
+  progressId        String                    @map("progress_id") @db.Uuid
+  type              OnboardingMilestoneType
+  status            OnboardingMilestoneStatus @default(pending)
+  completedAt       DateTime?                 @map("completed_at")
+  completedBy       String?                   @map("completed_by") @db.VarChar(64)
+  note              String?
+  evidence          Json?
+  attachmentUrls    String[]                  @default([]) @map("attachment_urls")
+  submittedAt       DateTime?                 @map("submitted_at")
+  submittedBy       String?                   @map("submitted_by") @db.VarChar(64)
+  anchorConfirmedAt DateTime?                 @map("anchor_confirmed_at")
+  anchorRejectedAt  DateTime?                 @map("anchor_rejected_at")
+  rejectReason      String?                   @map("reject_reason")
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+  progress          AnchorOnboardingProgress  @relation(fields: [progressId], references: [id], onDelete: Cascade)
 
   @@unique([progressId, type])
   @@map("anchor_onboarding_milestones")

@@ -8,6 +8,7 @@ export default defineAppConfig({
     'pages/activity-records/index',
     'pages/submit/index',
     'pages/record-detail/index',
+    'pages/onboarding/index',
   ],
   window: {
     backgroundTextStyle: 'dark',

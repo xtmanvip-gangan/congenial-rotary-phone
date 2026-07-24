@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service.js'
 import { AccessService } from '../access/access.service.js'
 import type { AuthenticatedUser } from '../auth/auth.types.js'
+import { ONBOARDING_PROGRESS_MILESTONES } from '../onboarding/onboarding.constants.js'
 
 const profileInclude = {
   wecomUser: {
@@ -21,17 +22,6 @@ const profileInclude = {
     },
   },
 } as const
-
-const onboardingTypes = [
-  'operator_received',
-  'homepage_ready',
-  'live_software_ready',
-  'helper_software_ready',
-  'prejob_learning_completed',
-  'prelive_check_completed',
-  'first_live_completed',
-  'first_live_review_completed',
-] as const
 
 @Injectable()
 export class AnchorsService {
@@ -306,11 +296,15 @@ export class AnchorsService {
         onboarding: item.onboardingProgress
           ? {
               completedCount: item.onboardingProgress.milestones.filter(
-                (milestone) => milestone.status === 'completed',
+                (milestone) =>
+                  milestone.status === 'completed' &&
+                  (ONBOARDING_PROGRESS_MILESTONES as readonly string[]).includes(
+                    milestone.type,
+                  ),
               ).length,
-              totalCount: onboardingTypes.length,
+              totalCount: ONBOARDING_PROGRESS_MILESTONES.length,
               nextMilestone:
-                onboardingTypes.find(
+                ONBOARDING_PROGRESS_MILESTONES.find(
                   (type) =>
                     !item.onboardingProgress?.milestones.some(
                       (milestone) =>
@@ -382,14 +376,11 @@ export class AnchorsService {
         },
         create: {
           anchorProfileId: assignment.anchorProfileId,
-          currentStage: 'operator_received',
+          currentStage: 'initial_communication',
           milestones: {
-            create: onboardingTypes.map((type) => ({
+            create: ONBOARDING_PROGRESS_MILESTONES.map((type) => ({
               type,
-              status: type === 'operator_received' ? 'completed' : 'pending',
-              completedAt: type === 'operator_received' ? now : null,
-              completedBy:
-                type === 'operator_received' ? currentUser.wecomUserId : null,
+              status: 'pending' as const,
             })),
           },
         },
