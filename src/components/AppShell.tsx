@@ -205,9 +205,6 @@ export function AppShell() {
             <div className="min-w-0 lg:hidden">
               <BrandLockup compact />
             </div>
-            <div className="hidden min-w-0 sm:block lg:pl-0">
-              <p className="truncate text-sm text-secondary-500">主播服务中台</p>
-            </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
