@@ -1,6 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import { ListChecks, RefreshCw, Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import {
+  CheckCircle2,
+  ClipboardList,
+  ListChecks,
+  Radio,
+  RefreshCw,
+  Search,
+} from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
 import {
   ActionChipLink,
   StatusPill,
@@ -17,6 +24,7 @@ type AnchorItem = {
   wecomName: string
   anchorDisplayName: string
   liveStatus: string
+  firstLiveAt: string | null
   onboarding: {
     completedCount: number
     totalCount: number
@@ -52,14 +60,23 @@ export function OperatorOnboardingListPage() {
     let notStarted = 0
     let inProgress = 0
     let done = 0
+    /** 本阶段：岗前尚未首播（无 firstLiveAt） */
+    let stageCount = 0
     for (const item of items) {
       const d = item.onboarding?.completedCount ?? 0
       const t = item.onboarding?.totalCount ?? 7
+      if (!item.firstLiveAt) stageCount += 1
       if (!item.onboarding || d === 0) notStarted += 1
       else if (d >= t) done += 1
       else inProgress += 1
     }
-    return { all: items.length, notStarted, inProgress, done }
+    return {
+      all: items.length,
+      stageCount,
+      notStarted,
+      inProgress,
+      done,
+    }
   }, [items])
 
   const filtered = useMemo(() => {
@@ -96,7 +113,7 @@ export function OperatorOnboardingListPage() {
               岗前进度
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              跟进已确认主播的 7 个岗前节点；点「进入」填写或查看进度。
+              跟进已确认主播的 7 个岗前节点；点「进入」填写或查看进度。本阶段指尚未首播的主播。
             </p>
           </div>
           <button
@@ -110,6 +127,44 @@ export function OperatorOnboardingListPage() {
             />
             刷新
           </button>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <OverviewCard
+            label="本阶段人数"
+            value={counts.stageCount}
+            helper="岗前尚未首播"
+            icon={<Radio className="h-4 w-4" />}
+            tone="sky"
+            active={false}
+          />
+          <OverviewCard
+            label="待启动"
+            value={counts.notStarted}
+            helper="岗前 0 节点"
+            icon={<ClipboardList className="h-4 w-4" />}
+            tone="slate"
+            active={filter === 'not_started'}
+            onClick={() => setFilter('not_started')}
+          />
+          <OverviewCard
+            label="进行中"
+            value={counts.inProgress}
+            helper="部分节点已完成"
+            icon={<ListChecks className="h-4 w-4" />}
+            tone="brand"
+            active={filter === 'in_progress'}
+            onClick={() => setFilter('in_progress')}
+          />
+          <OverviewCard
+            label="已完成"
+            value={counts.done}
+            helper="岗前 7/7"
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            tone="emerald"
+            active={filter === 'done'}
+            onClick={() => setFilter('done')}
+          />
         </div>
       </section>
 
@@ -253,4 +308,82 @@ export function OperatorOnboardingListPage() {
       </section>
     </div>
   )
+}
+
+function OverviewCard({
+  label,
+  value,
+  helper,
+  icon,
+  tone,
+  active,
+  onClick,
+}: {
+  label: string
+  value: number
+  helper: string
+  icon: ReactNode
+  tone: 'sky' | 'slate' | 'brand' | 'emerald'
+  active?: boolean
+  onClick?: () => void
+}) {
+  const tones = {
+    sky: {
+      wrap: 'border-sky-100 bg-sky-50/70',
+      value: 'text-sky-700',
+      icon: 'bg-sky-100 text-sky-700',
+      ring: 'ring-sky-300',
+    },
+    slate: {
+      wrap: 'border-slate-100 bg-slate-50/80',
+      value: 'text-slate-700',
+      icon: 'bg-slate-200/80 text-slate-600',
+      ring: 'ring-slate-300',
+    },
+    brand: {
+      wrap: 'border-brand-100 bg-brand-50/70',
+      value: 'text-brand-700',
+      icon: 'bg-brand-100 text-brand-700',
+      ring: 'ring-brand-300',
+    },
+    emerald: {
+      wrap: 'border-emerald-100 bg-emerald-50/70',
+      value: 'text-emerald-700',
+      icon: 'bg-emerald-100 text-emerald-700',
+      ring: 'ring-emerald-300',
+    },
+  }[tone]
+
+  const className = [
+    'rounded-2xl border px-4 py-3 text-left transition',
+    tones.wrap,
+    onClick ? 'cursor-pointer hover:brightness-[0.98]' : '',
+    active ? `ring-2 ${tones.ring}` : '',
+  ].join(' ')
+
+  const body = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium text-slate-500">{label}</p>
+        <span
+          className={`flex h-7 w-7 items-center justify-center rounded-xl ${tones.icon}`}
+        >
+          {icon}
+        </span>
+      </div>
+      <p className={`mt-1 text-2xl font-semibold tabular-nums ${tones.value}`}>
+        {value}
+      </p>
+      <p className="mt-1 text-xs text-slate-400">{helper}</p>
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button type="button" className={className} onClick={onClick}>
+        {body}
+      </button>
+    )
+  }
+  return <div className={className}>{body}</div>
 }

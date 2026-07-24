@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
   FolderOpen,
   LoaderCircle,
@@ -110,6 +111,8 @@ export function OperatorAnchorsPage() {
   )
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  /** 待确认折叠条：有待办时默认展开 */
+  const [pendingOpen, setPendingOpen] = useState(true)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     text: string
@@ -361,142 +364,144 @@ export function OperatorAnchorsPage() {
 
       {!loading && !error ? (
         <>
-          {/* 待确认：紧凑表格 */}
-          <section
-            className={[
-              'rounded-3xl border p-6 shadow-soft',
-              counts.pending > 0
-                ? 'border-amber-200 bg-amber-50/30'
-                : 'border-slate-200 bg-white',
-            ].join(' ')}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900">
-                  待确认归属
-                </h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  {counts.pending > 0
-                    ? `${counts.pending} 位主播已开通档案，等待你确认或驳回`
-                    : '主播完成一点开通后会出现在这里'}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              {pendingItems.length === 0 ? (
-                <EmptyState
-                  title="暂无待确认主播"
-                  description="审核创建开通任务 → 主播小程序一点开通 → 才会进入待确认。"
-                  tone="plain"
+          {/* 待确认：折叠条，有数时默认可展开，不压主列表 */}
+          {counts.pending > 0 ? (
+            <section className="overflow-hidden rounded-2xl border border-amber-200/80 bg-amber-50/40 shadow-soft">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-amber-50/80"
+                onClick={() => setPendingOpen((open) => !open)}
+                aria-expanded={pendingOpen}
+              >
+                <span className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-medium text-amber-900">待确认归属</span>
+                  <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-amber-800 ring-1 ring-inset ring-amber-200/70">
+                    {counts.pending}
+                  </span>
+                  <span className="text-xs text-amber-800/80">
+                    已开通档案，等待确认或驳回
+                  </span>
+                </span>
+                <ChevronDown
+                  className={[
+                    'h-4 w-4 shrink-0 text-amber-700 transition',
+                    pendingOpen ? 'rotate-180' : '',
+                  ].join(' ')}
                 />
-              ) : (
-                <div className="overflow-x-auto rounded-xl border border-amber-200/80 bg-white">
-                  <table className="min-w-full border-collapse text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-amber-100 bg-amber-50/50 text-xs font-medium text-slate-500">
-                        <th className="whitespace-nowrap px-3 py-3">主播</th>
-                        <th className="whitespace-nowrap px-3 py-3">企微</th>
-                        <th className="whitespace-nowrap px-3 py-3">激活时间</th>
-                        <th className="whitespace-nowrap px-3 py-3">分配时间</th>
-                        <th className="whitespace-nowrap px-3 py-3 text-right">
-                          操作
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-amber-50">
-                      {pendingItems.map((item) => {
-                        const isRejecting = rejectingId === item.id
-                        return (
-                          <tr key={item.id} className="align-top">
-                            <td className="px-3 py-2.5 font-medium text-slate-900">
-                              {item.anchor.anchorDisplayName}
-                              <span className="ml-2 inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200/60">
-                                待确认
-                              </span>
-                            </td>
-                            <td className="px-3 py-2.5 text-slate-600">
-                              {item.anchor.wecomName || '—'}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
-                              {formatDateTime(item.anchor.activatedAt)}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
-                              {formatDateTime(item.createdAt)}
-                            </td>
-                            <td className="px-3 py-2.5 text-right">
-                              {!isRejecting ? (
-                                <div className="flex flex-wrap items-center justify-end gap-2">
-                                  <button
-                                    type="button"
-                                    className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-600 hover:text-brand-700"
-                                    disabled={busy}
-                                    onClick={() => void requestConfirm(item)}
-                                  >
-                                    {confirmMutation.isPending ? (
-                                      <LoaderCircle className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                      <CheckCircle2 className="h-3 w-3" />
-                                    )}
-                                    确认归属
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-600 hover:text-rose-700"
-                                    disabled={busy}
-                                    onClick={() => {
-                                      setRejectingId(item.id)
-                                      setRejectReason('')
-                                      setFeedback(null)
-                                    }}
-                                  >
-                                    <XCircle className="h-3 w-3" />
-                                    驳回
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="ml-auto max-w-sm space-y-2 text-left">
-                                  <textarea
-                                    className="app-field min-h-[72px] resize-y text-xs"
-                                    placeholder="驳回原因，如：非本运营负责、信息有误…"
-                                    value={rejectReason}
-                                    onChange={(e) =>
-                                      setRejectReason(e.target.value)
-                                    }
-                                  />
-                                  <div className="flex flex-wrap gap-2">
+              </button>
+
+              {pendingOpen ? (
+                <div className="border-t border-amber-200/60 bg-white px-4 py-3">
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="min-w-full border-collapse text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50/80 text-xs font-medium text-slate-500">
+                          <th className="whitespace-nowrap px-3 py-2.5">主播</th>
+                          <th className="whitespace-nowrap px-3 py-2.5">企微</th>
+                          <th className="whitespace-nowrap px-3 py-2.5">
+                            激活时间
+                          </th>
+                          <th className="whitespace-nowrap px-3 py-2.5">
+                            分配时间
+                          </th>
+                          <th className="whitespace-nowrap px-3 py-2.5 text-right">
+                            操作
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {pendingItems.map((item) => {
+                          const isRejecting = rejectingId === item.id
+                          return (
+                            <tr key={item.id} className="align-top">
+                              <td className="px-3 py-2.5 font-medium text-slate-900">
+                                {item.anchor.anchorDisplayName}
+                              </td>
+                              <td className="px-3 py-2.5 text-slate-600">
+                                {item.anchor.wecomName || '—'}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
+                                {formatDateTime(item.anchor.activatedAt)}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
+                                {formatDateTime(item.createdAt)}
+                              </td>
+                              <td className="px-3 py-2.5 text-right">
+                                {!isRejecting ? (
+                                  <div className="flex flex-wrap items-center justify-end gap-2">
                                     <button
                                       type="button"
-                                      className="text-xs font-medium text-rose-600 hover:text-rose-700"
-                                      disabled={busy || !rejectReason.trim()}
-                                      onClick={() => submitReject(item.id)}
+                                      className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-600 hover:text-brand-700"
+                                      disabled={busy}
+                                      onClick={() => void requestConfirm(item)}
                                     >
-                                      确认驳回
+                                      {confirmMutation.isPending ? (
+                                        <LoaderCircle className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <CheckCircle2 className="h-3 w-3" />
+                                      )}
+                                      确认归属
                                     </button>
                                     <button
                                       type="button"
-                                      className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                                      className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-600 hover:text-rose-700"
                                       disabled={busy}
                                       onClick={() => {
-                                        setRejectingId(null)
+                                        setRejectingId(item.id)
                                         setRejectReason('')
+                                        setFeedback(null)
                                       }}
                                     >
-                                      取消
+                                      <XCircle className="h-3 w-3" />
+                                      驳回
                                     </button>
                                   </div>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                                ) : (
+                                  <div className="ml-auto max-w-sm space-y-2 text-left">
+                                    <textarea
+                                      className="app-field min-h-[72px] resize-y text-xs"
+                                      placeholder="驳回原因，如：非本运营负责、信息有误…"
+                                      value={rejectReason}
+                                      onChange={(e) =>
+                                        setRejectReason(e.target.value)
+                                      }
+                                    />
+                                    <div className="flex flex-wrap gap-2">
+                                      <button
+                                        type="button"
+                                        className="text-xs font-medium text-rose-600 hover:text-rose-700"
+                                        disabled={
+                                          busy || !rejectReason.trim()
+                                        }
+                                        onClick={() => submitReject(item.id)}
+                                      >
+                                        确认驳回
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                                        disabled={busy}
+                                        onClick={() => {
+                                          setRejectingId(null)
+                                          setRejectReason('')
+                                        }}
+                                      >
+                                        取消
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              )}
-            </div>
-          </section>
+              ) : null}
+            </section>
+          ) : null}
 
           {/* 主播列表：直播状态列表头 + 操作横排 */}
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
