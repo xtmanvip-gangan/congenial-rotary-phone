@@ -54,6 +54,20 @@ export class OnboardingController {
     return saveOnboardingImage(body)
   }
 
+  /** AI/模板草稿：基本条件判断 + 稳定开播风险（运营可再改） */
+  @Post('initial-communication/ai-draft')
+  draftInitialCommunication(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('anchorId') anchorId: string,
+    @Body() body: { evidence?: Record<string, unknown> },
+  ) {
+    return this.onboardingService.draftInitialCommunicationJudgment(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      anchorId,
+      body.evidence ?? {},
+    )
+  }
+
   @Post(':milestone/submit')
   submitMilestone(
     @Headers('authorization') authorization: string | undefined,

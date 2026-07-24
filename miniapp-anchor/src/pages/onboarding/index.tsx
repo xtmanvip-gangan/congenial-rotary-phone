@@ -286,18 +286,34 @@ export default function OnboardingConfirmPage() {
 function EvidenceBlock({ item }: { item: OnboardingMilestone }) {
   const evidence = item.evidence ?? {}
   if (item.type === 'initial_communication') {
-    const keys = [
-      ['availableSchedule', '可直播时间'],
-      ['deviceNetwork', '设备与网络'],
-      ['liveGoals', '直播目标'],
-      ['nextStepPlan', '约定下一步'],
+    const schedule =
+      evidence.availableScheduleStart && evidence.availableScheduleEnd
+        ? `${evidence.availableScheduleStart}-${evidence.availableScheduleEnd}`
+        : ''
+    const voice = Array.isArray(evidence.voiceTraits)
+      ? evidence.voiceTraits.join('、')
+      : ''
+    const goals = Array.isArray(evidence.liveGoals)
+      ? evidence.liveGoals.join('、')
+      : ''
+    const rows = [
+      ['沟通方式', evidence.channel],
+      ['可播时段', schedule],
+      ['设备网络', evidence.deviceNetwork],
+      ['声音特点', voice],
+      ['直播经验', evidence.liveExperience],
+      ['投入意愿', evidence.learningCommitment],
+      ['直播目标', goals],
+      ['内容推荐', evidence.contentRecommendation],
+      ['基本条件', evidence.basicConditionsJudgment],
+      ['稳定风险', evidence.stabilityRisks],
     ] as const
     return (
       <View className={styles.evidence}>
-        {keys.map(([key, label]) =>
-          evidence[key] ? (
-            <Text key={key} className={styles.evidenceLine}>
-              {label}：{String(evidence[key])}
+        {rows.map(([label, value]) =>
+          value ? (
+            <Text key={label} className={styles.evidenceLine}>
+              {label}：{String(value)}
             </Text>
           ) : null,
         )}

@@ -5,6 +5,7 @@ import {
   ImagePlus,
   LoaderCircle,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -39,6 +40,16 @@ type Milestone = {
   rejectReason: string | null
 }
 
+type FormMeta = {
+  channelOptions: string[]
+  deviceNetworkOptions: string[]
+  voiceTraitOptions: string[]
+  liveExperienceOptions: string[]
+  learningCommitmentOptions: string[]
+  liveGoalOptions: string[]
+  fieldLabels: Record<string, string>
+}
+
 type ProgressResponse = {
   item: {
     anchor: { id: string; anchorDisplayName: string }
@@ -47,31 +58,88 @@ type ProgressResponse = {
     nextMilestone: MilestoneType | null
     firstLiveAt: string | null
     firstReviewCompletedAt: string | null
-    initialCommunicationFields: Record<string, string>
+    initialCommunicationForm?: FormMeta
     trainingConfirmItems: Array<{ key: string; label: string }>
     milestones: Milestone[]
   }
 }
 
-const INITIAL_FIELDS: Array<{ key: string; label: string; required?: boolean; rows?: number }> = [
-  { key: 'communicatedAt', label: '沟通时间', required: true },
-  { key: 'channel', label: '沟通方式（选填）' },
-  { key: 'availableSchedule', label: '可直播时间', required: true, rows: 3 },
-  { key: 'deviceNetwork', label: '设备与网络', required: true, rows: 3 },
-  { key: 'voiceAndExpression', label: '声音与表达', required: true, rows: 3 },
-  { key: 'interestsAndExperience', label: '兴趣与经历', required: true, rows: 3 },
-  { key: 'liveExperience', label: '直播经验', required: true, rows: 2 },
-  { key: 'learningCommitment', label: '学习与投入意愿', required: true, rows: 2 },
-  { key: 'liveGoals', label: '直播目标', required: true, rows: 2 },
-  { key: 'concerns', label: '担心与顾虑', required: true, rows: 2 },
-  { key: 'basicConditionsJudgment', label: '基本条件判断', required: true, rows: 3 },
-  { key: 'contentAdvantages', label: '内容优势判断', required: true, rows: 3 },
-  { key: 'stabilityRisks', label: '稳定开播风险', required: true, rows: 3 },
-  { key: 'nextPriority', label: '下次优先解决', required: true, rows: 2 },
-  { key: 'escalateRisks', label: '需上报的风险/边界（选填）', rows: 2 },
-  { key: 'nextStepPlan', label: '约定下一步', required: true, rows: 2 },
-  { key: 'extraNote', label: '补充备注（选填）', rows: 2 },
-]
+type InitialFormState = {
+  communicatedAt: string
+  channel: string
+  availableScheduleStart: string
+  availableScheduleEnd: string
+  deviceNetwork: string
+  voiceTraits: string[]
+  interestsAndExperience: string
+  liveExperience: string
+  learningCommitment: string
+  liveGoals: string[]
+  concerns: string
+  contentRecommendation: string
+  basicConditionsJudgment: string
+  stabilityRisks: string
+}
+
+const emptyInitialForm: InitialFormState = {
+  communicatedAt: '',
+  channel: '',
+  availableScheduleStart: '',
+  availableScheduleEnd: '',
+  deviceNetwork: '',
+  voiceTraits: [],
+  interestsAndExperience: '',
+  liveExperience: '',
+  learningCommitment: '',
+  liveGoals: [],
+  concerns: '',
+  contentRecommendation: '',
+  basicConditionsJudgment: '',
+  stabilityRisks: '',
+}
+
+const DEFAULT_FORM_META: FormMeta = {
+  channelOptions: ['电话', '文字', '语音'],
+  deviceNetworkOptions: [
+    '电脑 + 声卡',
+    '手机 + 耳机',
+    '仅手机',
+    '手机 + 外接声卡',
+  ],
+  voiceTraitOptions: [
+    '低沉舒缓',
+    '明亮清脆',
+    '温柔细腻',
+    '磁性有力',
+    '偏沙哑/烟嗓',
+    '吐字清晰、语速适中',
+    '尚不稳定/需练声',
+    '其他',
+  ],
+  liveExperienceOptions: [
+    '零基础，未播过',
+    '试播过几次',
+    '有过短期开播（不足1个月）',
+    '有过稳定开播经验',
+    '其他平台有经验，抖音新号',
+  ],
+  learningCommitmentOptions: [
+    '很高：可每天学练与复盘',
+    '较高：每周固定几天可投入',
+    '一般：时间碎，需压缩任务',
+    '偏弱：目前难保证学习节奏',
+    '暂不明确',
+  ],
+  liveGoalOptions: [
+    '增加收入',
+    '表达/展示自己',
+    '陪伴他人、做情绪价值',
+    '多一个发展方向/副业',
+    '先验证适不适合',
+    '其他',
+  ],
+  fieldLabels: {},
+}
 
 const statusLabel: Record<MilestoneStatus, string> = {
   pending: '待提交',
@@ -89,9 +157,12 @@ export function OperatorOnboardingPage() {
   const { anchorId = '' } = useParams()
   const queryClient = useQueryClient()
   const [activeType, setActiveType] = useState<MilestoneType | null>(null)
-  const [form, setForm] = useState<Record<string, string>>({})
+  const [initialForm, setInitialForm] =
+    useState<InitialFormState>(emptyInitialForm)
+  const [extraForm, setExtraForm] = useState<Record<string, string>>({})
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error'
     text: string
@@ -113,17 +184,21 @@ export function OperatorOnboardingPage() {
       attachmentUrls?: string[]
       note?: string
     }) =>
-      apiJson(`/operators/me/anchors/${anchorId}/onboarding/${payload.type}/submit`, {
-        method: 'POST',
-        body: JSON.stringify({
-          evidence: payload.evidence,
-          attachmentUrls: payload.attachmentUrls,
-          note: payload.note,
-        }),
-      }),
+      apiJson(
+        `/operators/me/anchors/${anchorId}/onboarding/${payload.type}/submit`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            evidence: payload.evidence,
+            attachmentUrls: payload.attachmentUrls,
+            note: payload.note,
+          }),
+        },
+      ),
     onSuccess: async () => {
       setActiveType(null)
-      setForm({})
+      setInitialForm(emptyInitialForm)
+      setExtraForm({})
       setAttachmentUrls([])
       setFeedback({ type: 'success', text: '已提交' })
       await Promise.all([
@@ -142,15 +217,18 @@ export function OperatorOnboardingPage() {
   })
 
   const progress = query.data?.item
+  const formMeta = progress?.initialCommunicationForm ?? DEFAULT_FORM_META
   const nextType = progress?.nextMilestone ?? null
 
   const helpers = useMemo(
     () => ({
-      initial_communication: '填写情况记录表，提交后等待主播确认',
+      initial_communication:
+        '结构化填写情况记录；基本条件/风险可点 AI 草稿后人工确认',
       homepage_ready: '上传主页截图（至少 1 张），提交即完成',
       live_software_ready: '上传直播软件截图，提交即完成',
       helper_software_ready: '上传辅助软件截图，提交即完成',
-      prejob_learning_completed: '标记培训完成并写说明，提交后主播勾选 10 项确认',
+      prejob_learning_completed:
+        '标记培训完成并写说明，提交后主播勾选 10 项确认',
       first_live_completed: '上传首播截图，提交即完成',
       first_live_review_completed: '填写复盘结论，提交后等待主播确认',
     }),
@@ -158,7 +236,10 @@ export function OperatorOnboardingPage() {
   )
 
   function beginEdit(milestone: Milestone) {
-    if (milestone.status === 'completed' || milestone.status === 'awaiting_anchor_confirm') {
+    if (
+      milestone.status === 'completed' ||
+      milestone.status === 'awaiting_anchor_confirm'
+    ) {
       return
     }
     if (milestone.type !== nextType) {
@@ -167,44 +248,97 @@ export function OperatorOnboardingPage() {
     }
     setActiveType(milestone.type)
     setFeedback(null)
-    const evidence = (milestone.evidence as Record<string, string>) ?? {}
+    const evidence = (milestone.evidence as Record<string, unknown>) ?? {}
     if (milestone.type === 'initial_communication') {
-      setForm({
-        communicatedAt: evidence.communicatedAt ?? '',
-        channel: evidence.channel ?? '',
-        availableSchedule: evidence.availableSchedule ?? '',
-        deviceNetwork: evidence.deviceNetwork ?? '',
-        voiceAndExpression: evidence.voiceAndExpression ?? '',
-        interestsAndExperience: evidence.interestsAndExperience ?? '',
-        liveExperience: evidence.liveExperience ?? '',
-        learningCommitment: evidence.learningCommitment ?? '',
-        liveGoals: evidence.liveGoals ?? '',
-        concerns: evidence.concerns ?? '',
-        basicConditionsJudgment: evidence.basicConditionsJudgment ?? '',
-        contentAdvantages: evidence.contentAdvantages ?? '',
-        stabilityRisks: evidence.stabilityRisks ?? '',
-        nextPriority: evidence.nextPriority ?? '',
-        escalateRisks: evidence.escalateRisks ?? '',
-        nextStepPlan: evidence.nextStepPlan ?? '',
-        extraNote: evidence.extraNote ?? '',
+      setInitialForm({
+        communicatedAt: String(evidence.communicatedAt ?? ''),
+        channel: String(evidence.channel ?? ''),
+        availableScheduleStart: String(evidence.availableScheduleStart ?? ''),
+        availableScheduleEnd: String(evidence.availableScheduleEnd ?? ''),
+        deviceNetwork: String(evidence.deviceNetwork ?? ''),
+        voiceTraits: Array.isArray(evidence.voiceTraits)
+          ? evidence.voiceTraits.map(String)
+          : [],
+        interestsAndExperience: String(evidence.interestsAndExperience ?? ''),
+        liveExperience: String(evidence.liveExperience ?? ''),
+        learningCommitment: String(evidence.learningCommitment ?? ''),
+        liveGoals: Array.isArray(evidence.liveGoals)
+          ? evidence.liveGoals.map(String)
+          : [],
+        concerns: String(evidence.concerns ?? ''),
+        contentRecommendation: String(evidence.contentRecommendation ?? ''),
+        basicConditionsJudgment: String(evidence.basicConditionsJudgment ?? ''),
+        stabilityRisks: String(evidence.stabilityRisks ?? ''),
       })
     } else if (milestone.type === 'prejob_learning_completed') {
-      setForm({
+      setExtraForm({
         trainedAt: String(evidence.trainedAt ?? ''),
         trainerName: String(evidence.trainerName ?? ''),
         learningNote: String(evidence.learningNote ?? milestone.note ?? ''),
         materialsDelivered: evidence.materialsDelivered ? '1' : '',
       })
     } else if (milestone.type === 'first_live_review_completed') {
-      setForm({
+      setExtraForm({
         reviewConclusion: String(
           evidence.reviewConclusion ?? milestone.note ?? '',
         ),
       })
     } else {
-      setForm({})
+      setExtraForm({})
     }
     setAttachmentUrls(milestone.attachmentUrls ?? [])
+  }
+
+  function toggleMulti(
+    field: 'voiceTraits' | 'liveGoals',
+    option: string,
+  ) {
+    setInitialForm((current) => {
+      const list = current[field]
+      const next = list.includes(option)
+        ? list.filter((item) => item !== option)
+        : [...list, option]
+      return { ...current, [field]: next }
+    })
+  }
+
+  async function generateAiDraft() {
+    setAiLoading(true)
+    setFeedback(null)
+    try {
+      const result = await apiJson<{
+        item: {
+          basicConditionsJudgment: string
+          stabilityRisks: string
+          source: 'ai' | 'template'
+        }
+      }>(
+        `/operators/me/anchors/${anchorId}/onboarding/initial-communication/ai-draft`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ evidence: initialForm }),
+        },
+      )
+      setInitialForm((current) => ({
+        ...current,
+        basicConditionsJudgment: result.item.basicConditionsJudgment,
+        stabilityRisks: result.item.stabilityRisks,
+      }))
+      setFeedback({
+        type: 'success',
+        text:
+          result.item.source === 'ai'
+            ? '已生成 AI 草稿，请核对后修改再提交'
+            : '已生成模板草稿（未配置 AI Key），请核对修改后提交',
+      })
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        text: error instanceof Error ? error.message : '生成草稿失败',
+      })
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   async function uploadFiles(files: FileList | null) {
@@ -242,7 +376,7 @@ export function OperatorOnboardingPage() {
   function submitActive() {
     if (!activeType) return
     if (activeType === 'initial_communication') {
-      submitMutation.mutate({ type: activeType, evidence: form })
+      submitMutation.mutate({ type: activeType, evidence: initialForm })
       return
     }
     if (
@@ -258,20 +392,20 @@ export function OperatorOnboardingPage() {
       submitMutation.mutate({
         type: activeType,
         evidence: {
-          trainedAt: form.trainedAt,
-          trainerName: form.trainerName,
-          learningNote: form.learningNote,
-          materialsDelivered: form.materialsDelivered === '1',
+          trainedAt: extraForm.trainedAt,
+          trainerName: extraForm.trainerName,
+          learningNote: extraForm.learningNote,
+          materialsDelivered: extraForm.materialsDelivered === '1',
         },
-        note: form.learningNote,
+        note: extraForm.learningNote,
       })
       return
     }
     if (activeType === 'first_live_review_completed') {
       submitMutation.mutate({
         type: activeType,
-        evidence: { reviewConclusion: form.reviewConclusion },
-        note: form.reviewConclusion,
+        evidence: { reviewConclusion: extraForm.reviewConclusion },
+        note: extraForm.reviewConclusion,
       })
     }
   }
@@ -324,7 +458,6 @@ export function OperatorOnboardingPage() {
         </h2>
         <p className="mt-2 text-sm text-slate-500">
           已完成 {progress.completedCount} / {progress.totalCount} 个节点
-          （运营接收不计入进度）
         </p>
         <div className="mt-4">
           <div className="flex items-center justify-between text-xs text-slate-500">
@@ -408,7 +541,8 @@ export function OperatorOnboardingPage() {
                   {milestone.submittedAt &&
                   milestone.status === 'awaiting_anchor_confirm' ? (
                     <p className="mt-1 text-xs text-amber-600">
-                      已于 {formatDateTime(milestone.submittedAt)} 提交，等待主播确认
+                      已于 {formatDateTime(milestone.submittedAt)}{' '}
+                      提交，等待主播确认
                     </p>
                   ) : null}
                   {milestone.attachmentUrls.length > 0 ? (
@@ -457,214 +591,480 @@ export function OperatorOnboardingPage() {
                 ) : null}
               </div>
 
-              {isEditing ? (
-                <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
-                  {activeType === 'initial_communication' ? (
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {INITIAL_FIELDS.map((field) => (
-                        <label
-                          key={field.key}
-                          className={[
-                            'block text-sm font-medium text-slate-700',
-                            field.key === 'communicatedAt' || field.key === 'channel'
-                              ? ''
-                              : 'md:col-span-2',
-                          ].join(' ')}
-                        >
-                          {field.label}
-                          {field.key === 'communicatedAt' ? (
-                            <input
-                              type="datetime-local"
-                              className="mt-2 app-field"
-                              value={form[field.key] ?? ''}
-                              onChange={(e) =>
-                                setForm((c) => ({
-                                  ...c,
-                                  [field.key]: e.target.value,
-                                }))
-                              }
-                            />
-                          ) : (
-                            <textarea
-                              className="mt-2 app-field resize-y"
-                              rows={field.rows ?? 2}
-                              value={form[field.key] ?? ''}
-                              onChange={(e) =>
-                                setForm((c) => ({
-                                  ...c,
-                                  [field.key]: e.target.value,
-                                }))
-                              }
-                            />
-                          )}
-                        </label>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {activeType === 'prejob_learning_completed' ? (
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium text-slate-700">
-                        培训完成时间
-                        <input
-                          type="datetime-local"
-                          className="mt-2 app-field"
-                          value={form.trainedAt ?? ''}
-                          onChange={(e) =>
-                            setForm((c) => ({ ...c, trainedAt: e.target.value }))
-                          }
-                        />
-                      </label>
-                      <label className="block text-sm font-medium text-slate-700">
-                        授课老师（选填）
-                        <input
-                          className="mt-2 app-field"
-                          value={form.trainerName ?? ''}
-                          onChange={(e) =>
-                            setForm((c) => ({
-                              ...c,
-                              trainerName: e.target.value,
-                            }))
-                          }
-                        />
-                      </label>
-                      <label className="block text-sm font-medium text-slate-700">
-                        学习完成说明
-                        <textarea
-                          className="mt-2 app-field min-h-[100px] resize-y"
-                          value={form.learningNote ?? ''}
-                          onChange={(e) =>
-                            setForm((c) => ({
-                              ...c,
-                              learningNote: e.target.value,
-                            }))
-                          }
-                          placeholder="培训内容、是否补训、材料是否已发等"
-                        />
-                      </label>
-                      <label className="flex items-center gap-2 text-sm text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={form.materialsDelivered === '1'}
-                          onChange={(e) =>
-                            setForm((c) => ({
-                              ...c,
-                              materialsDelivered: e.target.checked ? '1' : '',
-                            }))
-                          }
-                        />
-                        已下发培训手册 / 直播脚本
-                      </label>
-                      <p className="text-xs text-slate-500">
-                        提交后，主播需在小程序确认 10 项培训清单。
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {activeType === 'first_live_review_completed' ? (
+              {isEditing && activeType === 'initial_communication' ? (
+                <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                  <div className="grid gap-3 md:grid-cols-2">
                     <label className="block text-sm font-medium text-slate-700">
-                      复盘结论
-                      <textarea
-                        className="mt-2 app-field min-h-[120px] resize-y"
-                        value={form.reviewConclusion ?? ''}
+                      沟通时间
+                      <input
+                        type="datetime-local"
+                        className="mt-2 app-field"
+                        value={initialForm.communicatedAt}
                         onChange={(e) =>
-                          setForm((c) => ({
+                          setInitialForm((c) => ({
                             ...c,
-                            reviewConclusion: e.target.value,
+                            communicatedAt: e.target.value,
                           }))
                         }
-                        placeholder="表现、问题、改进计划…"
                       />
                     </label>
-                  ) : null}
-
-                  {activeType &&
-                  (activeType === 'homepage_ready' ||
-                    activeType === 'live_software_ready' ||
-                    activeType === 'helper_software_ready' ||
-                    activeType === 'first_live_completed') ? (
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium text-slate-700">
-                        上传截图（至少 1 张）
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="mt-2 block w-full text-sm"
-                          disabled={uploading}
-                          onChange={(e) => void uploadFiles(e.target.files)}
-                        />
-                      </label>
-                      {uploading ? (
-                        <p className="flex items-center gap-2 text-sm text-slate-500">
-                          <LoaderCircle className="h-4 w-4 animate-spin" />
-                          上传中…
-                        </p>
-                      ) : null}
-                      {attachmentUrls.length > 0 ? (
-                        <ul className="space-y-1 text-sm text-slate-600">
-                          {attachmentUrls.map((url, index) => (
-                            <li
-                              key={url}
-                              className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2"
-                            >
-                              <span className="truncate">截图 {index + 1}</span>
-                              <button
-                                type="button"
-                                className="text-rose-600"
-                                onClick={() =>
-                                  setAttachmentUrls((c) =>
-                                    c.filter((item) => item !== url),
-                                  )
-                                }
-                              >
-                                移除
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="flex items-center gap-2 text-xs text-slate-400">
-                          <ImagePlus className="h-3.5 w-3.5" />
-                          尚未选择截图
-                        </p>
-                      )}
-                    </div>
-                  ) : null}
-
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="app-btn-primary"
-                      disabled={submitMutation.isPending || uploading}
-                      onClick={submitActive}
-                    >
-                      {submitMutation.isPending ? (
-                        <LoaderCircle className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="h-4 w-4" />
-                      )}
-                      提交
-                    </button>
-                    <button
-                      type="button"
-                      className="app-btn-secondary"
-                      disabled={submitMutation.isPending}
-                      onClick={() => {
-                        setActiveType(null)
-                        setForm({})
-                        setAttachmentUrls([])
-                      }}
-                    >
-                      取消
-                    </button>
+                    <fieldset className="block text-sm font-medium text-slate-700">
+                      <legend>沟通方式</legend>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {formMeta.channelOptions.map((option) => (
+                          <OptionChip
+                            key={option}
+                            active={initialForm.channel === option}
+                            label={option}
+                            onClick={() =>
+                              setInitialForm((c) => ({
+                                ...c,
+                                channel: option,
+                              }))
+                            }
+                          />
+                        ))}
+                      </div>
+                    </fieldset>
+                    <label className="block text-sm font-medium text-slate-700">
+                      可直播开始时间
+                      <input
+                        type="time"
+                        className="mt-2 app-field"
+                        value={initialForm.availableScheduleStart}
+                        onChange={(e) =>
+                          setInitialForm((c) => ({
+                            ...c,
+                            availableScheduleStart: e.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="block text-sm font-medium text-slate-700">
+                      可直播结束时间
+                      <input
+                        type="time"
+                        className="mt-2 app-field"
+                        value={initialForm.availableScheduleEnd}
+                        onChange={(e) =>
+                          setInitialForm((c) => ({
+                            ...c,
+                            availableScheduleEnd: e.target.value,
+                          }))
+                        }
+                      />
+                    </label>
                   </div>
+
+                  <fieldset className="text-sm font-medium text-slate-700">
+                    <legend>设备与网络</legend>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {formMeta.deviceNetworkOptions.map((option) => (
+                        <OptionChip
+                          key={option}
+                          active={initialForm.deviceNetwork === option}
+                          label={option}
+                          onClick={() =>
+                            setInitialForm((c) => ({
+                              ...c,
+                              deviceNetwork: option,
+                            }))
+                          }
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="text-sm font-medium text-slate-700">
+                    <legend>声音特点（可多选）</legend>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {formMeta.voiceTraitOptions.map((option) => (
+                        <OptionChip
+                          key={option}
+                          active={initialForm.voiceTraits.includes(option)}
+                          label={option}
+                          onClick={() => toggleMulti('voiceTraits', option)}
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <label className="block text-sm font-medium text-slate-700">
+                    兴趣经历
+                    <textarea
+                      className="mt-2 app-field min-h-[88px] resize-y"
+                      value={initialForm.interestsAndExperience}
+                      onChange={(e) =>
+                        setInitialForm((c) => ({
+                          ...c,
+                          interestsAndExperience: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <fieldset className="text-sm font-medium text-slate-700">
+                    <legend>直播经验</legend>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {formMeta.liveExperienceOptions.map((option) => (
+                        <OptionChip
+                          key={option}
+                          active={initialForm.liveExperience === option}
+                          label={option}
+                          onClick={() =>
+                            setInitialForm((c) => ({
+                              ...c,
+                              liveExperience: option,
+                            }))
+                          }
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="text-sm font-medium text-slate-700">
+                    <legend>学习与投入意愿</legend>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {formMeta.learningCommitmentOptions.map((option) => (
+                        <OptionChip
+                          key={option}
+                          active={initialForm.learningCommitment === option}
+                          label={option}
+                          onClick={() =>
+                            setInitialForm((c) => ({
+                              ...c,
+                              learningCommitment: option,
+                            }))
+                          }
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="text-sm font-medium text-slate-700">
+                    <legend>直播目标（可多选）</legend>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {formMeta.liveGoalOptions.map((option) => (
+                        <OptionChip
+                          key={option}
+                          active={initialForm.liveGoals.includes(option)}
+                          label={option}
+                          onClick={() => toggleMulti('liveGoals', option)}
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+
+                  <label className="block text-sm font-medium text-slate-700">
+                    担心顾虑
+                    <textarea
+                      className="mt-2 app-field min-h-[80px] resize-y"
+                      value={initialForm.concerns}
+                      onChange={(e) =>
+                        setInitialForm((c) => ({
+                          ...c,
+                          concerns: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+
+                  <label className="block text-sm font-medium text-slate-700">
+                    内容推荐
+                    <textarea
+                      className="mt-2 app-field min-h-[80px] resize-y"
+                      value={initialForm.contentRecommendation}
+                      onChange={(e) =>
+                        setInitialForm((c) => ({
+                          ...c,
+                          contentRecommendation: e.target.value,
+                        }))
+                      }
+                      placeholder="建议的内容方向、人设或选题"
+                    />
+                  </label>
+
+                  <div className="rounded-2xl border border-brand-100 bg-brand-50/40 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">
+                          条件与风险判断
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          可先生成草稿，再人工修改确认后提交
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="app-btn-secondary"
+                        disabled={aiLoading}
+                        onClick={() => void generateAiDraft()}
+                      >
+                        {aiLoading ? (
+                          <LoaderCircle className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        生成 AI 草稿
+                      </button>
+                    </div>
+                    <label className="mt-3 block text-sm font-medium text-slate-700">
+                      基本条件判断
+                      <textarea
+                        className="mt-2 app-field min-h-[96px] resize-y bg-white"
+                        value={initialForm.basicConditionsJudgment}
+                        onChange={(e) =>
+                          setInitialForm((c) => ({
+                            ...c,
+                            basicConditionsJudgment: e.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                    <label className="mt-3 block text-sm font-medium text-slate-700">
+                      稳定开播风险
+                      <textarea
+                        className="mt-2 app-field min-h-[96px] resize-y bg-white"
+                        value={initialForm.stabilityRisks}
+                        onChange={(e) =>
+                          setInitialForm((c) => ({
+                            ...c,
+                            stabilityRisks: e.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+                  </div>
+
+                  <FormActions
+                    busy={submitMutation.isPending || aiLoading}
+                    onSubmit={submitActive}
+                    onCancel={() => {
+                      setActiveType(null)
+                      setInitialForm(emptyInitialForm)
+                    }}
+                  />
+                </div>
+              ) : null}
+
+              {isEditing && activeType === 'prejob_learning_completed' ? (
+                <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                  <label className="block text-sm font-medium text-slate-700">
+                    培训完成时间
+                    <input
+                      type="datetime-local"
+                      className="mt-2 app-field"
+                      value={extraForm.trainedAt ?? ''}
+                      onChange={(e) =>
+                        setExtraForm((c) => ({
+                          ...c,
+                          trainedAt: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-slate-700">
+                    授课老师（选填）
+                    <input
+                      className="mt-2 app-field"
+                      value={extraForm.trainerName ?? ''}
+                      onChange={(e) =>
+                        setExtraForm((c) => ({
+                          ...c,
+                          trainerName: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-slate-700">
+                    学习完成说明
+                    <textarea
+                      className="mt-2 app-field min-h-[100px] resize-y"
+                      value={extraForm.learningNote ?? ''}
+                      onChange={(e) =>
+                        setExtraForm((c) => ({
+                          ...c,
+                          learningNote: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={extraForm.materialsDelivered === '1'}
+                      onChange={(e) =>
+                        setExtraForm((c) => ({
+                          ...c,
+                          materialsDelivered: e.target.checked ? '1' : '',
+                        }))
+                      }
+                    />
+                    已下发培训手册 / 直播脚本
+                  </label>
+                  <FormActions
+                    busy={submitMutation.isPending}
+                    onSubmit={submitActive}
+                    onCancel={() => {
+                      setActiveType(null)
+                      setExtraForm({})
+                    }}
+                  />
+                </div>
+              ) : null}
+
+              {isEditing && activeType === 'first_live_review_completed' ? (
+                <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                  <label className="block text-sm font-medium text-slate-700">
+                    复盘结论
+                    <textarea
+                      className="mt-2 app-field min-h-[120px] resize-y"
+                      value={extraForm.reviewConclusion ?? ''}
+                      onChange={(e) =>
+                        setExtraForm((c) => ({
+                          ...c,
+                          reviewConclusion: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <FormActions
+                    busy={submitMutation.isPending}
+                    onSubmit={submitActive}
+                    onCancel={() => {
+                      setActiveType(null)
+                      setExtraForm({})
+                    }}
+                  />
+                </div>
+              ) : null}
+
+              {isEditing &&
+              (activeType === 'homepage_ready' ||
+                activeType === 'live_software_ready' ||
+                activeType === 'helper_software_ready' ||
+                activeType === 'first_live_completed') ? (
+                <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                  <label className="block text-sm font-medium text-slate-700">
+                    上传截图（至少 1 张）
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="mt-2 block w-full text-sm"
+                      disabled={uploading}
+                      onChange={(e) => void uploadFiles(e.target.files)}
+                    />
+                  </label>
+                  {uploading ? (
+                    <p className="flex items-center gap-2 text-sm text-slate-500">
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      上传中…
+                    </p>
+                  ) : null}
+                  {attachmentUrls.length > 0 ? (
+                    <ul className="space-y-1 text-sm text-slate-600">
+                      {attachmentUrls.map((url, i) => (
+                        <li
+                          key={url}
+                          className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2"
+                        >
+                          <span>截图 {i + 1}</span>
+                          <button
+                            type="button"
+                            className="text-rose-600"
+                            onClick={() =>
+                              setAttachmentUrls((c) =>
+                                c.filter((item) => item !== url),
+                              )
+                            }
+                          >
+                            移除
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="flex items-center gap-2 text-xs text-slate-400">
+                      <ImagePlus className="h-3.5 w-3.5" />
+                      尚未选择截图
+                    </p>
+                  )}
+                  <FormActions
+                    busy={submitMutation.isPending || uploading}
+                    onSubmit={submitActive}
+                    onCancel={() => {
+                      setActiveType(null)
+                      setAttachmentUrls([])
+                    }}
+                  />
                 </div>
               ) : null}
             </article>
           )
         })}
       </section>
+    </div>
+  )
+}
+
+function OptionChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'rounded-full px-3 py-1.5 text-xs font-medium transition',
+        active
+          ? 'bg-brand-600 text-white shadow-sm'
+          : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+      ].join(' ')}
+    >
+      {label}
+    </button>
+  )
+}
+
+function FormActions({
+  busy,
+  onSubmit,
+  onCancel,
+}: {
+  busy: boolean
+  onSubmit: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        className="app-btn-primary"
+        disabled={busy}
+        onClick={onSubmit}
+      >
+        {busy ? (
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+        ) : (
+          <CheckCircle2 className="h-4 w-4" />
+        )}
+        提交
+      </button>
+      <button
+        type="button"
+        className="app-btn-secondary"
+        disabled={busy}
+        onClick={onCancel}
+      >
+        取消
+      </button>
     </div>
   )
 }
@@ -689,17 +1089,24 @@ function EvidencePreview({
   evidence: Record<string, unknown>
 }) {
   if (type === 'initial_communication') {
+    const lines = [
+      evidence.channel ? `沟通方式：${evidence.channel}` : null,
+      evidence.availableScheduleStart
+        ? `可播：${evidence.availableScheduleStart}-${evidence.availableScheduleEnd ?? ''}`
+        : null,
+      evidence.deviceNetwork ? `设备：${evidence.deviceNetwork}` : null,
+      Array.isArray(evidence.voiceTraits)
+        ? `声音：${evidence.voiceTraits.join('、')}`
+        : null,
+      evidence.contentRecommendation
+        ? `内容推荐：${String(evidence.contentRecommendation).slice(0, 80)}`
+        : null,
+    ].filter(Boolean)
     return (
-      <div className="mt-3 grid gap-1 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
-        {Object.entries(evidence)
-          .filter(([, v]) => typeof v === 'string' && v)
-          .slice(0, 6)
-          .map(([k, v]) => (
-            <p key={k}>
-              <span className="text-slate-400">{k}：</span>
-              {String(v).slice(0, 80)}
-            </p>
-          ))}
+      <div className="mt-3 space-y-1 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        {lines.map((line) => (
+          <p key={String(line)}>{line}</p>
+        ))}
       </div>
     )
   }

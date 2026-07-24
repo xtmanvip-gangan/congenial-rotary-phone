@@ -14,12 +14,18 @@ import { AccessService } from '../access/access.service.js'
 import type { AuthenticatedUser } from '../auth/auth.types.js'
 import {
   ANCHOR_CONFIRM_MILESTONES,
+  CHANNEL_OPTIONS,
+  DEVICE_NETWORK_OPTIONS,
   INITIAL_COMMUNICATION_FIELD_LABELS,
-  INITIAL_COMMUNICATION_REQUIRED_FIELDS,
+  INITIAL_COMMUNICATION_FORM_META,
+  LEARNING_COMMITMENT_OPTIONS,
+  LIVE_EXPERIENCE_OPTIONS,
+  LIVE_GOAL_OPTIONS,
   MILESTONE_LABELS,
   ONBOARDING_PROGRESS_MILESTONES,
   SCREENSHOT_MILESTONES,
   TRAINING_CONFIRM_ITEMS,
+  VOICE_TRAIT_OPTIONS,
   type ProgressMilestoneType,
 } from './onboarding.constants.js'
 import type {
@@ -223,29 +229,45 @@ export class OnboardingService {
     return this.getProgressForAnchor(currentUser)
   }
 
+  /**
+   * 根据已填结构化字段生成「基本条件判断」「稳定开播风险」草稿。
+   * 有 XAI_API_KEY 时走模型；否则用规则模板，运营均可再改。
+   */
+  async draftInitialCommunicationJudgment(
+    currentUser: AuthenticatedUser,
+    anchorId: string,
+    evidence: Record<string, unknown>,
+  ) {
+    await this.findOwnedAnchor(currentUser, anchorId)
+    const summary = this.buildEvidenceSummary(evidence)
+    if (!summary) {
+      throw new BadRequestException('请先填写可播时间、设备、经验、意愿等基础信息')
+    }
+
+    const ai = await this.tryGenerateJudgmentWithAi(summary)
+    if (ai) {
+      return {
+        item: {
+          ...ai,
+          source: 'ai' as const,
+        },
+      }
+    }
+
+    return {
+      item: {
+        ...this.buildRuleBasedJudgment(evidence),
+        source: 'template' as const,
+      },
+    }
+  }
+
   private validateAndNormalizeEvidence(
     type: ProgressMilestoneType,
     dto: SubmitMilestoneDto,
   ): Record<string, unknown> {
     if (type === 'initial_communication') {
-      const raw = dto.evidence ?? {}
-      const result: Record<string, unknown> = {}
-      for (const key of INITIAL_COMMUNICATION_REQUIRED_FIELDS) {
-        const value = raw[key]
-        if (typeof value !== 'string' || !value.trim()) {
-          throw new BadRequestException(
-            `请填写${INITIAL_COMMUNICATION_FIELD_LABELS[key] ?? key}`,
-          )
-        }
-        result[key] = value.trim()
-      }
-      for (const optional of ['channel', 'escalateRisks', 'extraNote'] as const) {
-        const value = raw[optional]
-        if (typeof value === 'string' && value.trim()) {
-          result[optional] = value.trim()
-        }
-      }
-      return result
+      return this.validateInitialCommunicationEvidence(dto.evidence ?? {})
     }
 
     if (SCREENSHOT_MILESTONES.has(type)) {
@@ -298,6 +320,237 @@ export class OnboardingService {
     }
 
     return (dto.evidence as Record<string, unknown>) ?? {}
+  }
+
+  private validateInitialCommunicationEvidence(
+    raw: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const requireString = (key: string) => {
+      const value = raw[key]
+      if (typeof value !== 'string' || !value.trim()) {
+        throw new BadRequestException(
+          `请填写${INITIAL_COMMUNICATION_FIELD_LABELS[key] ?? key}`,
+        )
+      }
+      return value.trim()
+    }
+
+    const requireOneOf = (key: string, options: readonly string[]) => {
+      const value = requireString(key)
+      if (!options.includes(value)) {
+        throw new BadRequestException(
+          `${INITIAL_COMMUNICATION_FIELD_LABELS[key] ?? key}选项无效`,
+        )
+      }
+      return value
+    }
+
+    const requireStringArray = (
+      key: string,
+      options: readonly string[],
+      multi: boolean,
+    ) => {
+      const value = raw[key]
+      const list = Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === 'string')
+        : typeof value === 'string' && value.trim()
+          ? [value.trim()]
+          : []
+      const normalized = list.map((item) => item.trim()).filter(Boolean)
+      if (normalized.length === 0) {
+        throw new BadRequestException(
+          `请选择${INITIAL_COMMUNICATION_FIELD_LABELS[key] ?? key}`,
+        )
+      }
+      if (!multi && normalized.length > 1) {
+        throw new BadRequestException(
+          `${INITIAL_COMMUNICATION_FIELD_LABELS[key] ?? key}只能选一项`,
+        )
+      }
+      for (const item of normalized) {
+        if (!options.includes(item)) {
+          throw new BadRequestException(
+            `${INITIAL_COMMUNICATION_FIELD_LABELS[key] ?? key}选项无效`,
+          )
+        }
+      }
+      return multi ? normalized : normalized[0]
+    }
+
+    const start = requireString('availableScheduleStart')
+    const end = requireString('availableScheduleEnd')
+    if (start >= end && !start.includes('T')) {
+      // time "HH:mm" 跨天允许 end < start；同日要求 end > start
+      // 简单校验：若都是 HH:mm 且 end <= start，提示
+      if (/^\d{2}:\d{2}$/.test(start) && /^\d{2}:\d{2}$/.test(end) && end <= start) {
+        throw new BadRequestException('可直播结束时间应晚于开始时间（跨天请拆成两段说明）')
+      }
+    }
+
+    return {
+      communicatedAt: requireString('communicatedAt'),
+      channel: requireOneOf('channel', CHANNEL_OPTIONS),
+      availableScheduleStart: start,
+      availableScheduleEnd: end,
+      deviceNetwork: requireOneOf('deviceNetwork', DEVICE_NETWORK_OPTIONS),
+      voiceTraits: requireStringArray('voiceTraits', VOICE_TRAIT_OPTIONS, true),
+      interestsAndExperience: requireString('interestsAndExperience'),
+      liveExperience: requireOneOf('liveExperience', LIVE_EXPERIENCE_OPTIONS),
+      learningCommitment: requireOneOf(
+        'learningCommitment',
+        LEARNING_COMMITMENT_OPTIONS,
+      ),
+      liveGoals: requireStringArray('liveGoals', LIVE_GOAL_OPTIONS, true),
+      concerns: requireString('concerns'),
+      contentRecommendation: requireString('contentRecommendation'),
+      basicConditionsJudgment: requireString('basicConditionsJudgment'),
+      stabilityRisks: requireString('stabilityRisks'),
+    }
+  }
+
+  private buildEvidenceSummary(evidence: Record<string, unknown>) {
+    const lines: string[] = []
+    const push = (label: string, value: unknown) => {
+      if (Array.isArray(value) && value.length) {
+        lines.push(`${label}：${value.join('、')}`)
+      } else if (typeof value === 'string' && value.trim()) {
+        lines.push(`${label}：${value.trim()}`)
+      }
+    }
+    push('沟通方式', evidence.channel)
+    push(
+      '可直播时间',
+      evidence.availableScheduleStart && evidence.availableScheduleEnd
+        ? `${evidence.availableScheduleStart} - ${evidence.availableScheduleEnd}`
+        : '',
+    )
+    push('设备网络', evidence.deviceNetwork)
+    push('声音特点', evidence.voiceTraits)
+    push('兴趣经历', evidence.interestsAndExperience)
+    push('直播经验', evidence.liveExperience)
+    push('学习投入', evidence.learningCommitment)
+    push('直播目标', evidence.liveGoals)
+    push('担心顾虑', evidence.concerns)
+    push('内容推荐', evidence.contentRecommendation)
+    return lines.join('\n')
+  }
+
+  private buildRuleBasedJudgment(evidence: Record<string, unknown>) {
+    const device = String(evidence.deviceNetwork ?? '')
+    const experience = String(evidence.liveExperience ?? '')
+    const commitment = String(evidence.learningCommitment ?? '')
+    const start = String(evidence.availableScheduleStart ?? '')
+    const end = String(evidence.availableScheduleEnd ?? '')
+
+    const conditionParts = [
+      start && end
+        ? `可播时段为 ${start}-${end}，需与后续排班再对齐。`
+        : '可播时段尚未完全明确。',
+      device
+        ? `设备条件：${device}，可按该方案推进开播准备。`
+        : '设备条件待补充。',
+      experience
+        ? `直播经验：${experience}，教学节奏需据此调整。`
+        : '直播经验待确认。',
+      commitment
+        ? `投入意愿：${commitment}。`
+        : '投入意愿待确认。',
+    ]
+
+    const riskParts: string[] = []
+    if (commitment.includes('偏弱') || commitment.includes('暂不明确')) {
+      riskParts.push('学习与开播投入可能不稳定，需压缩任务并设 intermediate 检查点。')
+    }
+    if (experience.includes('零基础')) {
+      riskParts.push('零基础上手成本高，前两周需加强陪跑与话术练习。')
+    }
+    if (device.includes('仅手机')) {
+      riskParts.push('仅手机开播，音质与多任务能力受限，建议尽早升级耳机/声卡。')
+    }
+    if (!riskParts.length) {
+      riskParts.push(
+        '当前未见明显硬性阻断；需持续观察时间是否稳定、顾虑是否影响开播动作。',
+      )
+    }
+    if (typeof evidence.concerns === 'string' && evidence.concerns.trim()) {
+      riskParts.push(`主播顾虑：${evidence.concerns.trim()}`)
+    }
+
+    return {
+      basicConditionsJudgment: conditionParts.join(''),
+      stabilityRisks: riskParts.join(''),
+    }
+  }
+
+  private async tryGenerateJudgmentWithAi(summary: string): Promise<{
+    basicConditionsJudgment: string
+    stabilityRisks: string
+  } | null> {
+    const apiKey = process.env.XAI_API_KEY?.trim()
+    if (!apiKey) {
+      return null
+    }
+
+    const model = process.env.XAI_MODEL?.trim() || 'grok-4-1-fast-non-reasoning'
+    const baseUrl = (
+      process.env.XAI_BASE_URL?.trim() || 'https://api.x.ai/v1'
+    ).replace(/\/$/, '')
+
+    try {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.3,
+          messages: [
+            {
+              role: 'system',
+              content:
+                '你是直播公会运营助手。根据首次沟通纪要，写两段中文判断：basicConditionsJudgment（时间/设备/经验/投入是否具备开播基本条件，要有事实依据，禁止空泛夸奖）、stabilityRisks（可能影响稳定开播的风险）。每段 80-160 字。只输出 JSON：{"basicConditionsJudgment":"...","stabilityRisks":"..."}',
+            },
+            {
+              role: 'user',
+              content: `首次沟通纪要：\n${summary}`,
+            },
+          ],
+        }),
+      })
+
+      if (!response.ok) {
+        return null
+      }
+
+      const payload = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>
+      }
+      const content = payload.choices?.[0]?.message?.content?.trim()
+      if (!content) return null
+
+      const jsonText = content
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/\s*```$/, '')
+      const parsed = JSON.parse(jsonText) as {
+        basicConditionsJudgment?: string
+        stabilityRisks?: string
+      }
+      if (
+        !parsed.basicConditionsJudgment?.trim() ||
+        !parsed.stabilityRisks?.trim()
+      ) {
+        return null
+      }
+      return {
+        basicConditionsJudgment: parsed.basicConditionsJudgment.trim(),
+        stabilityRisks: parsed.stabilityRisks.trim(),
+      }
+    } catch {
+      return null
+    }
   }
 
   private assertTrainingChecklist(checklist?: Record<string, boolean>) {
@@ -587,6 +840,7 @@ export class OnboardingService {
       nextMilestone,
       trainingConfirmItems: TRAINING_CONFIRM_ITEMS,
       initialCommunicationFields: INITIAL_COMMUNICATION_FIELD_LABELS,
+      initialCommunicationForm: INITIAL_COMMUNICATION_FORM_META,
       milestones,
     }
   }
