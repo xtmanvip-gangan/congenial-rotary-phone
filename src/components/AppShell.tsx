@@ -263,19 +263,7 @@ export function AppShell() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
-            <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50/80 py-1 pl-1 pr-3 sm:flex">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
-                {nameInitial}
-              </div>
-              <div className="min-w-0 text-left">
-                <p className="max-w-[8rem] truncate text-sm font-medium leading-tight text-slate-900 lg:max-w-[10rem]">
-                  {session.user.name}
-                </p>
-                <p className="text-[11px] leading-tight text-slate-400">
-                  {formatRoleLabel(role)}
-                </p>
-              </div>
-            </div>
+            {/* 角色信息仅在侧栏底部展示，顶栏不重复 */}
             <RoleWorkspaceSwitcher />
             <button
               type="button"
