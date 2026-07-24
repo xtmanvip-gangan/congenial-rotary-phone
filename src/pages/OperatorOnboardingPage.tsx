@@ -1090,7 +1090,7 @@ function ScreenshotUploadZone({
         <div>
           <p className="text-sm font-semibold text-slate-900">上传截图</p>
           <p className="mt-0.5 text-xs text-slate-500">
-            手机竖屏 9:16 截图更清晰；左侧上传，右侧预览
+            左侧上传，右侧预览
           </p>
         </div>
         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs tabular-nums text-slate-600">
@@ -1139,8 +1139,6 @@ function ScreenshotUploadZone({
           </p>
           <p className="mt-1 max-w-[14rem] text-center text-xs leading-5 text-slate-500">
             支持拖拽 · 可多选
-            <br />
-            建议竖屏 9:16 完整截图
           </p>
           <input
             id={inputId}
@@ -1159,12 +1157,12 @@ function ScreenshotUploadZone({
         <div className="flex min-h-[280px] flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:min-h-[360px]">
           <div className="mb-2 flex items-center justify-between gap-2 px-1">
             <p className="text-xs font-semibold text-slate-700">预览</p>
-            <p className="text-[11px] text-slate-400">竖屏 9:16 比例展示</p>
+            <p className="text-[11px] text-slate-400">按图片比例自适应</p>
           </div>
 
           {attachmentUrls.length > 0 ? (
             <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-2">
+              <div className="flex flex-col gap-2.5">
                 {attachmentUrls.map((url, index) => (
                   <div
                     key={url}
@@ -1174,18 +1172,18 @@ function ScreenshotUploadZone({
                       href={resolveUploadUrl(url)}
                       target="_blank"
                       rel="noreferrer"
-                      className="relative block aspect-[9/16] bg-slate-100"
+                      className="block bg-slate-100"
                       title="点击查看原图"
                     >
                       <img
                         src={resolveUploadUrl(url)}
                         alt={`截图 ${index + 1}`}
-                        className="absolute inset-0 h-full w-full object-cover object-top"
+                        className="mx-auto max-h-64 w-auto max-w-full object-contain"
                       />
                     </a>
                     <div className="flex items-center justify-between gap-1 px-2 py-1.5">
                       <span className="text-[11px] font-medium text-slate-600">
-                        {index + 1}
+                        截图 {index + 1}
                       </span>
                       <button
                         type="button"
@@ -1201,12 +1199,7 @@ function ScreenshotUploadZone({
             </div>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center rounded-xl bg-slate-50 px-4 text-center">
-              <div className="w-16 overflow-hidden rounded-lg border border-dashed border-slate-200 bg-white shadow-sm">
-                <div className="aspect-[9/16] bg-gradient-to-b from-slate-50 to-slate-100" />
-              </div>
-              <p className="mt-3 text-xs text-slate-500">
-                上传后在此预览竖屏截图
-              </p>
+              <p className="text-xs text-slate-500">上传后在此预览截图</p>
             </div>
           )}
         </div>
