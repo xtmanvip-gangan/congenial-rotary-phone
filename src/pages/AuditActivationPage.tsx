@@ -199,7 +199,7 @@ export function AuditActivationPage() {
           ? { type: 'success', text: '企微提醒已发送' }
           : {
               type: 'error',
-              text: `企微提醒发送失败：${result.errorMessage || '未知错误'}`,
+              text: formatSendFailureMessage(result.errorMessage),
             },
       )
       await queryClient.invalidateQueries({ queryKey })
@@ -207,7 +207,10 @@ export function AuditActivationPage() {
     onError: (error) =>
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : '发送失败',
+        text:
+          error instanceof Error
+            ? formatSendFailureMessage(error.message)
+            : '提醒发送失败，请稍后重试',
       }),
   })
 
@@ -946,6 +949,22 @@ export function AuditActivationPage() {
       ) : null}
     </div>
   )
+}
+
+/** 发送失败提示：优先展示服务端中文说明，避免重复前缀与英文技术串 */
+function formatSendFailureMessage(raw?: string | null) {
+  const text = (raw ?? '').trim()
+  if (!text) return '提醒发送失败，请检查企微 UID 后重试'
+  // 已是中文业务说明时直接展示
+  if (!/user\s*&\s*party|hint:|errcode|from ip/i.test(text)) {
+    if (text.startsWith('企微提醒') || text.startsWith('提醒')) return text
+    return `提醒发送失败：${text}`
+  }
+  // 兜底：旧接口仍返回英文时，转成可操作说明
+  if (/user\s*&\s*party\s*&\s*tag all invalid|81013/i.test(text)) {
+    return '提醒发送失败：企微 UID 无效或该成员不在本应用可见范围内，请核对后重新填写'
+  }
+  return '提醒发送失败：企业微信拒绝发送，请核对企微 UID 与应用可见范围'
 }
 
 function SummaryChip({

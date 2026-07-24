@@ -232,22 +232,85 @@ export class WecomService {
       response = await fetch(url, init)
     } catch (error) {
       throw new BadGatewayException(
-        error instanceof Error ? error.message : '企业微信接口请求失败',
+        error instanceof Error
+          ? `无法连接企业微信：${error.message}`
+          : '无法连接企业微信，请稍后重试',
       )
     }
 
     if (!response.ok) {
-      throw new BadGatewayException(`企业微信接口返回 HTTP ${response.status}`)
+      throw new BadGatewayException(
+        `企业微信服务暂时不可用（HTTP ${response.status}），请稍后重试`,
+      )
     }
 
     const result = (await response.json()) as T
 
     if (result.errcode !== 0) {
       throw new BadGatewayException(
-        `企业微信接口错误：${result.errmsg || String(result.errcode)}`,
+        humanizeWecomError(result.errcode, result.errmsg),
       )
     }
 
     return result
   }
+}
+
+/**
+ * 将企微原始 errcode/errmsg 转为可操作的中文说明（面向运营/审核，不展示英文技术串）
+ */
+function humanizeWecomError(errcode: number, errmsg?: string): string {
+  const raw = (errmsg ?? '').trim()
+  const lower = raw.toLowerCase()
+
+  // 按错误码优先
+  const byCode: Record<number, string> = {
+    81013:
+      '企微 UID 无效或该成员不在本应用可见范围内，请核对 UID 是否与企业微信通讯录一致',
+    60111: '企微 UID 不存在，请到企业微信通讯录核对后重新填写',
+    60020: '服务器 IP 未加入企业微信可信 IP 白名单，请联系技术配置',
+    60011: '当前应用无权限操作该成员，请检查应用可见范围',
+    48002: '当前应用无权调用此接口，请检查企业微信应用权限配置',
+    301002: '无权访问该应用，请检查企业微信应用配置',
+    40013: '企业微信企业 ID（CorpId）配置有误，请联系技术检查',
+    40001: '企业微信应用 Secret 无效，请联系技术检查配置',
+    40014: '企业微信授权令牌无效，请稍后重试或联系技术',
+    42001: '企业微信授权已过期，请稍后重试',
+    45009: '企业微信接口调用过于频繁，请稍后再试',
+    40003: '企微 UID 格式不正确，请检查是否有多余空格或填错字段',
+    40031: '不合法的 UserID 列表，请检查企微 UID',
+    40032: '不合法的 UserID 列表，请检查企微 UID',
+    40163: '登录凭证已使用或过期，请重新登录',
+    40029: '登录凭证无效，请重新从企业微信进入',
+  }
+
+  if (byCode[errcode]) {
+    return byCode[errcode]
+  }
+
+  // 文案特征兜底（部分接口码不稳定）
+  if (
+    lower.includes('user & party & tag all invalid') ||
+    lower.includes('invalid userid') ||
+    lower.includes('userid not found')
+  ) {
+    return '企微 UID 无效或不在应用可见范围内，请核对后重新填写'
+  }
+
+  if (lower.includes('access_token')) {
+    return '企业微信授权异常，请稍后重试；若持续失败请联系技术'
+  }
+
+  if (lower.includes('ip') && lower.includes('whitelist')) {
+    return '服务器 IP 未加入企业微信白名单，请联系技术配置'
+  }
+
+  // 未知错误：给中文包装，避免整段英文 + hint 刷屏
+  if (raw) {
+    const short = raw.split(/[,，]/)[0]?.trim() || raw
+    const clipped = short.length > 80 ? `${short.slice(0, 80)}…` : short
+    return `企业微信发送失败（错误码 ${errcode}）：${clipped}`
+  }
+
+  return `企业微信发送失败（错误码 ${errcode}），请稍后重试或联系技术`
 }
