@@ -6,6 +6,7 @@ import {
   RefreshCw,
   RotateCcw,
   Send,
+  Trash2,
   UserPlus,
   XCircle,
 } from 'lucide-react'
@@ -230,6 +231,28 @@ export function AuditActivationPage() {
       }),
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (taskId: string) =>
+      apiJson(`/activation-tasks/${taskId}`, { method: 'DELETE' }),
+    onSuccess: async () => {
+      if (editingTaskId) {
+        setEditingTaskId(null)
+        setEditingWasCancelled(false)
+        setForm(emptyForm)
+      }
+      setMessage({
+        type: 'success',
+        text: '开通任务已彻底删除，可用同一企微UID重新创建',
+      })
+      await queryClient.invalidateQueries({ queryKey })
+    },
+    onError: (error) =>
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : '删除失败',
+      }),
+  })
+
   const reassignMutation = useMutation({
     mutationFn: ({
       taskId,
@@ -293,6 +316,7 @@ export function AuditActivationPage() {
     sendMutation.isPending ||
     cancelMutation.isPending ||
     reopenMutation.isPending ||
+    deleteMutation.isPending ||
     reassignMutation.isPending
 
   function updateForm(field: keyof TaskForm, value: string) {
@@ -344,13 +368,26 @@ export function AuditActivationPage() {
   async function requestCancel(item: ActivationTask) {
     const ok = await confirm({
       title: '作废开通任务？',
-      message: `将作废「${item.wecomDisplayName}」的开通任务。记录会保留，之后可重新开启、编辑资料或再发提醒；不会删除，也不能用删除代替。`,
+      message: `将作废「${item.wecomDisplayName}」的开通任务。记录会保留，之后可重新开启；若确认不再需要，可在作废后再「彻底删除」。已激活的主播不能作废/删除。`,
       confirmText: '确认作废',
       cancelText: '返回',
       variant: 'danger',
     })
     if (ok) {
       cancelMutation.mutate(item.id)
+    }
+  }
+
+  async function requestDelete(item: ActivationTask) {
+    const ok = await confirm({
+      title: '彻底删除开通任务？',
+      message: `将永久删除「${item.wecomDisplayName}」（企微UID：${item.expectedWecomUserId}）的开通任务，不可恢复。仅已作废且未激活的任务可删；删除后可用同一UID重新创建。`,
+      confirmText: '确认删除',
+      cancelText: '返回',
+      variant: 'danger',
+    })
+    if (ok) {
+      deleteMutation.mutate(item.id)
     }
   }
 
@@ -374,7 +411,7 @@ export function AuditActivationPage() {
               主播档案开通
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              创建开通任务、分配运营并发送企微提醒。作废只是暂停流程，任务仍会保留，可随时重新开启；主播激活后若运营拒绝，可在此重新分配。
+              创建开通任务、分配运营并发送企微提醒。作废可暂停并保留记录；彻底删除仅限已作废且未激活的任务。主播一旦激活，不能在此删除（需走归属/合作结束流程）。
             </p>
           </div>
           <button
@@ -687,7 +724,7 @@ export function AuditActivationPage() {
                       </p>
                       {isCancelled ? (
                         <p className="mt-2 text-xs leading-5 text-slate-500">
-                          任务已作废，不会再发提醒；可「重新开启」继续流程，或「编辑资料」修正后自动开启。
+                          任务已作废：可「重新开启 / 编辑」继续，或「彻底删除」清掉记录（不可恢复）。
                         </p>
                       ) : null}
                     </div>
@@ -752,6 +789,19 @@ export function AuditActivationPage() {
                       >
                         <Pencil className="h-3.5 w-3.5" />
                         编辑资料
+                      </button>
+                      <button
+                        type="button"
+                        className="app-btn-danger"
+                        disabled={busy}
+                        onClick={() => void requestDelete(item)}
+                      >
+                        {deleteMutation.isPending ? (
+                          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                        彻底删除
                       </button>
                     </div>
                   ) : null}

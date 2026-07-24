@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -98,6 +99,17 @@ export class ActivationController {
     @Param('taskId') taskId: string,
   ) {
     return this.activationService.reopen(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      taskId,
+    )
+  }
+
+  @Delete(':taskId')
+  remove(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('taskId') taskId: string,
+  ) {
+    return this.activationService.remove(
       this.authService.getCurrentUserFromAuthHeader(authorization),
       taskId,
     )

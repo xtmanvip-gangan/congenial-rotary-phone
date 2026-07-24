@@ -333,6 +333,33 @@ export class ActivationService {
     }
   }
 
+  /**
+   * 硬删除开通任务：仅允许「已作废且从未激活」的任务。
+   * 已激活任务关联主播档案/归属/岗前等业务数据，禁止在此删除。
+   */
+  async remove(currentUser: AuthenticatedUser, taskId: string) {
+    await this.requireManagePermission(currentUser)
+    const task = await this.findOwnedTask(currentUser, taskId)
+
+    if (task.status === 'activated' || task.activatedAnchorProfileId) {
+      throw new BadRequestException(
+        '主播已经激活，不能删除开通任务。如需结束合作，请走主播归属/档案流程',
+      )
+    }
+
+    if (task.status !== 'cancelled') {
+      throw new BadRequestException(
+        '请先作废任务，再删除。删除后不可恢复，同一企微UID可重新创建开通任务',
+      )
+    }
+
+    await this.prisma.anchorActivationTask.delete({
+      where: { id: task.id },
+    })
+
+    return { ok: true as const, id: task.id }
+  }
+
   private async findOwnedTask(
     currentUser: AuthenticatedUser,
     taskId: string,

@@ -285,6 +285,69 @@ describe('ActivationService', () => {
     )
   })
 
+  it('hard-deletes only cancelled tasks that never activated', async () => {
+    const prisma = {
+      anchorActivationTask: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          status: 'cancelled',
+          auditTeacherId: 'audit-1',
+          activatedAnchorProfileId: null,
+          activatedAnchorProfile: null,
+          operator: null,
+        }),
+        delete: vi.fn().mockResolvedValue({ id: 'task-1' }),
+      },
+    }
+    const access = {
+      requireAnyRole: vi.fn().mockResolvedValue(undefined),
+      hasRole: vi.fn().mockResolvedValue(false),
+    }
+    const service = new ActivationService(
+      prisma as never,
+      access as never,
+      { sendBusinessNotification: vi.fn() } as never,
+    )
+
+    await expect(service.remove(auditTeacher, 'task-1')).resolves.toEqual({
+      ok: true,
+      id: 'task-1',
+    })
+    expect(prisma.anchorActivationTask.delete).toHaveBeenCalledWith({
+      where: { id: 'task-1' },
+    })
+  })
+
+  it('rejects hard-delete for activated tasks', async () => {
+    const prisma = {
+      anchorActivationTask: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          status: 'activated',
+          auditTeacherId: 'audit-1',
+          activatedAnchorProfileId: 'profile-1',
+          activatedAnchorProfile: { id: 'profile-1', assignmentStatus: 'confirmed' },
+          operator: { id: 'operator-1', displayName: '运营A' },
+        }),
+        delete: vi.fn(),
+      },
+    }
+    const access = {
+      requireAnyRole: vi.fn().mockResolvedValue(undefined),
+      hasRole: vi.fn().mockResolvedValue(false),
+    }
+    const service = new ActivationService(
+      prisma as never,
+      access as never,
+      { sendBusinessNotification: vi.fn() } as never,
+    )
+
+    await expect(service.remove(auditTeacher, 'task-1')).rejects.toThrow(
+      /已经激活/,
+    )
+    expect(prisma.anchorActivationTask.delete).not.toHaveBeenCalled()
+  })
+
   it('keeps reminder counters unchanged when WeCom delivery fails', async () => {
     const prisma = {
       anchorActivationTask: {
