@@ -153,12 +153,40 @@
   line-height: 1.5;
 }
 
+.rejectField {
+  margin: 12px 0 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.rejectLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2a24;
+  line-height: 1.4;
+}
+
 .rejectInput {
-  margin: 8px 0 14px;
-  padding: 10px 12px;
+  display: block;
+  width: 100%;
+  min-height: 96px;
+  height: 96px;
+  padding: 12px 14px;
+  border: 1px solid #dce6df;
   border-radius: 12px;
   background: #f4f8f3;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1f2a24;
+  box-sizing: border-box;
+}
+
+.rejectPlaceholder {
+  color: #8b9590;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .sheetActions {

@@ -1,4 +1,4 @@
-import { Button, Checkbox, Input, Text, View } from '@tarojs/components'
+import { Button, Checkbox, Text, Textarea, View } from '@tarojs/components'
 import Taro, { usePullDownRefresh } from '@tarojs/taro'
 import { useEffect, useMemo, useState } from 'react'
 import StateBlock from '@/components/StateBlock'
@@ -242,12 +242,19 @@ export default function OnboardingConfirmPage() {
               </Text>
             )}
 
-            <Input
-              className={styles.rejectInput}
-              placeholder="若驳回，请填写原因"
-              value={rejectReason}
-              onInput={(event) => setRejectReason(event.detail.value)}
-            />
+            <View className={styles.rejectField}>
+              <Text className={styles.rejectLabel}>驳回原因（驳回时必填）</Text>
+              <Textarea
+                className={styles.rejectInput}
+                placeholder="请说明需要运营修改的内容"
+                placeholderClass={styles.rejectPlaceholder}
+                value={rejectReason}
+                maxlength={200}
+                autoHeight={false}
+                showConfirmBar={false}
+                onInput={(event) => setRejectReason(event.detail.value)}
+              />
+            </View>
 
             <View className={styles.sheetActions}>
               <Button
