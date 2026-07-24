@@ -9,7 +9,7 @@ import {
   Sparkles,
   UserRound,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
@@ -431,15 +431,46 @@ export function AdminAnchorDetailPage() {
   )
 }
 
+function defaultSelectedMilestoneType(
+  onboarding: AnchorDetail['onboarding'],
+): string | null {
+  if (!onboarding?.milestones.length) return null
+  if (onboarding.nextMilestone) return onboarding.nextMilestone
+  const lastDone = [...onboarding.milestones]
+    .reverse()
+    .find((item) => item.status === 'completed')
+  return lastDone?.type ?? onboarding.milestones[0]?.type ?? null
+}
+
 function ProfileTab({ data }: { data: AnchorDetail }) {
   const labels = data.evidenceFieldLabels
+  const milestones = data.onboarding?.milestones ?? []
   const total = data.onboarding?.totalCount ?? 7
   const done = data.onboarding?.completedCount ?? 0
   const progressPct = total > 0 ? Math.round((done / total) * 100) : 0
 
+  const [selectedType, setSelectedType] = useState<string | null>(() =>
+    defaultSelectedMilestoneType(data.onboarding),
+  )
+
+  useEffect(() => {
+    setSelectedType((current) => {
+      const list = data.onboarding?.milestones ?? []
+      if (current && list.some((item) => item.type === current)) {
+        return current
+      }
+      return defaultSelectedMilestoneType(data.onboarding)
+    })
+  }, [data.onboarding])
+
+  const selected = milestones.find((item) => item.type === selectedType) ?? null
+  const selectedIndex = selected
+    ? milestones.findIndex((item) => item.type === selected.type)
+    : -1
+
   return (
     <div className="space-y-6">
-      {/* 岗前成长轨迹 */}
+      {/* 岗前成长轨迹：横向节点轨 + 点开详情 */}
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
         <div className="border-b border-slate-100 bg-gradient-to-r from-brand-50/80 via-white to-cyan-50/40 px-6 py-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -451,7 +482,7 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
                 岗前成长轨迹
               </h3>
               <p className="mt-1 text-sm text-slate-500">
-                从入会到首播复盘的孵化节点，按时间顺序推进
+                点击节点查看详情；桌面悬停可预览状态与时间
               </p>
             </div>
             <div className="text-right">
@@ -464,27 +495,6 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
               <p className="text-xs text-slate-400">完成度 {progressPct}%</p>
             </div>
           </div>
-
-          <div className="mt-4">
-            <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400 transition-all duration-500"
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
-            {data.onboarding?.nextMilestone ? (
-              <p className="mt-2 text-xs text-slate-500">
-                当前节点：
-                {data.onboarding.milestones.find(
-                  (m) => m.type === data.onboarding?.nextMilestone,
-                )?.label ?? data.onboarding.nextMilestone}
-              </p>
-            ) : data.onboarding && done >= total ? (
-              <p className="mt-2 text-xs font-medium text-emerald-600">
-                岗前轨迹已全部完成
-              </p>
-            ) : null}
-          </div>
         </div>
 
         <div className="px-6 py-6">
@@ -495,145 +505,252 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
               tone="plain"
             />
           ) : (
-            <ol className="relative space-y-0">
-              {data.onboarding.milestones.map((item, index) => {
-                const isLast =
-                  index === (data.onboarding?.milestones.length ?? 0) - 1
-                const completed = item.status === 'completed'
-                const waiting = item.status === 'awaiting_anchor_confirm'
-                const pending = item.status === 'pending'
-                const isCurrent =
-                  data.onboarding?.nextMilestone === item.type && !completed
+            <>
+              {/* 横向进度轨 */}
+              <div className="relative px-1 pt-2 pb-1">
+                {/* 底轨 + 完成段 */}
+                <div className="pointer-events-none absolute left-[calc(100%/14)] right-[calc(100%/14)] top-[22px] h-1 rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400 transition-all duration-500"
+                    style={{
+                      width:
+                        total <= 1
+                          ? done > 0
+                            ? '100%'
+                            : '0%'
+                          : done <= 0
+                            ? '0%'
+                            : `${((Math.min(done, total) - 1) / (total - 1)) * 100}%`,
+                    }}
+                  />
+                </div>
 
-                return (
-                  <li key={item.type} className="relative flex gap-4 pb-8 last:pb-0">
-                    {/* 竖线 */}
-                    {!isLast ? (
-                      <span
-                        className={[
-                          'absolute left-[15px] top-8 bottom-0 w-0.5',
-                          completed
-                            ? 'bg-gradient-to-b from-brand-400 to-brand-200'
-                            : 'bg-slate-200',
-                        ].join(' ')}
-                        aria-hidden
-                      />
-                    ) : null}
+                <ol className="relative z-10 grid grid-cols-7 gap-1">
+                  {milestones.map((item, index) => {
+                    const completed = item.status === 'completed'
+                    const waiting = item.status === 'awaiting_anchor_confirm'
+                    const isCurrent =
+                      data.onboarding?.nextMilestone === item.type && !completed
+                    const isSelected = selectedType === item.type
+                    const statusText =
+                      isCurrent && item.status === 'pending'
+                        ? '进行中'
+                        : milestoneStatusLabels[item.status] ?? item.status
+                    const timeText = item.completedAt
+                      ? formatDateTime(item.completedAt)
+                      : item.submittedAt
+                        ? formatDateTime(item.submittedAt)
+                        : '尚未推进'
+                    const tip = `${item.label} · ${statusText} · ${timeText}`
 
-                    {/* 节点圆点 */}
-                    <div className="relative z-10 shrink-0">
-                      <span
-                        className={[
-                          'flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ring-4 ring-white',
-                          completed
-                            ? 'bg-brand-600 text-white shadow-md shadow-brand-200'
-                            : waiting
-                              ? 'bg-amber-400 text-white shadow-md shadow-amber-100'
-                              : isCurrent
-                                ? 'bg-white text-brand-600 ring-brand-100 border-2 border-brand-400'
-                                : 'bg-slate-100 text-slate-400',
-                        ].join(' ')}
+                    return (
+                      <li
+                        key={item.type}
+                        className="flex flex-col items-center"
                       >
-                        {completed ? (
-                          <Check className="h-4 w-4" strokeWidth={2.5} />
-                        ) : (
-                          index + 1
-                        )}
-                      </span>
-                    </div>
-
-                    {/* 内容卡 */}
-                    <div
-                      className={[
-                        'min-w-0 flex-1 rounded-2xl border px-4 py-3 transition',
-                        completed
-                          ? 'border-brand-100 bg-brand-50/40'
-                          : waiting
-                            ? 'border-amber-200 bg-amber-50/50'
-                            : isCurrent
-                              ? 'border-brand-200 bg-white shadow-sm'
-                              : 'border-slate-100 bg-slate-50/60',
-                      ].join(' ')}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="font-semibold text-slate-900">
-                            {item.label}
-                          </p>
-                          <p className="mt-0.5 text-xs text-slate-400">
-                            {item.completedAt
-                              ? `完成于 ${formatDateTime(item.completedAt)}`
-                              : item.submittedAt
-                                ? `提交于 ${formatDateTime(item.submittedAt)}`
-                                : pending
-                                  ? '等待推进'
-                                  : null}
-                          </p>
-                        </div>
-                        <span
+                        <button
+                          type="button"
+                          title={tip}
+                          aria-label={tip}
+                          aria-pressed={isSelected}
+                          onClick={() => setSelectedType(item.type)}
                           className={[
-                            'inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium',
-                            completed
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : waiting
-                                ? 'bg-amber-100 text-amber-800'
-                                : isCurrent
-                                  ? 'bg-brand-100 text-brand-700'
-                                  : 'bg-slate-200/80 text-slate-500',
+                            'group relative flex flex-col items-center outline-none',
+                            'focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 rounded-full',
                           ].join(' ')}
                         >
-                          {isCurrent && pending
-                            ? '进行中'
-                            : milestoneStatusLabels[item.status] ?? item.status}
-                        </span>
-                      </div>
+                          <span
+                            className={[
+                              'flex h-11 w-11 items-center justify-center rounded-full text-sm font-semibold transition-all',
+                              completed
+                                ? 'bg-brand-600 text-white shadow-md shadow-brand-200'
+                                : waiting
+                                  ? 'bg-amber-400 text-white shadow-md shadow-amber-100'
+                                  : isCurrent
+                                    ? 'border-2 border-brand-500 bg-white text-brand-600 shadow-md shadow-brand-100'
+                                    : 'border border-slate-200 bg-slate-50 text-slate-400',
+                              isSelected
+                                ? 'scale-110 ring-4 ring-brand-100'
+                                : 'hover:scale-105',
+                              isCurrent && !completed
+                                ? 'animate-pulse'
+                                : '',
+                            ].join(' ')}
+                          >
+                            {completed ? (
+                              <Check className="h-5 w-5" strokeWidth={2.5} />
+                            ) : (
+                              index + 1
+                            )}
+                          </span>
 
-                      {item.note ? (
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
-                          {item.note}
+                          {/* 桌面悬停轻提示 */}
+                          <span
+                            role="tooltip"
+                            className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden w-max max-w-[11rem] -translate-x-1/2 rounded-xl bg-slate-900 px-2.5 py-1.5 text-left text-[11px] leading-4 text-white opacity-0 shadow-lg transition group-hover:opacity-100 md:block"
+                          >
+                            <span className="font-medium">{item.label}</span>
+                            <br />
+                            <span className="text-slate-300">
+                              {statusText} · {timeText}
+                            </span>
+                          </span>
+                        </button>
+
+                        <p
+                          className={[
+                            'mt-2 max-w-[4.5rem] text-center text-[11px] font-medium leading-4 sm:max-w-none sm:text-xs',
+                            isSelected
+                              ? 'text-brand-700'
+                              : completed
+                                ? 'text-slate-700'
+                                : 'text-slate-400',
+                          ].join(' ')}
+                        >
+                          {item.label}
                         </p>
-                      ) : null}
-                      {item.rejectReason ? (
-                        <p className="mt-2 text-sm text-rose-600">
-                          驳回：{item.rejectReason}
-                        </p>
-                      ) : null}
+                      </li>
+                    )
+                  })}
+                </ol>
+              </div>
 
-                      {item.evidence ? (
-                        <EvidenceBlock
-                          evidence={item.evidence}
-                          labels={labels}
-                          membershipCompletedAt={
-                            data.profile.membershipCompletedAt
-                          }
-                          milestoneType={item.type}
-                        />
-                      ) : null}
+              <p className="mt-3 text-center text-xs text-slate-400">
+                {data.onboarding.nextMilestone
+                  ? `当前推进：${
+                      milestones.find(
+                        (m) => m.type === data.onboarding?.nextMilestone,
+                      )?.label ?? data.onboarding.nextMilestone
+                    }`
+                  : done >= total
+                    ? '岗前轨迹已全部完成'
+                    : null}
+              </p>
 
-                      {item.attachmentUrls.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {item.attachmentUrls.map((url) => (
-                            <a
-                              key={url}
-                              href={url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="block h-16 w-16 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
-                            >
-                              <img
-                                src={url}
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            </a>
-                          ))}
-                        </div>
-                      ) : null}
+              {/* 选中节点详情 */}
+              {selected ? (
+                <div
+                  className={[
+                    'mt-5 rounded-2xl border px-5 py-4',
+                    selected.status === 'completed'
+                      ? 'border-brand-100 bg-brand-50/40'
+                      : selected.status === 'awaiting_anchor_confirm'
+                        ? 'border-amber-200 bg-amber-50/40'
+                        : 'border-slate-200 bg-slate-50/50',
+                  ].join(' ')}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-slate-400">
+                        节点 {selectedIndex + 1} / {milestones.length}
+                      </p>
+                      <h4 className="mt-0.5 text-lg font-semibold text-slate-900">
+                        {selected.label}
+                      </h4>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {selected.completedAt
+                          ? `完成于 ${formatDateTime(selected.completedAt)}`
+                          : selected.submittedAt
+                            ? `提交于 ${formatDateTime(selected.submittedAt)}`
+                            : '等待推进'}
+                      </p>
                     </div>
-                  </li>
-                )
-              })}
-            </ol>
+                    <span
+                      className={[
+                        'inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium',
+                        selected.status === 'completed'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : selected.status === 'awaiting_anchor_confirm'
+                            ? 'bg-amber-100 text-amber-800'
+                            : data.onboarding.nextMilestone === selected.type
+                              ? 'bg-brand-100 text-brand-700'
+                              : 'bg-slate-200/80 text-slate-500',
+                      ].join(' ')}
+                    >
+                      {data.onboarding.nextMilestone === selected.type &&
+                      selected.status === 'pending'
+                        ? '进行中'
+                        : milestoneStatusLabels[selected.status] ??
+                          selected.status}
+                    </span>
+                  </div>
+
+                  {selected.note ? (
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      {selected.note}
+                    </p>
+                  ) : null}
+                  {selected.rejectReason ? (
+                    <p className="mt-2 text-sm text-rose-600">
+                      驳回：{selected.rejectReason}
+                    </p>
+                  ) : null}
+
+                  {selected.evidence ? (
+                    <EvidenceBlock
+                      evidence={selected.evidence}
+                      labels={labels}
+                      membershipCompletedAt={data.profile.membershipCompletedAt}
+                      milestoneType={selected.type}
+                    />
+                  ) : selected.status === 'pending' ? (
+                    <p className="mt-3 text-sm text-slate-500">
+                      该节点尚未填写详情。
+                    </p>
+                  ) : null}
+
+                  {selected.attachmentUrls.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {selected.attachmentUrls.map((url) => (
+                        <a
+                          key={url}
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block h-20 w-20 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+                        >
+                          <img
+                            src={url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="app-btn-secondary text-xs"
+                      disabled={selectedIndex <= 0}
+                      onClick={() =>
+                        setSelectedType(
+                          milestones[selectedIndex - 1]?.type ?? null,
+                        )
+                      }
+                    >
+                      上一节点
+                    </button>
+                    <button
+                      type="button"
+                      className="app-btn-secondary text-xs"
+                      disabled={
+                        selectedIndex < 0 ||
+                        selectedIndex >= milestones.length - 1
+                      }
+                      onClick={() =>
+                        setSelectedType(
+                          milestones[selectedIndex + 1]?.type ?? null,
+                        )
+                      }
+                    >
+                      下一节点
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </>
           )}
         </div>
       </section>
