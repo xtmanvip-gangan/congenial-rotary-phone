@@ -17,12 +17,22 @@ import { formatDateTime } from '../lib/dateTime'
 
 type OperatorOption = { id: string; displayName: string }
 
+type LiveStatus =
+  | 'pending_first_live'
+  | 'incubating'
+  | 'normal'
+  | 'offline'
+  | 'leave'
+  | 'exited'
+
 type AdminAnchorItem = {
   id: string
   wecomName: string
   anchorDisplayName: string
   assignmentStatus: string | null
   status: string
+  liveStatus: LiveStatus
+  firstLiveAt: string | null
   activatedAt: string
   operator?: OperatorOption | null
   onboarding: {
@@ -32,20 +42,39 @@ type AdminAnchorItem = {
   } | null
 }
 
-const assignmentLabels: Record<string, string> = {
-  pending_confirmation: '待运营确认',
-  confirmed: '已确认',
-  rejected: '已拒绝',
-  ended: '已结束',
+type ListResponse = {
+  items: AdminAnchorItem[]
+  summary?: {
+    total: number
+    pendingFirstLive: number
+    incubating: number
+    normal: number
+    offline: number
+    leave: number
+    exited: number
+  }
+  incubationDays?: number
 }
 
-const assignmentTone: Record<string, string> = {
-  pending_confirmation:
-    'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200/60',
-  confirmed:
+const liveStatusLabels: Record<LiveStatus, string> = {
+  pending_first_live: '待首播',
+  incubating: '孵化中',
+  normal: '正常',
+  offline: '断播',
+  leave: '请假',
+  exited: '退会',
+}
+
+const liveStatusTone: Record<LiveStatus, string> = {
+  pending_first_live:
+    'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200/60',
+  incubating:
+    'bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200/60',
+  normal:
     'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/60',
-  rejected: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/60',
-  ended: 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200/80',
+  offline: 'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200/60',
+  leave: 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200/80',
+  exited: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/60',
 }
 
 const milestoneLabels: Record<string, string> = {
@@ -65,8 +94,8 @@ export function AdminAnchorsPage() {
   const [operatorId, setOperatorId] = useState(
     searchParams.get('operatorId') ?? '',
   )
-  const [assignmentStatus, setAssignmentStatus] = useState(
-    searchParams.get('assignmentStatus') ?? '',
+  const [liveStatus, setLiveStatus] = useState(
+    searchParams.get('liveStatus') ?? '',
   )
   /** 默认浏览模式；开启后才出现勾选列与批量转交 */
   const [transferMode, setTransferMode] = useState(false)
@@ -91,14 +120,13 @@ export function AdminAnchorsPage() {
     setSelected(new Set())
   }
 
-  // 同步 URL 查询（员工页「去转交」会带 operatorId）
   useEffect(() => {
     const next = new URLSearchParams()
     if (operatorId) next.set('operatorId', operatorId)
-    if (assignmentStatus) next.set('assignmentStatus', assignmentStatus)
+    if (liveStatus) next.set('liveStatus', liveStatus)
     if (keyword.trim()) next.set('keyword', keyword.trim())
     setSearchParams(next, { replace: true })
-  }, [operatorId, assignmentStatus, keyword, setSearchParams])
+  }, [operatorId, liveStatus, keyword, setSearchParams])
 
   const operatorsQuery = useQuery({
     queryKey: ['active-operators'],
@@ -107,16 +135,14 @@ export function AdminAnchorsPage() {
   })
 
   const anchorsQuery = useQuery({
-    queryKey: ['admin-anchors', operatorId, assignmentStatus, keyword],
+    queryKey: ['admin-anchors', operatorId, liveStatus, keyword],
     queryFn: () => {
       const params = new URLSearchParams()
       if (operatorId) params.set('operatorId', operatorId)
-      if (assignmentStatus) params.set('assignmentStatus', assignmentStatus)
+      if (liveStatus) params.set('liveStatus', liveStatus)
       if (keyword.trim()) params.set('keyword', keyword.trim())
       const qs = params.toString()
-      return apiJson<{ items: AdminAnchorItem[] }>(
-        `/admin/anchors${qs ? `?${qs}` : ''}`,
-      )
+      return apiJson<ListResponse>(`/admin/anchors${qs ? `?${qs}` : ''}`)
     },
   })
 
@@ -163,24 +189,28 @@ export function AdminAnchorsPage() {
   })
 
   const items = anchorsQuery.data?.items ?? []
+  const summary = anchorsQuery.data?.summary
+  const incubationDays = anchorsQuery.data?.incubationDays ?? 30
   const operators = operatorsQuery.data?.items ?? []
 
   const counts = useMemo(() => {
-    const base = {
+    if (summary) {
+      return {
+        all: summary.total,
+        pendingFirstLive: summary.pendingFirstLive,
+        incubating: summary.incubating,
+        normal: summary.normal,
+        attention: summary.offline + summary.leave + summary.exited,
+      }
+    }
+    return {
       all: items.length,
-      pending: 0,
-      confirmed: 0,
-      rejected: 0,
-      none: 0,
+      pendingFirstLive: 0,
+      incubating: 0,
+      normal: 0,
+      attention: 0,
     }
-    for (const item of items) {
-      if (item.assignmentStatus === 'pending_confirmation') base.pending += 1
-      else if (item.assignmentStatus === 'confirmed') base.confirmed += 1
-      else if (item.assignmentStatus === 'rejected') base.rejected += 1
-      else base.none += 1
-    }
-    return base
-  }, [items])
+  }, [summary, items.length])
 
   const selectedItems = items.filter((item) => selected.has(item.id))
   const allVisibleSelected =
@@ -206,10 +236,6 @@ export function AdminAnchorsPage() {
   function openTransfer() {
     if (!transferMode) {
       enterTransferMode()
-      setFeedback({
-        type: 'success',
-        text: '已进入转交模式，请勾选要转交的主播后再点「确认转交」',
-      })
       return
     }
     if (selected.size === 0) {
@@ -242,7 +268,8 @@ export function AdminAnchorsPage() {
               主播全景
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              全局查看主播归属与进度；点进某主播可看档案、礼物、课程与复盘（建设中）。列表可勾选分散转交，转交后需新运营确认。
+              仅展示运营已确认的主播。状态按经营阶段：待首播 → 孵化中（首播后
+              {incubationDays} 天）→ 正常 / 断播 / 请假 / 退会。激活与待确认请到「激活监管」。
             </p>
           </div>
           <button
@@ -259,10 +286,27 @@ export function AdminAnchorsPage() {
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryChip label="当前列表" value={counts.all} tone="slate" />
-          <SummaryChip label="已确认" value={counts.confirmed} tone="emerald" />
-          <SummaryChip label="待确认" value={counts.pending} tone="amber" />
-          <SummaryChip label="已拒绝/其它" value={counts.rejected + counts.none} tone="rose" />
+          <SummaryChip label="在管合计" value={counts.all} tone="slate" />
+          <SummaryChip
+            label="待首播"
+            value={counts.pendingFirstLive}
+            tone="sky"
+          />
+          <SummaryChip
+            label="孵化中"
+            value={counts.incubating}
+            tone="violet"
+          />
+          <SummaryChip
+            label="正常"
+            value={counts.normal}
+            tone="emerald"
+            helper={
+              counts.attention > 0
+                ? `断播/请假/退会 ${counts.attention}`
+                : undefined
+            }
+          />
         </div>
 
         {feedback ? (
@@ -300,20 +344,22 @@ export function AdminAnchorsPage() {
             </select>
           </label>
           <label className="min-w-[10rem] flex-1 text-xs font-medium text-slate-600">
-            归属状态
+            主播状态
             <select
               className="mt-1.5 app-field"
-              value={assignmentStatus}
+              value={liveStatus}
               onChange={(e) => {
-                setAssignmentStatus(e.target.value)
+                setLiveStatus(e.target.value)
                 setSelected(new Set())
               }}
             >
               <option value="">全部状态</option>
-              <option value="confirmed">已确认</option>
-              <option value="pending_confirmation">待运营确认</option>
-              <option value="rejected">已拒绝</option>
-              <option value="ended">已结束</option>
+              <option value="pending_first_live">待首播</option>
+              <option value="incubating">孵化中</option>
+              <option value="normal">正常</option>
+              <option value="offline">断播</option>
+              <option value="leave">请假</option>
+              <option value="exited">退会</option>
             </select>
           </label>
           <label className="relative min-w-[14rem] flex-[1.5] text-xs font-medium text-slate-600">
@@ -393,7 +439,7 @@ export function AdminAnchorsPage() {
           items.length === 0 ? (
             <EmptyState
               title="没有符合条件的主播"
-              description="调整筛选条件，或从运营工作台跳转到该运营名下主播。"
+              description="全景仅含运营已确认的主播。未确认请到激活监管；也可调整筛选条件。"
               tone="plain"
             />
           ) : null}
@@ -418,10 +464,10 @@ export function AdminAnchorsPage() {
                     <th className="whitespace-nowrap px-3 py-3">主播</th>
                     <th className="whitespace-nowrap px-3 py-3">企微</th>
                     <th className="whitespace-nowrap px-3 py-3">运营</th>
-                    <th className="whitespace-nowrap px-3 py-3">归属状态</th>
+                    <th className="whitespace-nowrap px-3 py-3">状态</th>
                     <th className="whitespace-nowrap px-3 py-3">岗前进度</th>
                     <th className="whitespace-nowrap px-3 py-3">下一步</th>
-                    <th className="whitespace-nowrap px-3 py-3">激活时间</th>
+                    <th className="whitespace-nowrap px-3 py-3">首播时间</th>
                     <th className="whitespace-nowrap px-3 py-3 text-right">
                       操作
                     </th>
@@ -429,11 +475,10 @@ export function AdminAnchorsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {items.map((item) => {
-                    const status = item.assignmentStatus ?? ''
-                    const statusLabel =
-                      assignmentLabels[status] ?? (status ? status : '未分配')
+                    const status = item.liveStatus
+                    const statusLabel = liveStatusLabels[status] ?? status
                     const tone =
-                      assignmentTone[status] ??
+                      liveStatusTone[status] ??
                       'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200/80'
                     const done = item.onboarding?.completedCount ?? 0
                     const total = item.onboarding?.totalCount ?? 7
@@ -493,7 +538,9 @@ export function AdminAnchorsPage() {
                           {next}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2.5 align-middle text-xs text-slate-500">
-                          {formatDateTime(item.activatedAt)}
+                          {item.firstLiveAt
+                            ? formatDateTime(item.firstLiveAt)
+                            : '—'}
                         </td>
                         <td className="px-3 py-2.5 align-middle text-right">
                           <Link
@@ -523,7 +570,7 @@ export function AdminAnchorsPage() {
               </p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 将 {selected.size}{' '}
-                位主播转交给目标运营，归属变为「待运营确认」，由对方在「主播与归属」中确认。
+                位主播转交给目标运营，归属变为「待运营确认」，对方确认前不会出现在全景列表。
               </p>
             </div>
             <div className="space-y-3 px-5 py-4">
@@ -588,16 +635,20 @@ function SummaryChip({
   label,
   value,
   tone,
+  helper,
 }: {
   label: string
   value: number
-  tone: 'slate' | 'emerald' | 'amber' | 'rose'
+  tone: 'slate' | 'emerald' | 'amber' | 'rose' | 'sky' | 'violet'
+  helper?: string
 }) {
   const tones = {
     slate: 'border-slate-100 bg-slate-50/80 text-slate-800',
     emerald: 'border-emerald-100 bg-emerald-50/70 text-emerald-700',
     amber: 'border-amber-100 bg-amber-50/70 text-amber-700',
     rose: 'border-rose-100 bg-rose-50/70 text-rose-700',
+    sky: 'border-sky-100 bg-sky-50/70 text-sky-700',
+    violet: 'border-violet-100 bg-violet-50/70 text-violet-700',
   }[tone]
   return (
     <div className={`rounded-2xl border px-4 py-3 ${tones}`}>
@@ -606,6 +657,9 @@ function SummaryChip({
         {label}
       </div>
       <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+      {helper ? (
+        <p className="mt-1 text-xs font-normal text-slate-400">{helper}</p>
+      ) : null}
     </div>
   )
 }

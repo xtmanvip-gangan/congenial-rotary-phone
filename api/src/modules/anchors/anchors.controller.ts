@@ -134,12 +134,12 @@ export class AdminAnchorsController {
   list(
     @Headers('authorization') authorization: string | undefined,
     @Query('operatorId') operatorId?: string,
-    @Query('assignmentStatus') assignmentStatus?: string,
+    @Query('liveStatus') liveStatus?: string,
     @Query('keyword') keyword?: string,
   ) {
     return this.anchorsService.listAdminAnchors(
       this.authService.getCurrentUserFromAuthHeader(authorization),
-      { operatorId, assignmentStatus, keyword },
+      { operatorId, liveStatus, keyword },
     )
   }
 

@@ -54,6 +54,18 @@ const HIGHLIGHT_MOMENT_CATALOG = [
   },
 ] as const
 
+/** 首播后孵化窗口（天） */
+const INCUBATION_DAYS = 30
+
+/** 主播全景展示状态（运营确认后起算） */
+export type AnchorLiveStatus =
+  | 'pending_first_live'
+  | 'incubating'
+  | 'normal'
+  | 'offline'
+  | 'leave'
+  | 'exited'
+
 const profileInclude = {
   wecomUser: {
     select: {
@@ -364,34 +376,30 @@ export class AnchorsService {
   }
 
   /**
-   * 超管：主播全景列表（全量，可按运营/归属/关键词筛）
+   * 超管：主播全景列表
+   * 仅运营已确认归属的主播（未确认在激活监管）；状态为经营态而非归属态
    */
   async listAdminAnchors(
     currentUser: AuthenticatedUser,
     query: {
       operatorId?: string
-      assignmentStatus?: string
+      liveStatus?: string
       keyword?: string
     },
   ) {
     await this.access.requirePasswordSuperAdmin(currentUser)
 
     const keyword = query.keyword?.trim()
-    const assignmentStatus = query.assignmentStatus?.trim()
+    const liveStatusFilter = query.liveStatus?.trim() as
+      | AnchorLiveStatus
+      | undefined
     const operatorId = query.operatorId?.trim()
 
     const items = await this.prisma.anchorProfile.findMany({
       where: {
+        // 未确认归属不进全景，在激活监管处理
+        assignmentStatus: 'confirmed',
         ...(operatorId ? { currentOperatorId: operatorId } : {}),
-        ...(assignmentStatus
-          ? {
-              assignmentStatus: assignmentStatus as
-                | 'pending_confirmation'
-                | 'confirmed'
-                | 'rejected'
-                | 'ended',
-            }
-          : {}),
         ...(keyword
           ? {
               OR: [
@@ -431,12 +439,20 @@ export class AnchorsService {
           },
         },
       },
-      orderBy: [{ assignmentStatus: 'asc' }, { activatedAt: 'desc' }],
+      orderBy: [{ activatedAt: 'desc' }],
     })
 
-    return {
-      items: items.map((item) => ({
+    const mapped = items.map((item) => {
+      const firstLiveAt = item.onboardingProgress?.firstLiveAt ?? null
+      const liveStatus = resolveAnchorLiveStatus({
+        profileStatus: item.status,
+        firstLiveAt,
+      })
+      return {
         ...this.toProfileItem(item),
+        liveStatus,
+        firstLiveAt: firstLiveAt?.toISOString() ?? null,
+        incubationDays: INCUBATION_DAYS,
         onboarding: item.onboardingProgress
           ? {
               completedCount: item.onboardingProgress.milestones.filter(
@@ -458,7 +474,30 @@ export class AnchorsService {
                 ) ?? null,
             }
           : null,
-      })),
+      }
+    })
+
+    const filtered = liveStatusFilter
+      ? mapped.filter((item) => item.liveStatus === liveStatusFilter)
+      : mapped
+
+    const summary = {
+      total: mapped.length,
+      pendingFirstLive: mapped.filter(
+        (item) => item.liveStatus === 'pending_first_live',
+      ).length,
+      incubating: mapped.filter((item) => item.liveStatus === 'incubating')
+        .length,
+      normal: mapped.filter((item) => item.liveStatus === 'normal').length,
+      offline: mapped.filter((item) => item.liveStatus === 'offline').length,
+      leave: mapped.filter((item) => item.liveStatus === 'leave').length,
+      exited: mapped.filter((item) => item.liveStatus === 'exited').length,
+    }
+
+    return {
+      items: filtered,
+      summary,
+      incubationDays: INCUBATION_DAYS,
     }
   }
 
@@ -661,11 +700,20 @@ export class AnchorsService {
       materialsConfirmed: '资料已确认',
     }
 
+    const firstLiveAt = profile.onboardingProgress?.firstLiveAt ?? null
+    const liveStatus = resolveAnchorLiveStatus({
+      profileStatus: profile.status,
+      firstLiveAt,
+    })
+
     return {
       profile: {
         ...this.toProfileItem(profile),
         wecomUserId: profile.wecomUser.wecomUserId,
         source: profile.source,
+        liveStatus,
+        firstLiveAt: firstLiveAt?.toISOString() ?? null,
+        incubationDays: INCUBATION_DAYS,
         membershipCompletedAt:
           profile.activationTask?.membershipCompletedAt?.toISOString() ?? null,
         createdAt: profile.createdAt.toISOString(),
@@ -1075,7 +1123,7 @@ export class AnchorsService {
       | 'rejected'
       | 'ended'
       | null
-    status: 'active' | 'paused' | 'exited'
+    status: 'active' | 'paused' | 'leave' | 'exited'
     activatedAt: Date
     currentOperator: {
       id: string
@@ -1095,6 +1143,42 @@ export class AnchorsService {
       activatedAt: profile.activatedAt.toISOString(),
     }
   }
+}
+
+/**
+ * 运营确认后的经营状态：
+ * - 未首播 → 待首播
+ * - 首播后 ≤30 天 → 孵化中
+ * - 之后：正常 / 断播 / 请假 / 退会（档案 status）
+ * 退会优先于阶段判断
+ */
+function resolveAnchorLiveStatus(input: {
+  profileStatus: 'active' | 'paused' | 'leave' | 'exited' | string
+  firstLiveAt: Date | null
+  now?: Date
+}): AnchorLiveStatus {
+  if (input.profileStatus === 'exited') {
+    return 'exited'
+  }
+
+  if (!input.firstLiveAt) {
+    return 'pending_first_live'
+  }
+
+  const now = input.now ?? new Date()
+  const elapsedMs = now.getTime() - input.firstLiveAt.getTime()
+  const incubationMs = INCUBATION_DAYS * 24 * 60 * 60 * 1000
+  if (elapsedMs <= incubationMs) {
+    return 'incubating'
+  }
+
+  if (input.profileStatus === 'paused') {
+    return 'offline'
+  }
+  if (input.profileStatus === 'leave') {
+    return 'leave'
+  }
+  return 'normal'
 }
 
 /** 超级管理员可查看/处理全部运营数据域 */

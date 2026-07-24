@@ -39,6 +39,9 @@ type AnchorDetail = {
     anchorDisplayName: string
     assignmentStatus: string | null
     status: string
+    liveStatus?: string
+    firstLiveAt?: string | null
+    incubationDays?: number
     activatedAt: string
     membershipCompletedAt: string | null
     source: string
@@ -156,6 +159,15 @@ const assignmentLabels: Record<string, string> = {
   confirmed: '已确认',
   rejected: '已拒绝',
   ended: '已结束',
+}
+
+const liveStatusLabels: Record<string, string> = {
+  pending_first_live: '待首播',
+  incubating: '孵化中',
+  normal: '正常',
+  offline: '断播',
+  leave: '请假',
+  exited: '退会',
 }
 
 const milestoneStatusLabels: Record<string, string> = {
@@ -334,9 +346,12 @@ export function AdminAnchorDetailPage() {
   const profile = data?.profile
 
   const statusLabel = useMemo(() => {
+    if (profile?.liveStatus) {
+      return liveStatusLabels[profile.liveStatus] ?? profile.liveStatus
+    }
     if (!profile?.assignmentStatus) return '未分配'
     return assignmentLabels[profile.assignmentStatus] ?? profile.assignmentStatus
-  }, [profile?.assignmentStatus])
+  }, [profile?.liveStatus, profile?.assignmentStatus])
 
   return (
     <div className="space-y-6">
@@ -385,10 +400,12 @@ export function AdminAnchorDetailPage() {
                   入会 {formatDateOnly(profile.membershipCompletedAt)}
                   <span className="mx-1.5">·</span>
                   档案激活 {formatDateTime(profile.activatedAt)}
-                  <span className="mx-1.5">·</span>
-                  来源 {profile.source}
-                  <span className="mx-1.5">·</span>
-                  状态 {profile.status}
+                  {profile.firstLiveAt ? (
+                    <>
+                      <span className="mx-1.5">·</span>
+                      首播 {formatDateTime(profile.firstLiveAt)}
+                    </>
+                  ) : null}
                 </p>
               </>
             ) : null}

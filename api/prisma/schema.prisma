@@ -29,6 +29,7 @@ enum ActivationTaskStatus {
 enum AnchorProfileStatus {
   active
   paused
+  leave
   exited
 }
 
