@@ -280,6 +280,7 @@ model OperatorAccount {
   trainingQuestionActions     TrainingQuestionAction[]       @relation("TrainingQuestionActor")
   trainingWeeklyMeetings      TrainingWeeklyMeeting[]        @relation("TrainingWeeklyMeetingCreator")
   trainingWeeklyActions       TrainingWeeklyAction[]         @relation("TrainingWeeklyActionOwner")
+  dailyReviews                AnchorDailyReview[]            @relation("DailyReviewOperator")
 
   @@map("operator_accounts")
 }
@@ -342,9 +343,39 @@ model AnchorProfile {
   trainingRecommendations     TrainingCourseRecommendation[]
   trainingApplicationFeedback TrainingApplicationFeedback[]
   trainingQuestions           TrainingQuestion[]
+  dailyReviews                AnchorDailyReview[]
 
   @@index([currentOperatorId, assignmentStatus])
   @@map("anchor_profiles")
+}
+
+/** 主播日复盘（附件六：《主播日复盘表》） */
+model AnchorDailyReview {
+  id                  String          @id @default(uuid()) @db.Uuid
+  anchorProfileId     String          @map("anchor_profile_id") @db.Uuid
+  operatorId          String?         @map("operator_id") @db.Uuid
+  reviewDate          DateTime        @map("review_date") @db.Date
+  liveDurationMinutes Int?            @map("live_duration_minutes")
+  sessionViewers      Int?            @map("session_viewers")
+  peakOnline          Int?            @map("peak_online")
+  avgOnline           Int?            @map("avg_online")
+  newFans             Int?            @map("new_fans")
+  giftRevenueYuan     Decimal?        @map("gift_revenue_yuan") @db.Decimal(12, 2)
+  pkCount             Int?            @map("pk_count")
+  bestThing           String?         @map("best_thing")
+  biggestProblem      String?         @map("biggest_problem")
+  tomorrowFocus       String?         @map("tomorrow_focus")
+  leaderNote          String?         @map("leader_note")
+  createdBy           String          @map("created_by") @db.VarChar(64)
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+  anchorProfile       AnchorProfile   @relation(fields: [anchorProfileId], references: [id], onDelete: Cascade)
+  operator            OperatorAccount? @relation("DailyReviewOperator", fields: [operatorId], references: [id])
+
+  @@unique([anchorProfileId, reviewDate])
+  @@index([anchorProfileId, reviewDate])
+  @@index([operatorId, reviewDate])
+  @@map("anchor_daily_reviews")
 }
 
 model TrainingCourse {

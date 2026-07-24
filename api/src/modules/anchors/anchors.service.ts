@@ -627,83 +627,92 @@ export class AnchorsService {
       )
     }
 
-    const [submissions, registrations, learningProgress] = await Promise.all([
-      this.prisma.submission.findMany({
-        where: { anchorProfileId: profile.id },
-        include: {
-          activity: {
-            include: {
-              type: {
-                select: {
-                  typeCode: true,
-                  typeName: true,
+    const [submissions, registrations, learningProgress, dailyReviews] =
+      await Promise.all([
+        this.prisma.submission.findMany({
+          where: { anchorProfileId: profile.id },
+          include: {
+            activity: {
+              include: {
+                type: {
+                  select: {
+                    typeCode: true,
+                    typeName: true,
+                  },
+                },
+              },
+            },
+            operator: {
+              select: {
+                id: true,
+                displayName: true,
+              },
+            },
+            items: {
+              select: {
+                itemName: true,
+                quantity: true,
+              },
+            },
+            attachments: {
+              select: {
+                fileType: true,
+                fileUrl: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        }),
+        this.prisma.trainingRegistration.findMany({
+          where: { anchorProfileId: profile.id },
+          include: {
+            session: {
+              include: {
+                course: {
+                  select: {
+                    id: true,
+                    code: true,
+                    title: true,
+                    level: true,
+                  },
+                },
+                teacher: {
+                  select: {
+                    id: true,
+                    displayName: true,
+                  },
                 },
               },
             },
           },
-          operator: {
-            select: {
-              id: true,
-              displayName: true,
-            },
-          },
-          items: {
-            select: {
-              itemName: true,
-              quantity: true,
-            },
-          },
-          attachments: {
-            select: {
-              fileType: true,
-              fileUrl: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      }),
-      this.prisma.trainingRegistration.findMany({
-        where: { anchorProfileId: profile.id },
-        include: {
-          session: {
-            include: {
-              course: {
-                select: {
-                  id: true,
-                  code: true,
-                  title: true,
-                  level: true,
-                },
-              },
-              teacher: {
-                select: {
-                  id: true,
-                  displayName: true,
-                },
+          orderBy: { registeredAt: 'desc' },
+          take: 50,
+        }),
+        this.prisma.trainingLearningProgress.findMany({
+          where: { anchorProfileId: profile.id },
+          include: {
+            course: {
+              select: {
+                id: true,
+                code: true,
+                title: true,
+                level: true,
+                sequence: true,
               },
             },
           },
-        },
-        orderBy: { registeredAt: 'desc' },
-        take: 50,
-      }),
-      this.prisma.trainingLearningProgress.findMany({
-        where: { anchorProfileId: profile.id },
-        include: {
-          course: {
-            select: {
-              id: true,
-              code: true,
-              title: true,
-              level: true,
-              sequence: true,
-            },
+          orderBy: { updatedAt: 'desc' },
+        }),
+        this.prisma.anchorDailyReview.findMany({
+          where: { anchorProfileId: profile.id },
+          include: {
+            operator: { select: { id: true, displayName: true } },
           },
-        },
-        orderBy: { updatedAt: 'desc' },
-      }),
-    ])
+          orderBy: { reviewDate: 'desc' },
+          take: 60,
+        }),
+      ])
 
     const milestoneMap = new Map(
       (profile.onboardingProgress?.milestones ?? []).map((item) => [
@@ -815,20 +824,11 @@ export class AnchorsService {
             milestones,
           }
         : null,
-      /**
-       * 高光时刻：主播成长成就轨（与岗前孵化轨并列）
-       * 阶梯阈值与自动解锁后续配置，当前仅返回目录与空列表
-       */
-      highlights: {
-        available: false as const,
-        message:
-          '高光时刻建设中：将自动沉淀首次收礼、营收阶梯、连续开播等成就，阈值可后续配置',
-        catalog: HIGHLIGHT_MOMENT_CATALOG.map((item) => ({
-          ...item,
-          status: 'planned' as const,
-        })),
-        items: [] as const,
-      },
+      highlights: this.buildHighlightMoments({
+        firstLiveAt,
+        submissions,
+        learningProgress,
+      }),
       gifts: {
         summary: giftSummary,
         items: submissions.map((item) => ({
@@ -881,12 +881,315 @@ export class AnchorsService {
           sessionStatus: item.session.status,
         })),
       },
-      /** 复盘记录：暂定项目，先占位 */
       reviews: {
-        available: false as const,
-        message: '复盘记录功能建设中，后续将汇总首播复盘与日常复盘',
-        items: [] as const,
+        available: true as const,
+        message: '日复盘依据《主播日复盘表》填写；会长批注由超管补充',
+        firstLiveReviewCompletedAt:
+          profile.onboardingProgress?.firstReviewCompletedAt?.toISOString() ??
+          null,
+        items: dailyReviews.map((item) => this.formatDailyReview(item)),
       },
+    }
+  }
+
+  /**
+   * 运营/超管：更新在管主播经营状态（正常/断播/请假/退会）
+   */
+  async updateAnchorStatus(
+    currentUser: AuthenticatedUser,
+    anchorId: string,
+    status: 'active' | 'paused' | 'leave' | 'exited',
+  ) {
+    await this.access.requireAnyRole(currentUser, ['operator'])
+    const profile = await this.requireOwnedConfirmedAnchor(
+      currentUser,
+      anchorId,
+    )
+
+    const updated = await this.prisma.anchorProfile.update({
+      where: { id: profile.id },
+      data: { status },
+      include: profileInclude,
+    })
+
+    const firstLiveAt =
+      (
+        await this.prisma.anchorOnboardingProgress.findUnique({
+          where: { anchorProfileId: profile.id },
+          select: { firstLiveAt: true },
+        })
+      )?.firstLiveAt ?? null
+
+    return {
+      item: {
+        ...this.toProfileItem(updated),
+        liveStatus: resolveAnchorLiveStatus({
+          profileStatus: updated.status,
+          firstLiveAt,
+        }),
+      },
+    }
+  }
+
+  async listDailyReviews(currentUser: AuthenticatedUser, anchorId: string) {
+    await this.requireOwnedConfirmedAnchor(currentUser, anchorId)
+    const items = await this.prisma.anchorDailyReview.findMany({
+      where: { anchorProfileId: anchorId },
+      include: {
+        operator: { select: { id: true, displayName: true } },
+      },
+      orderBy: { reviewDate: 'desc' },
+      take: 90,
+    })
+    return { items: items.map((item) => this.formatDailyReview(item)) }
+  }
+
+  async upsertDailyReview(
+    currentUser: AuthenticatedUser,
+    anchorId: string,
+    dto: {
+      reviewDate: string
+      liveDurationMinutes?: number | null
+      sessionViewers?: number | null
+      peakOnline?: number | null
+      avgOnline?: number | null
+      newFans?: number | null
+      giftRevenueYuan?: number | null
+      pkCount?: number | null
+      bestThing?: string | null
+      biggestProblem?: string | null
+      tomorrowFocus?: string | null
+    },
+  ) {
+    await this.access.requireAnyRole(currentUser, ['operator'])
+    const profile = await this.requireOwnedConfirmedAnchor(
+      currentUser,
+      anchorId,
+    )
+
+    const reviewDate = parseReviewDate(dto.reviewDate)
+    const createdBy =
+      currentUser.wecomUserId || currentUser.accountId || 'operator'
+    const operatorId =
+      currentUser.role === 'super_admin' &&
+      currentUser.loginType === 'password_admin'
+        ? profile.currentOperatorId
+        : (currentUser.accountId ?? profile.currentOperatorId)
+
+    const data = {
+      operatorId,
+      liveDurationMinutes: dto.liveDurationMinutes ?? null,
+      sessionViewers: dto.sessionViewers ?? null,
+      peakOnline: dto.peakOnline ?? null,
+      avgOnline: dto.avgOnline ?? null,
+      newFans: dto.newFans ?? null,
+      giftRevenueYuan:
+        dto.giftRevenueYuan == null ? null : String(dto.giftRevenueYuan),
+      pkCount: dto.pkCount ?? null,
+      bestThing: dto.bestThing?.trim() || null,
+      biggestProblem: dto.biggestProblem?.trim() || null,
+      tomorrowFocus: dto.tomorrowFocus?.trim() || null,
+      createdBy,
+    }
+
+    const item = await this.prisma.anchorDailyReview.upsert({
+      where: {
+        anchorProfileId_reviewDate: {
+          anchorProfileId: profile.id,
+          reviewDate,
+        },
+      },
+      create: {
+        anchorProfileId: profile.id,
+        reviewDate,
+        ...data,
+      },
+      update: data,
+      include: {
+        operator: { select: { id: true, displayName: true } },
+      },
+    })
+
+    return { item: this.formatDailyReview(item) }
+  }
+
+  async updateDailyReviewLeaderNote(
+    currentUser: AuthenticatedUser,
+    reviewId: string,
+    leaderNote: string,
+  ) {
+    await this.access.requirePasswordSuperAdmin(currentUser)
+    const existing = await this.prisma.anchorDailyReview.findUnique({
+      where: { id: reviewId },
+    })
+    if (!existing) {
+      throw new NotFoundException('复盘记录不存在')
+    }
+    const item = await this.prisma.anchorDailyReview.update({
+      where: { id: reviewId },
+      data: { leaderNote: leaderNote.trim() || null },
+      include: {
+        operator: { select: { id: true, displayName: true } },
+      },
+    })
+    return { item: this.formatDailyReview(item) }
+  }
+
+  private async requireOwnedConfirmedAnchor(
+    currentUser: AuthenticatedUser,
+    anchorId: string,
+  ) {
+    const id = anchorId?.trim()
+    if (!id) {
+      throw new BadRequestException('主播 ID 无效')
+    }
+    const globalView = isGlobalOperatorView(currentUser)
+    const profile = await this.prisma.anchorProfile.findFirst({
+      where: {
+        id,
+        assignmentStatus: 'confirmed',
+        ...(globalView
+          ? {}
+          : { currentOperatorId: currentUser.accountId ?? '' }),
+      },
+      select: {
+        id: true,
+        currentOperatorId: true,
+        status: true,
+        anchorDisplayName: true,
+      },
+    })
+    if (!profile) {
+      throw new NotFoundException('未找到归属于你的已确认主播')
+    }
+    return profile
+  }
+
+  private formatDailyReview(item: {
+    id: string
+    anchorProfileId: string
+    operatorId: string | null
+    reviewDate: Date
+    liveDurationMinutes: number | null
+    sessionViewers: number | null
+    peakOnline: number | null
+    avgOnline: number | null
+    newFans: number | null
+    giftRevenueYuan: { toString(): string } | null
+    pkCount: number | null
+    bestThing: string | null
+    biggestProblem: string | null
+    tomorrowFocus: string | null
+    leaderNote: string | null
+    createdBy: string
+    createdAt: Date
+    updatedAt: Date
+    operator?: { id: string; displayName: string } | null
+  }) {
+    return {
+      id: item.id,
+      anchorProfileId: item.anchorProfileId,
+      operator: item.operator ?? null,
+      reviewDate: item.reviewDate.toISOString().slice(0, 10),
+      liveDurationMinutes: item.liveDurationMinutes,
+      sessionViewers: item.sessionViewers,
+      peakOnline: item.peakOnline,
+      avgOnline: item.avgOnline,
+      newFans: item.newFans,
+      giftRevenueYuan:
+        item.giftRevenueYuan == null
+          ? null
+          : Number(item.giftRevenueYuan.toString()),
+      pkCount: item.pkCount,
+      bestThing: item.bestThing,
+      biggestProblem: item.biggestProblem,
+      tomorrowFocus: item.tomorrowFocus,
+      leaderNote: item.leaderNote,
+      createdBy: item.createdBy,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+    }
+  }
+
+  private buildHighlightMoments(input: {
+    firstLiveAt: Date | null
+    submissions: Array<{
+      reviewStatus: string
+      createdAt: Date
+      items: Array<{ itemName: string }>
+    }>
+    learningProgress: Array<{ status: string; courseId: string }>
+  }) {
+    const approved = input.submissions.filter(
+      (item) => item.reviewStatus === 'approved',
+    )
+    const firstGift = approved[approved.length - 1] // oldest if desc order - actually submissions are desc so last is oldest
+    const firstGiftOldest =
+      approved.length > 0
+        ? [...approved].sort(
+            (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+          )[0]
+        : null
+    const learnedCount = input.learningProgress.filter(
+      (item) => item.status === 'learned',
+    ).length
+
+    const unlocked: Array<{
+      code: string
+      title: string
+      category: string
+      description: string
+      status: 'unlocked' | 'planned'
+      unlockedAt: string | null
+      detail: string | null
+    }> = []
+
+    const catalog = HIGHLIGHT_MOMENT_CATALOG.map((item) => {
+      let status: 'unlocked' | 'planned' = 'planned'
+      let unlockedAt: string | null = null
+      let detail: string | null = null
+
+      if (item.code === 'first_live' && input.firstLiveAt) {
+        status = 'unlocked'
+        unlockedAt = input.firstLiveAt.toISOString()
+        detail = '完成独立首播'
+      } else if (item.code === 'first_gift_received' && firstGiftOldest) {
+        status = 'unlocked'
+        unlockedAt = firstGiftOldest.createdAt.toISOString()
+        detail =
+          firstGiftOldest.items.map((row) => row.itemName).join('、') ||
+          '首次礼物提报通过'
+      } else if (item.code === 'course_path_cleared' && learnedCount > 0) {
+        status = 'unlocked'
+        unlockedAt = new Date().toISOString()
+        detail = `已学完 ${learnedCount} 门课程`
+      }
+
+      if (status === 'unlocked') {
+        unlocked.push({
+          ...item,
+          status,
+          unlockedAt,
+          detail,
+        })
+      }
+
+      return {
+        ...item,
+        status,
+        unlockedAt,
+        detail,
+      }
+    })
+
+    return {
+      available: true as const,
+      message:
+        unlocked.length > 0
+          ? `已解锁 ${unlocked.length} 项高光；营收阶梯等阈值后续可配置`
+          : '高光将随首播、收礼、课程等自动解锁；营收阶梯阈值后续可配置',
+      catalog,
+      items: unlocked,
     }
   }
 
@@ -1247,4 +1550,16 @@ function resolveAnchorLiveStatus(input: {
 /** 超级管理员可查看/处理全部运营数据域 */
 function isGlobalOperatorView(user: AuthenticatedUser) {
   return user.role === 'super_admin' && user.loginType === 'password_admin'
+}
+
+function parseReviewDate(value: string) {
+  const text = value.trim().slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    throw new BadRequestException('复盘日期格式应为 YYYY-MM-DD')
+  }
+  const date = new Date(`${text}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) {
+    throw new BadRequestException('复盘日期无效')
+  }
+  return date
 }

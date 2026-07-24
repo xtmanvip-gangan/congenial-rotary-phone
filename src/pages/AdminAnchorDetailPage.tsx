@@ -11,6 +11,10 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import {
+  DailyReviewPanel,
+  type DailyReviewItem,
+} from '../components/DailyReviewPanel'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
 import { LoadingBlock } from '../components/LoadingBlock'
@@ -150,7 +154,8 @@ type AnchorDetail = {
   reviews: {
     available: boolean
     message: string
-    items: unknown[]
+    firstLiveReviewCompletedAt?: string | null
+    items: DailyReviewItem[]
   }
 }
 
@@ -494,7 +499,9 @@ export function AdminAnchorDetailPage() {
           {tab === 'profile' ? <ProfileTab data={data} /> : null}
           {tab === 'gifts' ? <GiftsTab data={data} /> : null}
           {tab === 'training' ? <TrainingTab data={data} /> : null}
-          {tab === 'reviews' ? <ReviewsTab data={data} /> : null}
+          {tab === 'reviews' ? (
+            <ReviewsTab data={data} anchorId={anchorId} />
+          ) : null}
         </>
       ) : null}
     </div>
@@ -1169,28 +1176,35 @@ function TrainingTab({ data }: { data: AnchorDetail }) {
   )
 }
 
-function ReviewsTab({ data }: { data: AnchorDetail }) {
+function ReviewsTab({
+  data,
+  anchorId,
+}: {
+  data: AnchorDetail
+  anchorId: string
+}) {
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
-      <h3 className="text-base font-semibold text-slate-900">复盘记录</h3>
-      <div className="mt-4">
-        <EmptyState
-          title="功能建设中"
-          description={
-            data.reviews.message ||
-            '复盘记录为暂定项目，上线后将汇总首播复盘与日常复盘。'
-          }
-          tone="plain"
-        />
-      </div>
-      {data.onboarding?.firstReviewCompletedAt ? (
-        <p className="mt-4 rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          首播复盘节点已于{' '}
-          {formatDateTime(data.onboarding.firstReviewCompletedAt)} 完成（岗前节点，
-          非独立复盘档案）。
+    <div className="space-y-4">
+      {data.onboarding?.firstReviewCompletedAt ||
+      data.reviews.firstLiveReviewCompletedAt ? (
+        <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          岗前「首播复盘」节点已于{' '}
+          {formatDateTime(
+            data.reviews.firstLiveReviewCompletedAt ||
+              data.onboarding?.firstReviewCompletedAt ||
+              '',
+          )}{' '}
+          完成。以下为日常《主播日复盘表》（可写会长批注）。
         </p>
       ) : null}
-    </section>
+      <DailyReviewPanel
+        anchorId={anchorId}
+        items={data.reviews.items ?? []}
+        canWrite={false}
+        canLeaderNote
+        queryKeyToInvalidate={['admin-anchor-detail', anchorId]}
+      />
+    </div>
   )
 }
 

@@ -173,36 +173,66 @@ export class DashboardService {
 
   private async operatorDashboard(operatorId: string) {
     const weekStart = startOfShanghaiWeek(new Date())
-    const anchorScope = { currentOperatorId: operatorId }
+    const incubationCutoff = new Date(
+      Date.now() - 30 * 24 * 60 * 60 * 1000,
+    )
+    const confirmedScope = {
+      currentOperatorId: operatorId,
+      assignmentStatus: 'confirmed' as const,
+    }
     const [
       activeAnchors,
       pendingFirstLive,
+      incubating,
       pendingFirstLiveReview,
+      offlineAnchors,
+      leaveAnchors,
       weeklyRegistrations,
       trainingFollowups,
       giftTodos,
     ] = await Promise.all([
       this.prisma.anchorProfile.count({
-        where: { ...anchorScope, status: 'active' },
+        where: { ...confirmedScope, status: { not: 'exited' } },
       }),
+      // 待首播：已确认且未首播，且未退会
       this.prisma.anchorProfile.count({
         where: {
-          ...anchorScope,
-          onboardingProgress: { firstLiveAt: null },
+          ...confirmedScope,
+          status: { not: 'exited' },
+          OR: [
+            { onboardingProgress: null },
+            { onboardingProgress: { firstLiveAt: null } },
+          ],
         },
       }),
       this.prisma.anchorProfile.count({
         where: {
-          ...anchorScope,
+          ...confirmedScope,
+          status: { not: 'exited' },
+          onboardingProgress: {
+            firstLiveAt: { gte: incubationCutoff },
+          },
+        },
+      }),
+      this.prisma.anchorProfile.count({
+        where: {
+          ...confirmedScope,
+          status: { not: 'exited' },
           onboardingProgress: {
             firstLiveAt: { not: null },
             firstReviewCompletedAt: null,
           },
         },
       }),
+      this.prisma.anchorProfile.count({
+        where: { ...confirmedScope, status: 'paused' },
+      }),
+      this.prisma.anchorProfile.count({
+        where: { ...confirmedScope, status: 'leave' },
+      }),
       this.prisma.trainingRegistration.count({
         where: {
-          anchorProfile: anchorScope,
+          anchorProfile: confirmedScope,
           registeredAt: { gte: weekStart },
           status: { in: ['registered', 'waitlisted', 'learned'] },
         },
@@ -227,7 +257,10 @@ export class DashboardService {
     return response('operator', {
       activeAnchors,
       pendingFirstLive,
+      incubating,
       pendingFirstLiveReview,
+      offlineAnchors,
+      leaveAnchors,
       weeklyRegistrations,
       trainingFollowups,
       giftTodos,

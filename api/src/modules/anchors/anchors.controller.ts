@@ -14,6 +14,11 @@ import { AdminTransferAnchorsDto } from './dto/admin-transfer-anchors.dto.js'
 import { RejectAssignmentDto } from './dto/reject-assignment.dto.js'
 import { SelectOperatorDto } from './dto/select-operator.dto.js'
 import { UpdateAnchorDisplayNameDto } from './dto/update-anchor-display-name.dto.js'
+import { UpdateAnchorStatusDto } from './dto/update-anchor-status.dto.js'
+import {
+  UpdateLeaderNoteDto,
+  UpsertDailyReviewDto,
+} from './dto/upsert-daily-review.dto.js'
 
 @Controller('anchors')
 export class AnchorsController {
@@ -90,6 +95,43 @@ export class OperatorAnchorsController {
     return this.anchorsService.getOperatorAnchorDetail(
       this.authService.getCurrentUserFromAuthHeader(authorization),
       anchorId,
+    )
+  }
+
+  @Patch('anchors/:anchorId/status')
+  updateStatus(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('anchorId') anchorId: string,
+    @Body() dto: UpdateAnchorStatusDto,
+  ) {
+    return this.anchorsService.updateAnchorStatus(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      anchorId,
+      dto.status,
+    )
+  }
+
+  @Get('anchors/:anchorId/daily-reviews')
+  listDailyReviews(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('anchorId') anchorId: string,
+  ) {
+    return this.anchorsService.listDailyReviews(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      anchorId,
+    )
+  }
+
+  @Post('anchors/:anchorId/daily-reviews')
+  upsertDailyReview(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('anchorId') anchorId: string,
+    @Body() dto: UpsertDailyReviewDto,
+  ) {
+    return this.anchorsService.upsertDailyReview(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      anchorId,
+      dto,
     )
   }
 
@@ -174,6 +216,19 @@ export class AdminAnchorsController {
       this.authService.getCurrentUserFromAuthHeader(authorization),
       dto.anchorIds,
       dto.targetOperatorId,
+    )
+  }
+
+  @Patch('daily-reviews/:reviewId/leader-note')
+  updateLeaderNote(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('reviewId') reviewId: string,
+    @Body() dto: UpdateLeaderNoteDto,
+  ) {
+    return this.anchorsService.updateDailyReviewLeaderNote(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      reviewId,
+      dto.leaderNote,
     )
   }
 }
