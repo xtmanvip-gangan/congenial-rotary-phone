@@ -2,9 +2,11 @@ import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
   BookOpen,
+  Check,
   ClipboardList,
   Gift,
   RefreshCw,
+  Sparkles,
   UserRound,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -17,6 +19,18 @@ import { formatDateTime } from '../lib/dateTime'
 
 type TabKey = 'profile' | 'gifts' | 'training' | 'reviews'
 
+type Milestone = {
+  type: string
+  label: string
+  status: string
+  completedAt: string | null
+  submittedAt: string | null
+  note: string | null
+  evidence: Record<string, unknown> | null
+  attachmentUrls: string[]
+  rejectReason: string | null
+}
+
 type AnchorDetail = {
   profile: {
     id: string
@@ -26,11 +40,13 @@ type AnchorDetail = {
     assignmentStatus: string | null
     status: string
     activatedAt: string
+    membershipCompletedAt: string | null
     source: string
     createdAt: string
     updatedAt: string
     operator?: { id: string; displayName: string } | null
   }
+  evidenceFieldLabels?: Record<string, string>
   assignmentHistory: Array<{
     id: string
     status: string
@@ -53,18 +69,20 @@ type AnchorDetail = {
     nextMilestone: string | null
     firstLiveAt: string | null
     firstReviewCompletedAt: string | null
-    milestones: Array<{
-      type: string
-      label: string
-      status: string
-      completedAt: string | null
-      submittedAt: string | null
-      note: string | null
-      evidence: Record<string, unknown> | null
-      attachmentUrls: string[]
-      rejectReason: string | null
-    }>
+    milestones: Milestone[]
   } | null
+  highlights: {
+    available: boolean
+    message: string
+    catalog: Array<{
+      code: string
+      title: string
+      category: string
+      description: string
+      status: string
+    }>
+    items: unknown[]
+  }
   gifts: {
     summary: {
       total: number
@@ -169,12 +187,84 @@ const trainingStatusLabels: Record<string, string> = {
   completed: '已完成',
 }
 
+const highlightCategoryLabels: Record<string, string> = {
+  gift: '礼物',
+  revenue: '营收',
+  live: '开播',
+  training: '培训',
+}
+
+/** 前端兜底：与 API evidenceFieldLabels 对齐 */
+const fallbackEvidenceLabels: Record<string, string> = {
+  communicatedAt: '沟通时间',
+  channel: '沟通方式',
+  availableScheduleStart: '可直播开始时间',
+  availableScheduleEnd: '可直播结束时间',
+  deviceNetwork: '设备与网络',
+  voiceTraits: '声音特点',
+  interestsAndExperience: '兴趣经历',
+  liveExperience: '直播经验',
+  learningCommitment: '学习与投入意愿',
+  liveGoals: '直播目标',
+  concerns: '担心顾虑',
+  contentRecommendation: '内容推荐',
+  basicConditionsJudgment: '基本条件判断',
+  stabilityRisks: '稳定开播风险',
+  anchorChecklist: '主播确认清单',
+  trainedAt: '培训完成时间',
+  materialsConfirmed: '资料已确认',
+  liveSoftwareReady: '直播软件已安装并会使用',
+  accountPackReady: '直播账号四件套已设置',
+  redLinesUnderstood: '违规红线13条已清楚',
+  scheduleConfirmed: '开播时间段已确定',
+  mindsetAligned: '对直播的认知和心态已对齐',
+  coreMetricsUnderstood: '核心数据已理解',
+  toolsUnderstood: '辅助工具已了解',
+  scriptReceived: '直播脚本已收到',
+  processMemorized: '直播流程已记住',
+  firstLiveScheduled: '首播时间已定好',
+}
+
 const tabs: Array<{ key: TabKey; label: string; icon: typeof UserRound }> = [
-  { key: 'profile', label: '档案与岗前', icon: UserRound },
+  { key: 'profile', label: '档案与轨迹', icon: UserRound },
   { key: 'gifts', label: '礼物收集', icon: Gift },
   { key: 'training', label: '课程学习', icon: BookOpen },
   { key: 'reviews', label: '复盘记录', icon: ClipboardList },
 ]
+
+function formatDateOnly(value: string | null | undefined) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value))
+}
+
+function labelEvidenceKey(
+  key: string,
+  labels?: Record<string, string>,
+): string {
+  return labels?.[key] ?? fallbackEvidenceLabels[key] ?? key
+}
+
+function formatEvidenceValue(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'boolean') return value ? '是' : '否'
+  if (Array.isArray(value)) return value.map(String).join('、')
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v != null && v !== '' && v !== false)
+      .map(([k, v]) => {
+        const subLabel = fallbackEvidenceLabels[k] ?? k
+        if (typeof v === 'boolean') return v ? subLabel : null
+        return `${subLabel}：${formatEvidenceValue(v)}`
+      })
+      .filter(Boolean)
+      .join('；')
+  }
+  return String(value)
+}
 
 export function AdminAnchorDetailPage() {
   const { anchorId = '' } = useParams()
@@ -239,7 +329,9 @@ export function AdminAnchorDetailPage() {
                   {statusLabel}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  激活 {formatDateTime(profile.activatedAt)}
+                  入会 {formatDateOnly(profile.membershipCompletedAt)}
+                  <span className="mx-1.5">·</span>
+                  档案激活 {formatDateTime(profile.activatedAt)}
                   <span className="mx-1.5">·</span>
                   来源 {profile.source}
                   <span className="mx-1.5">·</span>
@@ -292,9 +384,13 @@ export function AdminAnchorDetailPage() {
               helper={`报名 ${data.training.summary.registrationCount} 次`}
             />
             <SummaryChip
-              label="复盘记录"
-              value={data.reviews.available ? String(data.reviews.items.length) : '—'}
-              helper={data.reviews.available ? undefined : '建设中'}
+              label="高光时刻"
+              value={
+                data.highlights.available
+                  ? String(data.highlights.items.length)
+                  : '—'
+              }
+              helper={data.highlights.available ? undefined : '阶梯建设中'}
             />
           </div>
         ) : null}
@@ -336,96 +432,263 @@ export function AdminAnchorDetailPage() {
 }
 
 function ProfileTab({ data }: { data: AnchorDetail }) {
+  const labels = data.evidenceFieldLabels
+  const total = data.onboarding?.totalCount ?? 7
+  const done = data.onboarding?.completedCount ?? 0
+  const progressPct = total > 0 ? Math.round((done / total) * 100) : 0
+
   return (
-    <div className="grid gap-6 xl:grid-cols-2">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
-        <h3 className="text-base font-semibold text-slate-900">岗前里程碑</h3>
-        {!data.onboarding ? (
+    <div className="space-y-6">
+      {/* 岗前成长轨迹 */}
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-brand-50/80 via-white to-cyan-50/40 px-6 py-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-brand-600">
+                Growth Track
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-slate-900">
+                岗前成长轨迹
+              </h3>
+              <p className="mt-1 text-sm text-slate-500">
+                从入会到首播复盘的孵化节点，按时间顺序推进
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-semibold tabular-nums text-brand-700">
+                {done}
+                <span className="text-base font-medium text-slate-400">
+                  /{total}
+                </span>
+              </p>
+              <p className="text-xs text-slate-400">完成度 {progressPct}%</p>
+            </div>
+          </div>
+
           <div className="mt-4">
+            <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400 transition-all duration-500"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            {data.onboarding?.nextMilestone ? (
+              <p className="mt-2 text-xs text-slate-500">
+                当前节点：
+                {data.onboarding.milestones.find(
+                  (m) => m.type === data.onboarding?.nextMilestone,
+                )?.label ?? data.onboarding.nextMilestone}
+              </p>
+            ) : data.onboarding && done >= total ? (
+              <p className="mt-2 text-xs font-medium text-emerald-600">
+                岗前轨迹已全部完成
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="px-6 py-6">
+          {!data.onboarding ? (
             <EmptyState
               title="尚未初始化岗前进度"
               description="运营确认归属后会生成岗前节点。"
               tone="plain"
             />
-          </div>
-        ) : (
-          <div className="mt-4 space-y-3">
-            {data.onboarding.milestones.map((item) => (
-              <article
-                key={item.type}
-                className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium text-slate-800">{item.label}</p>
-                  <span className="text-xs font-medium text-slate-500">
-                    {milestoneStatusLabels[item.status] ?? item.status}
-                  </span>
-                </div>
-                {item.completedAt || item.submittedAt ? (
-                  <p className="mt-1 text-xs text-slate-400">
-                    {item.completedAt
-                      ? `完成 ${formatDateTime(item.completedAt)}`
-                      : `提交 ${formatDateTime(item.submittedAt!)}`}
-                  </p>
-                ) : null}
-                {item.note ? (
-                  <p className="mt-2 text-sm text-slate-600">{item.note}</p>
-                ) : null}
-                {item.rejectReason ? (
-                  <p className="mt-1 text-sm text-rose-600">
-                    驳回：{item.rejectReason}
-                  </p>
-                ) : null}
-                {item.evidence ? (
-                  <dl className="mt-2 grid gap-1 text-xs text-slate-500">
-                    {Object.entries(item.evidence)
-                      .filter(([, value]) => {
-                        if (value == null || value === '') return false
-                        if (Array.isArray(value) && value.length === 0)
-                          return false
-                        return true
-                      })
-                      .slice(0, 8)
-                      .map(([key, value]) => (
-                        <div key={key} className="flex gap-2">
-                          <dt className="shrink-0 text-slate-400">{key}</dt>
-                          <dd className="min-w-0 break-words text-slate-600">
-                            {Array.isArray(value)
-                              ? value.join('、')
-                              : typeof value === 'object'
-                                ? JSON.stringify(value)
-                                : String(value)}
-                          </dd>
-                        </div>
-                      ))}
-                  </dl>
-                ) : null}
-                {item.attachmentUrls.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {item.attachmentUrls.map((url) => (
-                      <a
-                        key={url}
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block h-16 w-16 overflow-hidden rounded-xl border border-slate-200 bg-white"
+          ) : (
+            <ol className="relative space-y-0">
+              {data.onboarding.milestones.map((item, index) => {
+                const isLast =
+                  index === (data.onboarding?.milestones.length ?? 0) - 1
+                const completed = item.status === 'completed'
+                const waiting = item.status === 'awaiting_anchor_confirm'
+                const pending = item.status === 'pending'
+                const isCurrent =
+                  data.onboarding?.nextMilestone === item.type && !completed
+
+                return (
+                  <li key={item.type} className="relative flex gap-4 pb-8 last:pb-0">
+                    {/* 竖线 */}
+                    {!isLast ? (
+                      <span
+                        className={[
+                          'absolute left-[15px] top-8 bottom-0 w-0.5',
+                          completed
+                            ? 'bg-gradient-to-b from-brand-400 to-brand-200'
+                            : 'bg-slate-200',
+                        ].join(' ')}
+                        aria-hidden
+                      />
+                    ) : null}
+
+                    {/* 节点圆点 */}
+                    <div className="relative z-10 shrink-0">
+                      <span
+                        className={[
+                          'flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ring-4 ring-white',
+                          completed
+                            ? 'bg-brand-600 text-white shadow-md shadow-brand-200'
+                            : waiting
+                              ? 'bg-amber-400 text-white shadow-md shadow-amber-100'
+                              : isCurrent
+                                ? 'bg-white text-brand-600 ring-brand-100 border-2 border-brand-400'
+                                : 'bg-slate-100 text-slate-400',
+                        ].join(' ')}
                       >
-                        <img
-                          src={url}
-                          alt=""
-                          className="h-full w-full object-cover"
+                        {completed ? (
+                          <Check className="h-4 w-4" strokeWidth={2.5} />
+                        ) : (
+                          index + 1
+                        )}
+                      </span>
+                    </div>
+
+                    {/* 内容卡 */}
+                    <div
+                      className={[
+                        'min-w-0 flex-1 rounded-2xl border px-4 py-3 transition',
+                        completed
+                          ? 'border-brand-100 bg-brand-50/40'
+                          : waiting
+                            ? 'border-amber-200 bg-amber-50/50'
+                            : isCurrent
+                              ? 'border-brand-200 bg-white shadow-sm'
+                              : 'border-slate-100 bg-slate-50/60',
+                      ].join(' ')}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            {item.label}
+                          </p>
+                          <p className="mt-0.5 text-xs text-slate-400">
+                            {item.completedAt
+                              ? `完成于 ${formatDateTime(item.completedAt)}`
+                              : item.submittedAt
+                                ? `提交于 ${formatDateTime(item.submittedAt)}`
+                                : pending
+                                  ? '等待推进'
+                                  : null}
+                          </p>
+                        </div>
+                        <span
+                          className={[
+                            'inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium',
+                            completed
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : waiting
+                                ? 'bg-amber-100 text-amber-800'
+                                : isCurrent
+                                  ? 'bg-brand-100 text-brand-700'
+                                  : 'bg-slate-200/80 text-slate-500',
+                          ].join(' ')}
+                        >
+                          {isCurrent && pending
+                            ? '进行中'
+                            : milestoneStatusLabels[item.status] ?? item.status}
+                        </span>
+                      </div>
+
+                      {item.note ? (
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          {item.note}
+                        </p>
+                      ) : null}
+                      {item.rejectReason ? (
+                        <p className="mt-2 text-sm text-rose-600">
+                          驳回：{item.rejectReason}
+                        </p>
+                      ) : null}
+
+                      {item.evidence ? (
+                        <EvidenceBlock
+                          evidence={item.evidence}
+                          labels={labels}
+                          membershipCompletedAt={
+                            data.profile.membershipCompletedAt
+                          }
+                          milestoneType={item.type}
                         />
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
-              </article>
-            ))}
-          </div>
-        )}
+                      ) : null}
+
+                      {item.attachmentUrls.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {item.attachmentUrls.map((url) => (
+                            <a
+                              key={url}
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block h-16 w-16 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+                            >
+                              <img
+                                src={url}
+                                alt=""
+                                className="h-full w-full object-cover"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </li>
+                )
+              })}
+            </ol>
+          )}
+        </div>
       </section>
 
-      <div className="space-y-6">
+      {/* 高光时刻 */}
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-amber-50/90 via-white to-orange-50/40 px-6 py-5">
+          <div className="flex flex-wrap items-start gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+              <Sparkles className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-amber-700">
+                Highlight Moments
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-slate-900">
+                高光时刻
+              </h3>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+                与岗前孵化轨并列的<strong className="font-medium text-slate-700">成长成就轨</strong>
+                ：记录首次收礼、营收阶梯、连续开播等里程碑。阶梯阈值后续可配置，当前先展示规划目录。
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-5">
+          <p className="mb-4 rounded-2xl bg-amber-50/80 px-3 py-2 text-sm text-amber-800">
+            {data.highlights.message}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {(data.highlights.catalog ?? []).map((item) => (
+              <div
+                key={item.code}
+                className="relative overflow-hidden rounded-2xl border border-dashed border-amber-200/80 bg-gradient-to-br from-white to-amber-50/40 px-4 py-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-100">
+                    {highlightCategoryLabels[item.category] ?? item.category}
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-400">
+                    待解锁
+                  </span>
+                </div>
+                <p className="mt-2 font-semibold text-slate-800">{item.title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  {item.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-2">
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
           <h3 className="text-base font-semibold text-slate-900">归属历史</h3>
           <div className="mt-4 space-y-2">
@@ -475,6 +738,81 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
         </section>
       </div>
     </div>
+  )
+}
+
+/** 证据字段中文化展示；初次沟通额外展示入会日期 */
+function EvidenceBlock({
+  evidence,
+  labels,
+  membershipCompletedAt,
+  milestoneType,
+}: {
+  evidence: Record<string, unknown>
+  labels?: Record<string, string>
+  membershipCompletedAt: string | null
+  milestoneType: string
+}) {
+  const entries = Object.entries(evidence).filter(([, value]) => {
+    if (value == null || value === '') return false
+    if (Array.isArray(value) && value.length === 0) return false
+    return true
+  })
+
+  // 可直播时段合并展示
+  const scheduleStart = evidence.availableScheduleStart
+  const scheduleEnd = evidence.availableScheduleEnd
+  const hasSchedule =
+    typeof scheduleStart === 'string' &&
+    scheduleStart &&
+    typeof scheduleEnd === 'string' &&
+    scheduleEnd
+
+  const skipKeys = new Set(
+    hasSchedule
+      ? ['availableScheduleStart', 'availableScheduleEnd']
+      : ([] as string[]),
+  )
+
+  const rows: Array<{ label: string; value: string }> = []
+
+  if (milestoneType === 'initial_communication') {
+    rows.push({
+      label: '入会日期',
+      value: formatDateOnly(membershipCompletedAt),
+    })
+  }
+
+  if (hasSchedule) {
+    rows.push({
+      label: '可直播时段',
+      value: `${String(scheduleStart)} – ${String(scheduleEnd)}`,
+    })
+  }
+
+  for (const [key, value] of entries) {
+    if (skipKeys.has(key)) continue
+    const formatted = formatEvidenceValue(value)
+    if (!formatted) continue
+    rows.push({
+      label: labelEvidenceKey(key, labels),
+      value: formatted,
+    })
+  }
+
+  if (rows.length === 0) return null
+
+  return (
+    <dl className="mt-3 grid gap-2 rounded-xl border border-slate-100 bg-white/80 px-3 py-3 sm:grid-cols-2">
+      {rows.map((row) => (
+        <div key={row.label} className="min-w-0">
+          <dt className="text-[11px] font-medium text-slate-400">{row.label}</dt>
+          <dd className="mt-0.5 text-sm leading-5 text-slate-700 break-words">
+            {row.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
   )
 }
 

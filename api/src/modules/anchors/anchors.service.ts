@@ -8,9 +8,51 @@ import { PrismaService } from '../../prisma/prisma.service.js'
 import { AccessService } from '../access/access.service.js'
 import type { AuthenticatedUser } from '../auth/auth.types.js'
 import {
+  INITIAL_COMMUNICATION_FIELD_LABELS,
   MILESTONE_LABELS,
   ONBOARDING_PROGRESS_MILESTONES,
+  TRAINING_CONFIRM_ITEMS,
 } from '../onboarding/onboarding.constants.js'
+
+/** 高光时刻（成长成就）预置阶梯目录；阈值与自动判定后续配置 */
+const HIGHLIGHT_MOMENT_CATALOG = [
+  {
+    code: 'first_gift_received',
+    title: '首次收到礼物',
+    category: 'gift',
+    description: '首次有礼物提报通过审核',
+  },
+  {
+    code: 'first_named_gift',
+    title: '首次收到指定礼物',
+    category: 'gift',
+    description: '首次收到某类/某个命名礼物（名单可配置）',
+  },
+  {
+    code: 'gift_revenue_tier',
+    title: '礼物营收阶梯',
+    category: 'revenue',
+    description: '累计/单场礼物营收达到阶梯（阈值后续可配）',
+  },
+  {
+    code: 'first_live',
+    title: '独立首播',
+    category: 'live',
+    description: '完成独立首播节点',
+  },
+  {
+    code: 'continuous_live_streak',
+    title: '连续开播',
+    category: 'live',
+    description: '连续 N 天开播（天数可配）',
+  },
+  {
+    code: 'course_path_cleared',
+    title: '课程路径通关',
+    category: 'training',
+    description: '完成指定课程序列',
+  },
+] as const
 
 const profileInclude = {
   wecomUser: {
@@ -470,6 +512,12 @@ export class AnchorsService {
           orderBy: { createdAt: 'desc' },
           take: 20,
         },
+        activationTask: {
+          select: {
+            membershipCompletedAt: true,
+            status: true,
+          },
+        },
       },
     })
 
@@ -603,14 +651,27 @@ export class AnchorsService {
       progressCount: learningProgress.length,
     }
 
+    const evidenceFieldLabels: Record<string, string> = {
+      ...INITIAL_COMMUNICATION_FIELD_LABELS,
+      ...Object.fromEntries(
+        TRAINING_CONFIRM_ITEMS.map((item) => [item.key, item.label]),
+      ),
+      anchorChecklist: '主播确认清单',
+      trainedAt: '培训完成时间',
+      materialsConfirmed: '资料已确认',
+    }
+
     return {
       profile: {
         ...this.toProfileItem(profile),
         wecomUserId: profile.wecomUser.wecomUserId,
         source: profile.source,
+        membershipCompletedAt:
+          profile.activationTask?.membershipCompletedAt?.toISOString() ?? null,
         createdAt: profile.createdAt.toISOString(),
         updatedAt: profile.updatedAt.toISOString(),
       },
+      evidenceFieldLabels,
       assignmentHistory: profile.assignments.map((item) => ({
         id: item.id,
         status: item.status,
@@ -643,6 +704,20 @@ export class AnchorsService {
             milestones,
           }
         : null,
+      /**
+       * 高光时刻：主播成长成就轨（与岗前孵化轨并列）
+       * 阶梯阈值与自动解锁后续配置，当前仅返回目录与空列表
+       */
+      highlights: {
+        available: false as const,
+        message:
+          '高光时刻建设中：将自动沉淀首次收礼、营收阶梯、连续开播等成就，阈值可后续配置',
+        catalog: HIGHLIGHT_MOMENT_CATALOG.map((item) => ({
+          ...item,
+          status: 'planned' as const,
+        })),
+        items: [] as const,
+      },
       gifts: {
         summary: giftSummary,
         items: submissions.map((item) => ({
