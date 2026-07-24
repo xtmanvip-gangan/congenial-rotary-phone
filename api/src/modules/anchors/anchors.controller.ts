@@ -6,9 +6,11 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common'
 import { AuthService } from '../auth/auth.service.js'
 import { AnchorsService } from './anchors.service.js'
+import { AdminTransferAnchorsDto } from './dto/admin-transfer-anchors.dto.js'
 import { RejectAssignmentDto } from './dto/reject-assignment.dto.js'
 import { SelectOperatorDto } from './dto/select-operator.dto.js'
 import { UpdateAnchorDisplayNameDto } from './dto/update-anchor-display-name.dto.js'
@@ -116,6 +118,40 @@ export class OperatorAssignmentsController {
       this.authService.getCurrentUserFromAuthHeader(authorization),
       assignmentId,
       dto.reason,
+    )
+  }
+}
+
+/** 超管：主播全景与调度 */
+@Controller('admin/anchors')
+export class AdminAnchorsController {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly anchorsService: AnchorsService,
+  ) {}
+
+  @Get()
+  list(
+    @Headers('authorization') authorization: string | undefined,
+    @Query('operatorId') operatorId?: string,
+    @Query('assignmentStatus') assignmentStatus?: string,
+    @Query('keyword') keyword?: string,
+  ) {
+    return this.anchorsService.listAdminAnchors(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      { operatorId, assignmentStatus, keyword },
+    )
+  }
+
+  @Post('transfer')
+  transfer(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() dto: AdminTransferAnchorsDto,
+  ) {
+    return this.anchorsService.transferSelectedAnchors(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      dto.anchorIds,
+      dto.targetOperatorId,
     )
   }
 }

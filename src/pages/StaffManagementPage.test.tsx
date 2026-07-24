@@ -6,6 +6,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { StaffManagementPage } from './StaffManagementPage'
 
@@ -28,9 +29,11 @@ function renderPage() {
   })
 
   return render(
-    <QueryClientProvider client={queryClient}>
-      <StaffManagementPage />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <StaffManagementPage />
+      </QueryClientProvider>
+    </MemoryRouter>,
   )
 }
 

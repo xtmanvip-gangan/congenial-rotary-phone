@@ -1,0 +1,529 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  ArrowRightLeft,
+  LoaderCircle,
+  RefreshCw,
+  Search,
+  UsersRound,
+} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { EmptyState } from '../components/EmptyState'
+import { ErrorBlock } from '../components/ErrorBlock'
+import { LoadingBlock } from '../components/LoadingBlock'
+import { apiJson } from '../lib/api'
+import { formatDateTime } from '../lib/dateTime'
+
+type OperatorOption = { id: string; displayName: string }
+
+type AdminAnchorItem = {
+  id: string
+  wecomName: string
+  anchorDisplayName: string
+  assignmentStatus: string | null
+  status: string
+  activatedAt: string
+  operator?: OperatorOption | null
+  onboarding: {
+    completedCount: number
+    totalCount: number
+    nextMilestone: string | null
+  } | null
+}
+
+const assignmentLabels: Record<string, string> = {
+  pending_confirmation: '待运营确认',
+  confirmed: '已确认',
+  rejected: '已拒绝',
+  ended: '已结束',
+}
+
+const assignmentTone: Record<string, string> = {
+  pending_confirmation:
+    'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200/60',
+  confirmed:
+    'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/60',
+  rejected: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/60',
+  ended: 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200/80',
+}
+
+const milestoneLabels: Record<string, string> = {
+  initial_communication: '初次沟通',
+  homepage_ready: '个人主页',
+  live_software_ready: '直播软件',
+  helper_software_ready: '辅助软件',
+  prejob_learning_completed: '岗前基础学习',
+  first_live_completed: '独立首播',
+  first_live_review_completed: '首播复盘',
+}
+
+export function AdminAnchorsPage() {
+  const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [keyword, setKeyword] = useState(searchParams.get('keyword') ?? '')
+  const [operatorId, setOperatorId] = useState(
+    searchParams.get('operatorId') ?? '',
+  )
+  const [assignmentStatus, setAssignmentStatus] = useState(
+    searchParams.get('assignmentStatus') ?? '',
+  )
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [transferOpen, setTransferOpen] = useState(false)
+  const [targetOperatorId, setTargetOperatorId] = useState('')
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error'
+    text: string
+  } | null>(null)
+
+  // 同步 URL 查询（员工页「去转交」会带 operatorId）
+  useEffect(() => {
+    const next = new URLSearchParams()
+    if (operatorId) next.set('operatorId', operatorId)
+    if (assignmentStatus) next.set('assignmentStatus', assignmentStatus)
+    if (keyword.trim()) next.set('keyword', keyword.trim())
+    setSearchParams(next, { replace: true })
+  }, [operatorId, assignmentStatus, keyword, setSearchParams])
+
+  const operatorsQuery = useQuery({
+    queryKey: ['active-operators'],
+    queryFn: () =>
+      apiJson<{ items: OperatorOption[] }>('/staff/operators/active'),
+  })
+
+  const anchorsQuery = useQuery({
+    queryKey: ['admin-anchors', operatorId, assignmentStatus, keyword],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (operatorId) params.set('operatorId', operatorId)
+      if (assignmentStatus) params.set('assignmentStatus', assignmentStatus)
+      if (keyword.trim()) params.set('keyword', keyword.trim())
+      const qs = params.toString()
+      return apiJson<{ items: AdminAnchorItem[] }>(
+        `/admin/anchors${qs ? `?${qs}` : ''}`,
+      )
+    },
+  })
+
+  const transferMutation = useMutation({
+    mutationFn: (payload: {
+      anchorIds: string[]
+      targetOperatorId: string
+    }) =>
+      apiJson<{
+        transferredCount: number
+        skippedCount: number
+        targetOperator: OperatorOption
+      }>('/admin/anchors/transfer', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: async (result) => {
+      setTransferOpen(false)
+      setTargetOperatorId('')
+      setSelected(new Set())
+      setFeedback({
+        type: 'success',
+        text: `已转交 ${result.transferredCount} 位主播给「${result.targetOperator.displayName}」${
+          result.skippedCount
+            ? `（跳过已在其名下 ${result.skippedCount} 位）`
+            : ''
+        }，等待新运营确认`,
+      })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['admin-anchors'] }),
+        queryClient.invalidateQueries({ queryKey: ['staff'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['operator-pending-assignments'],
+        }),
+        queryClient.invalidateQueries({ queryKey: ['operator-anchors'] }),
+      ])
+    },
+    onError: (error) =>
+      setFeedback({
+        type: 'error',
+        text: error instanceof Error ? error.message : '转交失败',
+      }),
+  })
+
+  const items = anchorsQuery.data?.items ?? []
+  const operators = operatorsQuery.data?.items ?? []
+
+  const counts = useMemo(() => {
+    const base = {
+      all: items.length,
+      pending: 0,
+      confirmed: 0,
+      rejected: 0,
+      none: 0,
+    }
+    for (const item of items) {
+      if (item.assignmentStatus === 'pending_confirmation') base.pending += 1
+      else if (item.assignmentStatus === 'confirmed') base.confirmed += 1
+      else if (item.assignmentStatus === 'rejected') base.rejected += 1
+      else base.none += 1
+    }
+    return base
+  }, [items])
+
+  const selectedItems = items.filter((item) => selected.has(item.id))
+  const allVisibleSelected =
+    items.length > 0 && items.every((item) => selected.has(item.id))
+
+  function toggleAllVisible() {
+    if (allVisibleSelected) {
+      setSelected(new Set())
+      return
+    }
+    setSelected(new Set(items.map((item) => item.id)))
+  }
+
+  function toggleOne(id: string) {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function openTransfer() {
+    if (selected.size === 0) {
+      setFeedback({ type: 'error', text: '请先勾选要转交的主播' })
+      return
+    }
+    setFeedback(null)
+    setTargetOperatorId('')
+    setTransferOpen(true)
+  }
+
+  function submitTransfer() {
+    if (!targetOperatorId) {
+      setFeedback({ type: 'error', text: '请选择接收的运营老师' })
+      return
+    }
+    transferMutation.mutate({
+      anchorIds: [...selected],
+      targetOperatorId,
+    })
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-brand-600">组织调度</p>
+            <h2 className="mt-1 text-2xl font-semibold text-slate-900">
+              主播全景
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              查看全部主播的运营归属与岗前进度。可勾选主播分散转交给不同运营；转交后需新运营确认。
+            </p>
+          </div>
+          <button
+            type="button"
+            className="app-btn-secondary shrink-0"
+            disabled={anchorsQuery.isFetching}
+            onClick={() => void anchorsQuery.refetch()}
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${anchorsQuery.isFetching ? 'animate-spin' : ''}`}
+            />
+            刷新
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryChip label="当前列表" value={counts.all} tone="slate" />
+          <SummaryChip label="已确认" value={counts.confirmed} tone="emerald" />
+          <SummaryChip label="待确认" value={counts.pending} tone="amber" />
+          <SummaryChip label="已拒绝/其它" value={counts.rejected + counts.none} tone="rose" />
+        </div>
+
+        {feedback ? (
+          <p
+            className={[
+              'mt-4 rounded-2xl px-3 py-2 text-sm',
+              feedback.type === 'success'
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-rose-50 text-rose-700',
+            ].join(' ')}
+          >
+            {feedback.text}
+          </p>
+        ) : null}
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="min-w-[10rem] flex-1 text-xs font-medium text-slate-600">
+            当前运营
+            <select
+              className="mt-1.5 app-field"
+              value={operatorId}
+              onChange={(e) => {
+                setOperatorId(e.target.value)
+                setSelected(new Set())
+              }}
+            >
+              <option value="">全部运营</option>
+              {operators.map((op) => (
+                <option key={op.id} value={op.id}>
+                  {op.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="min-w-[10rem] flex-1 text-xs font-medium text-slate-600">
+            归属状态
+            <select
+              className="mt-1.5 app-field"
+              value={assignmentStatus}
+              onChange={(e) => {
+                setAssignmentStatus(e.target.value)
+                setSelected(new Set())
+              }}
+            >
+              <option value="">全部状态</option>
+              <option value="confirmed">已确认</option>
+              <option value="pending_confirmation">待运营确认</option>
+              <option value="rejected">已拒绝</option>
+              <option value="ended">已结束</option>
+            </select>
+          </label>
+          <label className="relative min-w-[14rem] flex-[1.5] text-xs font-medium text-slate-600">
+            搜索
+            <span className="relative mt-1.5 block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                className="app-field pl-9"
+                placeholder="主播名 / 企微 / 运营"
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+              />
+            </span>
+          </label>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={allVisibleSelected}
+              onChange={toggleAllVisible}
+              disabled={items.length === 0}
+            />
+            全选当前列表（{selected.size} 已选）
+          </label>
+          <button
+            type="button"
+            className="app-btn-primary"
+            disabled={selected.size === 0 || transferMutation.isPending}
+            onClick={openTransfer}
+          >
+            <ArrowRightLeft className="h-4 w-4" />
+            转交所选主播
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          {anchorsQuery.isLoading ? (
+            <LoadingBlock text="正在加载主播全景…" />
+          ) : null}
+          {anchorsQuery.isError ? (
+            <ErrorBlock
+              message={
+                anchorsQuery.error instanceof Error
+                  ? anchorsQuery.error.message
+                  : '主播列表加载失败'
+              }
+            />
+          ) : null}
+
+          {!anchorsQuery.isLoading &&
+          !anchorsQuery.isError &&
+          items.length === 0 ? (
+            <EmptyState
+              title="没有符合条件的主播"
+              description="调整筛选条件，或从员工页进入某运营的在管列表。"
+              tone="plain"
+            />
+          ) : null}
+
+          {items.map((item) => {
+            const status = item.assignmentStatus ?? ''
+            const statusLabel =
+              assignmentLabels[status] ?? (status ? status : '未分配')
+            const tone =
+              assignmentTone[status] ??
+              'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200/80'
+            const done = item.onboarding?.completedCount ?? 0
+            const total = item.onboarding?.totalCount ?? 7
+            const next = item.onboarding?.nextMilestone
+              ? milestoneLabels[item.onboarding.nextMilestone] ??
+                item.onboarding.nextMilestone
+              : null
+
+            return (
+              <article
+                key={item.id}
+                className={[
+                  'rounded-2xl border p-4 transition',
+                  selected.has(item.id)
+                    ? 'border-brand-300 bg-brand-50/30'
+                    : 'border-slate-200 bg-white hover:border-slate-300',
+                ].join(' ')}
+              >
+                <div className="flex flex-wrap items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={selected.has(item.id)}
+                    onChange={() => toggleOne(item.id)}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="font-semibold text-slate-900">
+                        {item.anchorDisplayName}
+                      </h4>
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${tone}`}
+                      >
+                        {statusLabel}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-sm text-slate-500">
+                      企微：{item.wecomName || '—'}
+                      <span className="mx-1.5 text-slate-300">·</span>
+                      运营：{item.operator?.displayName ?? '未分配'}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      激活 {formatDateTime(item.activatedAt)}
+                      <span className="mx-1.5">·</span>
+                      岗前 {done}/{total}
+                      {next ? ` · 下一步 ${next}` : done >= total ? ' · 岗前完成' : ''}
+                    </p>
+                  </div>
+                  {item.assignmentStatus === 'confirmed' ? (
+                    <Link
+                      className="app-btn-secondary text-xs"
+                      to={`/operator/anchors/${item.id}/onboarding`}
+                    >
+                      查看岗前
+                    </Link>
+                  ) : null}
+                </div>
+              </article>
+            )
+          })}
+        </div>
+
+        {selectedItems.length > 0 ? (
+          <p className="mt-4 text-xs text-slate-500">
+            已选：
+            {selectedItems
+              .slice(0, 5)
+              .map((item) => item.anchorDisplayName)
+              .join('、')}
+            {selectedItems.length > 5
+              ? ` 等 ${selectedItems.length} 人`
+              : ''}
+          </p>
+        ) : null}
+      </section>
+
+      {transferOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <p className="text-sm font-semibold text-slate-900">
+                转交所选主播
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                将 {selected.size}{' '}
+                位主播转交给目标运营，归属变为「待运营确认」，由对方在「主播与归属」中确认。
+              </p>
+            </div>
+            <div className="space-y-3 px-5 py-4">
+              <label className="block text-sm font-medium text-slate-700">
+                接收的运营老师
+                <select
+                  className="mt-2 app-field"
+                  value={targetOperatorId}
+                  onChange={(e) => setTargetOperatorId(e.target.value)}
+                >
+                  <option value="">请选择运营老师</option>
+                  {operators.map((op) => (
+                    <option key={op.id} value={op.id}>
+                      {op.displayName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="max-h-32 overflow-y-auto rounded-2xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                {selectedItems.map((item) => (
+                  <p key={item.id}>
+                    {item.anchorDisplayName}
+                    <span className="text-slate-400">
+                      {' '}
+                      · 现运营 {item.operator?.displayName ?? '未分配'}
+                    </span>
+                  </p>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="app-btn-secondary"
+                disabled={transferMutation.isPending}
+                onClick={() => setTransferOpen(false)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="app-btn-primary"
+                disabled={transferMutation.isPending || !targetOperatorId}
+                onClick={submitTransfer}
+              >
+                {transferMutation.isPending ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowRightLeft className="h-4 w-4" />
+                )}
+                确认转交
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function SummaryChip({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number
+  tone: 'slate' | 'emerald' | 'amber' | 'rose'
+}) {
+  const tones = {
+    slate: 'border-slate-100 bg-slate-50/80 text-slate-800',
+    emerald: 'border-emerald-100 bg-emerald-50/70 text-emerald-700',
+    amber: 'border-amber-100 bg-amber-50/70 text-amber-700',
+    rose: 'border-rose-100 bg-rose-50/70 text-rose-700',
+  }[tone]
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${tones}`}>
+      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+        <UsersRound className="h-3.5 w-3.5" />
+        {label}
+      </div>
+      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+    </div>
+  )
+}

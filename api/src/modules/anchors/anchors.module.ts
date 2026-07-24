@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { AuthModule } from '../auth/auth.module.js'
 import {
+  AdminAnchorsController,
   AnchorsController,
   OperatorAnchorsController,
   OperatorAssignmentsController,
@@ -13,6 +14,7 @@ import { AnchorsService } from './anchors.service.js'
     AnchorsController,
     OperatorAnchorsController,
     OperatorAssignmentsController,
+    AdminAnchorsController,
   ],
   providers: [AnchorsService],
   exports: [AnchorsService],

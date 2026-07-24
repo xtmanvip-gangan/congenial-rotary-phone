@@ -6,7 +6,6 @@ import {
   ClipboardList,
   Download,
   FolderKanban,
-  GraduationCap,
   Home,
   LayoutDashboard,
   ListChecks,
@@ -57,15 +56,15 @@ export function getStaffNavGroups(role: AppRole): NavGroup[] {
         ],
       },
       {
-        title: '人员与主播',
+        title: '组织调度',
         items: [
           { label: '员工与角色', to: '/admin/staff', icon: Users },
-          { label: '主播激活', to: '/audit/activations', icon: UserCheck },
-          { label: '主播与归属', to: '/operator/anchors', icon: UsersRound },
+          { label: '主播全景', to: '/admin/anchors', icon: UsersRound },
+          { label: '激活监管', to: '/audit/activations', icon: UserCheck },
         ],
       },
       {
-        title: '礼物业务',
+        title: '礼物配置',
         items: [
           { label: '活动记录', to: '/admin/records', icon: ClipboardList },
           { label: '活动管理', to: '/admin/activities', icon: FolderKanban },
@@ -74,17 +73,16 @@ export function getStaffNavGroups(role: AppRole): NavGroup[] {
         ],
       },
       {
-        title: '培训中心',
+        title: '培训配置',
         items: [
           { label: '课程管理', to: '/training/courses', icon: BookOpen },
           { label: '排课与场次', to: '/training/sessions', icon: CalendarDays },
           { label: '参会处理', to: '/training/attendance', icon: ListChecks },
-          { label: '培训代报名', to: '/operator/training', icon: GraduationCap },
           { label: '培训运营', to: '/training/operations', icon: Activity },
         ],
       },
       {
-        title: '运维',
+        title: '系统运维',
         items: [
           { label: '任务与异常', to: '/operations', icon: ShieldAlert },
         ],

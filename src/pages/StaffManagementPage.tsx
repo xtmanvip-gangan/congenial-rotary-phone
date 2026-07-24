@@ -11,6 +11,7 @@ import {
   Users,
 } from 'lucide-react'
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
 import { LoadingBlock } from '../components/LoadingBlock'
@@ -28,11 +29,6 @@ type StaffItem = {
   managedAnchorCount?: number
   createdAt: string
   updatedAt: string
-}
-
-type OperatorOption = {
-  id: string
-  displayName: string
 }
 
 type StaffResponse = { items: StaffItem[] }
@@ -93,19 +89,9 @@ export function StaffManagementPage() {
   } | null>(null)
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [transferringStaff, setTransferringStaff] = useState<StaffItem | null>(
-    null,
-  )
-  const [transferTargetId, setTransferTargetId] = useState('')
-
   const staffQuery = useQuery({
     queryKey,
     queryFn: () => apiJson<StaffResponse>('/staff'),
-  })
-  const operatorsQuery = useQuery({
-    queryKey: ['active-operators'],
-    queryFn: () =>
-      apiJson<{ items: OperatorOption[] }>('/staff/operators/active'),
   })
 
   const createMutation = useMutation({
@@ -177,37 +163,6 @@ export function StaffManagementPage() {
         message:
           nextError instanceof Error ? nextError.message : '角色保存失败',
       })
-    },
-  })
-
-  const transferMutation = useMutation({
-    mutationFn: (payload: { staffId: string; targetOperatorId: string }) =>
-      apiJson<{ transferredCount: number; targetOperator: OperatorOption }>(
-        `/staff/${payload.staffId}/transfer-anchors`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            targetOperatorId: payload.targetOperatorId,
-          }),
-        },
-      ),
-    onSuccess: async (result) => {
-      setTransferringStaff(null)
-      setTransferTargetId('')
-      setSuccessMessage(
-        `已转交 ${result.transferredCount} 位主播给「${result.targetOperator.displayName}」，等待新运营确认归属`,
-      )
-      setError(null)
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey }),
-        queryClient.invalidateQueries({
-          queryKey: ['operator-pending-assignments'],
-        }),
-        queryClient.invalidateQueries({ queryKey: ['operator-anchors'] }),
-      ])
-    },
-    onError: (nextError) => {
-      setError(nextError instanceof Error ? nextError.message : '转交失败')
     },
   })
 
@@ -348,17 +303,6 @@ export function StaffManagementPage() {
     if (ok) deleteMutation.mutate(item.id)
   }
 
-  function submitTransfer() {
-    if (!transferringStaff || !transferTargetId) {
-      setError('请选择接收主播的运营老师')
-      return
-    }
-    transferMutation.mutate({
-      staffId: transferringStaff.id,
-      targetOperatorId: transferTargetId,
-    })
-  }
-
   return (
     <div className="space-y-6">
       {confirmDialog}
@@ -371,7 +315,7 @@ export function StaffManagementPage() {
               员工与角色
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              员工仅用企微 UID 登录。离职时请先「转交主播」（新运营待确认），确认无在管主播后再硬删除账号。
+              员工仅用企微 UID 登录。离职时到「主播全景」勾选该运营名下主播分散转交，无在管主播后再硬删除。
             </p>
           </div>
           <button
@@ -638,20 +582,16 @@ export function StaffManagementPage() {
                         <Pencil className="h-4 w-4" />
                         编辑角色
                       </button>
-                      {(item.managedAnchorCount ?? 0) > 0 ||
-                      item.roles.includes('operator') ? (
-                        <button
-                          type="button"
+                      {item.roles.includes('operator') ? (
+                        <Link
                           className="app-btn-secondary"
-                          onClick={() => {
-                            setError(null)
-                            setTransferringStaff(item)
-                            setTransferTargetId('')
-                          }}
+                          to={`/admin/anchors?operatorId=${encodeURIComponent(item.id)}`}
                         >
                           <ArrowRightLeft className="h-4 w-4" />
-                          转交主播
-                        </button>
+                          {(item.managedAnchorCount ?? 0) > 0
+                            ? `主播全景(${item.managedAnchorCount})`
+                            : '主播全景'}
+                        </Link>
                       ) : null}
                       <button
                         type="button"
@@ -776,66 +716,6 @@ export function StaffManagementPage() {
         </section>
       </div>
 
-      {transferringStaff ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
-          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <p className="text-sm font-semibold text-slate-900">
-                转交主播 · {transferringStaff.displayName}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                当前在管约 {transferringStaff.managedAnchorCount ?? 0}{' '}
-                人。转交后归属变为「待确认」，需新运营在「主播与归属」中确认。
-              </p>
-            </div>
-            <div className="space-y-4 px-5 py-4">
-              <label className="block text-sm font-medium text-slate-700">
-                接收的运营老师
-                <select
-                  className="mt-2 app-field"
-                  value={transferTargetId}
-                  onChange={(event) => setTransferTargetId(event.target.value)}
-                >
-                  <option value="">请选择运营老师</option>
-                  {(operatorsQuery.data?.items ?? [])
-                    .filter((op) => op.id !== transferringStaff.id)
-                    .map((op) => (
-                      <option key={op.id} value={op.id}>
-                        {op.displayName}
-                      </option>
-                    ))}
-                </select>
-              </label>
-            </div>
-            <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                className="app-btn-secondary"
-                disabled={transferMutation.isPending}
-                onClick={() => {
-                  setTransferringStaff(null)
-                  setTransferTargetId('')
-                }}
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                className="app-btn-primary"
-                disabled={transferMutation.isPending || !transferTargetId}
-                onClick={submitTransfer}
-              >
-                {transferMutation.isPending ? (
-                  <LoaderCircle className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ArrowRightLeft className="h-4 w-4" />
-                )}
-                确认转交
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   )
 }

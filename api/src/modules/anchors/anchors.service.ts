@@ -318,6 +318,222 @@ export class AnchorsService {
     }
   }
 
+  /**
+   * 超管：主播全景列表（全量，可按运营/归属/关键词筛）
+   */
+  async listAdminAnchors(
+    currentUser: AuthenticatedUser,
+    query: {
+      operatorId?: string
+      assignmentStatus?: string
+      keyword?: string
+    },
+  ) {
+    await this.access.requirePasswordSuperAdmin(currentUser)
+
+    const keyword = query.keyword?.trim()
+    const assignmentStatus = query.assignmentStatus?.trim()
+    const operatorId = query.operatorId?.trim()
+
+    const items = await this.prisma.anchorProfile.findMany({
+      where: {
+        ...(operatorId ? { currentOperatorId: operatorId } : {}),
+        ...(assignmentStatus
+          ? {
+              assignmentStatus: assignmentStatus as
+                | 'pending_confirmation'
+                | 'confirmed'
+                | 'rejected'
+                | 'ended',
+            }
+          : {}),
+        ...(keyword
+          ? {
+              OR: [
+                {
+                  anchorDisplayName: {
+                    contains: keyword,
+                    mode: 'insensitive',
+                  },
+                },
+                {
+                  wecomUser: {
+                    wecomName: { contains: keyword, mode: 'insensitive' },
+                  },
+                },
+                {
+                  wecomUser: {
+                    wecomUserId: { contains: keyword, mode: 'insensitive' },
+                  },
+                },
+                {
+                  currentOperator: {
+                    displayName: {
+                      contains: keyword,
+                      mode: 'insensitive',
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        ...profileInclude,
+        onboardingProgress: {
+          include: {
+            milestones: true,
+          },
+        },
+      },
+      orderBy: [{ assignmentStatus: 'asc' }, { activatedAt: 'desc' }],
+    })
+
+    return {
+      items: items.map((item) => ({
+        ...this.toProfileItem(item),
+        onboarding: item.onboardingProgress
+          ? {
+              completedCount: item.onboardingProgress.milestones.filter(
+                (milestone) =>
+                  milestone.status === 'completed' &&
+                  (ONBOARDING_PROGRESS_MILESTONES as readonly string[]).includes(
+                    milestone.type,
+                  ),
+              ).length,
+              totalCount: ONBOARDING_PROGRESS_MILESTONES.length,
+              nextMilestone:
+                ONBOARDING_PROGRESS_MILESTONES.find(
+                  (type) =>
+                    !item.onboardingProgress?.milestones.some(
+                      (milestone) =>
+                        milestone.type === type &&
+                        milestone.status === 'completed',
+                    ),
+                ) ?? null,
+            }
+          : null,
+      })),
+    }
+  }
+
+  /**
+   * 超管：勾选主播转交给目标运营（分散转交），新运营待确认
+   */
+  async transferSelectedAnchors(
+    currentUser: AuthenticatedUser,
+    anchorIds: string[],
+    targetOperatorId: string,
+  ) {
+    await this.access.requirePasswordSuperAdmin(currentUser)
+
+    const ids = [...new Set(anchorIds.map((id) => id.trim()).filter(Boolean))]
+    if (ids.length === 0) {
+      throw new BadRequestException('请至少选择一位主播')
+    }
+
+    const target = await this.prisma.operatorAccount.findFirst({
+      where: {
+        id: targetOperatorId,
+        role: 'operator',
+        status: 'active',
+        staffRoles: { some: { role: 'operator' } },
+      },
+      select: { id: true, displayName: true },
+    })
+    if (!target) {
+      throw new BadRequestException('目标运营不可用，请选择启用中的运营老师')
+    }
+
+    const anchors = await this.prisma.anchorProfile.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        anchorDisplayName: true,
+        currentOperatorId: true,
+        currentOperator: { select: { displayName: true } },
+      },
+    })
+
+    if (anchors.length !== ids.length) {
+      throw new BadRequestException('部分主播不存在或已失效，请刷新后重试')
+    }
+
+    const alreadyOnTarget = anchors.filter(
+      (item) => item.currentOperatorId === target.id,
+    )
+    if (alreadyOnTarget.length === anchors.length) {
+      throw new BadRequestException('所选主播已全部在该运营名下')
+    }
+
+    const initiatedBy =
+      currentUser.wecomUserId || currentUser.accountId || 'super_admin'
+    const now = new Date()
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const anchor of anchors) {
+        if (anchor.currentOperatorId === target.id) {
+          continue
+        }
+
+        const fromName = anchor.currentOperator?.displayName ?? '未分配'
+        const reason = `超管调度转交：${fromName} → ${target.displayName}`
+
+        // 结束该主播当前进行中的归属（任意运营）
+        await tx.anchorOperatorAssignment.updateMany({
+          where: {
+            anchorProfileId: anchor.id,
+            status: { in: ['confirmed', 'pending_confirmation'] },
+          },
+          data: {
+            status: 'ended',
+            endedAt: now,
+            reason,
+          },
+        })
+
+        await tx.anchorOperatorAssignment.create({
+          data: {
+            anchorProfileId: anchor.id,
+            operatorId: target.id,
+            status: 'pending_confirmation',
+            initiatedBy,
+            reason,
+          },
+        })
+
+        await tx.anchorProfile.update({
+          where: { id: anchor.id },
+          data: {
+            currentOperatorId: target.id,
+            assignmentStatus: 'pending_confirmation',
+          },
+        })
+
+        // 未激活开通任务若仍挂旧运营，改派到新运营
+        if (anchor.currentOperatorId) {
+          await tx.anchorActivationTask.updateMany({
+            where: {
+              activatedAnchorProfileId: anchor.id,
+              operatorId: anchor.currentOperatorId,
+              status: { in: ['pending', 'invited'] },
+            },
+            data: { operatorId: target.id },
+          })
+        }
+      }
+    })
+
+    const transferredCount = anchors.length - alreadyOnTarget.length
+
+    return {
+      ok: true as const,
+      transferredCount,
+      skippedCount: alreadyOnTarget.length,
+      targetOperator: target,
+    }
+  }
+
   async confirmAssignment(
     currentUser: AuthenticatedUser,
     assignmentId: string,
