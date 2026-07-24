@@ -564,7 +564,9 @@ export function OperatorOnboardingPage() {
                       ))}
                     </div>
                   ) : null}
-                  {milestone.evidence && milestone.status !== 'pending' ? (
+                  {milestone.evidence &&
+                  milestone.status !== 'pending' &&
+                  milestone.type !== 'initial_communication' ? (
                     <EvidencePreview
                       type={milestone.type}
                       evidence={milestone.evidence}
@@ -1092,28 +1094,7 @@ function EvidencePreview({
   type: MilestoneType
   evidence: Record<string, unknown>
 }) {
-  if (type === 'initial_communication') {
-    const lines = [
-      evidence.channel ? `沟通方式：${evidence.channel}` : null,
-      evidence.availableScheduleStart
-        ? `可播：${evidence.availableScheduleStart}-${evidence.availableScheduleEnd ?? ''}`
-        : null,
-      evidence.deviceNetwork ? `设备：${evidence.deviceNetwork}` : null,
-      Array.isArray(evidence.voiceTraits)
-        ? `声音：${evidence.voiceTraits.join('、')}`
-        : null,
-      evidence.contentRecommendation
-        ? `内容推荐：${String(evidence.contentRecommendation).slice(0, 80)}`
-        : null,
-    ].filter(Boolean)
-    return (
-      <div className="mt-3 space-y-1 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
-        {lines.map((line) => (
-          <p key={String(line)}>{line}</p>
-        ))}
-      </div>
-    )
-  }
+  // 初次沟通不在卡片摘要展示正文，需点「修改重提」查看/编辑
   if (type === 'prejob_learning_completed') {
     return (
       <p className="mt-2 text-sm text-slate-600">
