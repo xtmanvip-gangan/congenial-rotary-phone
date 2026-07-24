@@ -77,16 +77,6 @@ const liveStatusTone: Record<LiveStatus, string> = {
   exited: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/60',
 }
 
-const milestoneLabels: Record<string, string> = {
-  initial_communication: '初次沟通',
-  homepage_ready: '个人主页',
-  live_software_ready: '直播软件',
-  helper_software_ready: '辅助软件',
-  prejob_learning_completed: '岗前基础学习',
-  first_live_completed: '独立首播',
-  first_live_review_completed: '首播复盘',
-}
-
 export function AdminAnchorsPage() {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -466,7 +456,6 @@ export function AdminAnchorsPage() {
                     <th className="whitespace-nowrap px-3 py-3">运营</th>
                     <th className="whitespace-nowrap px-3 py-3">状态</th>
                     <th className="whitespace-nowrap px-3 py-3">岗前进度</th>
-                    <th className="whitespace-nowrap px-3 py-3">下一步</th>
                     <th className="whitespace-nowrap px-3 py-3">首播时间</th>
                     <th className="whitespace-nowrap px-3 py-3 text-right">
                       操作
@@ -482,12 +471,6 @@ export function AdminAnchorsPage() {
                       'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200/80'
                     const done = item.onboarding?.completedCount ?? 0
                     const total = item.onboarding?.totalCount ?? 7
-                    const next = item.onboarding?.nextMilestone
-                      ? milestoneLabels[item.onboarding.nextMilestone] ??
-                        item.onboarding.nextMilestone
-                      : done >= total
-                        ? '已完成'
-                        : '—'
                     const isSelected = selected.has(item.id)
 
                     return (
@@ -533,9 +516,6 @@ export function AdminAnchorsPage() {
                         </td>
                         <td className="whitespace-nowrap px-3 py-2.5 align-middle tabular-nums text-slate-700">
                           {item.onboarding ? `${done}/${total}` : '—'}
-                        </td>
-                        <td className="max-w-[8rem] truncate px-3 py-2.5 align-middle text-slate-600">
-                          {next}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2.5 align-middle text-xs text-slate-500">
                           {item.firstLiveAt

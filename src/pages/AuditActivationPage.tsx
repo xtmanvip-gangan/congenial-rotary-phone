@@ -8,9 +8,10 @@ import {
   Send,
   Trash2,
   UserPlus,
-  XCircle,
+  X,
 } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
 import { LoadingBlock } from '../components/LoadingBlock'
@@ -24,6 +25,15 @@ type OperatorOption = {
 }
 
 type ActivationStatus = 'pending' | 'invited' | 'activated' | 'cancelled'
+
+/** 入会漏斗展示态（列表只显示这一种主状态） */
+type FunnelStage =
+  | 'awaiting_notify'
+  | 'awaiting_activate'
+  | 'awaiting_confirm'
+  | 'rejected'
+  | 'joined'
+  | 'cancelled'
 
 type ActivationTask = {
   id: string
@@ -50,7 +60,7 @@ type TaskForm = {
   membershipCompletedAt: string
 }
 
-type StatusFilter = 'all' | ActivationStatus | 'rejected'
+type StatusFilter = 'all' | FunnelStage
 
 const queryKey = ['activation-tasks']
 const emptyForm: TaskForm = {
@@ -60,20 +70,29 @@ const emptyForm: TaskForm = {
   membershipCompletedAt: '',
 }
 
-const statusMeta: Record<
-  ActivationStatus,
+const funnelMeta: Record<
+  FunnelStage,
   { label: string; className: string }
 > = {
-  pending: {
-    label: '待发送',
+  awaiting_notify: {
+    label: '待通知',
     className: 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200/60',
   },
-  invited: {
-    label: '已通知',
+  awaiting_activate: {
+    label: '待激活',
     className: 'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200/60',
   },
-  activated: {
-    label: '已激活',
+  awaiting_confirm: {
+    label: '待运营确认',
+    className:
+      'bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200/60',
+  },
+  rejected: {
+    label: '运营已拒绝',
+    className: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/60',
+  },
+  joined: {
+    label: '已入会',
     className:
       'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/60',
   },
@@ -83,26 +102,16 @@ const statusMeta: Record<
   },
 }
 
-const assignmentMeta: Record<
-  NonNullable<ActivationTask['assignmentStatus']>,
-  { label: string; className: string }
-> = {
-  pending_confirmation: {
-    label: '待运营确认',
-    className: 'bg-amber-50 text-amber-700',
-  },
-  confirmed: {
-    label: '运营已确认',
-    className: 'bg-emerald-50 text-emerald-700',
-  },
-  rejected: {
-    label: '运营已拒绝',
-    className: 'bg-rose-50 text-rose-700',
-  },
-  ended: {
-    label: '归属已结束',
-    className: 'bg-slate-100 text-slate-600',
-  },
+function resolveFunnelStage(item: ActivationTask): FunnelStage {
+  if (item.status === 'cancelled') return 'cancelled'
+  if (item.status === 'pending') return 'awaiting_notify'
+  if (item.status === 'invited') return 'awaiting_activate'
+  if (item.status === 'activated') {
+    if (item.assignmentStatus === 'rejected') return 'rejected'
+    if (item.assignmentStatus === 'confirmed') return 'joined'
+    return 'awaiting_confirm'
+  }
+  return 'awaiting_notify'
 }
 
 function toLocalDateTime(value: string) {
@@ -117,12 +126,14 @@ export function AuditActivationPage() {
   const [form, setForm] = useState<TaskForm>(emptyForm)
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const [editingWasCancelled, setEditingWasCancelled] = useState(false)
+  const [formOpen, setFormOpen] = useState(false)
   const [reassignments, setReassignments] = useState<Record<string, string>>({})
   const [message, setMessage] = useState<{
     type: 'success' | 'error'
     text: string
   } | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [keyword, setKeyword] = useState('')
 
   const tasksQuery = useQuery({
     queryKey,
@@ -156,10 +167,11 @@ export function AuditActivationPage() {
       setForm(emptyForm)
       setEditingTaskId(null)
       setEditingWasCancelled(false)
+      setFormOpen(false)
       setMessage({
         type: 'success',
         text: reopenedByEdit
-          ? '资料已更新，任务已重新开启为「待发送」'
+          ? '资料已更新，任务已重新开启为「待通知」'
           : wasEditing
             ? '开通资料已更新'
             : '档案开通任务已创建',
@@ -239,6 +251,7 @@ export function AuditActivationPage() {
         setEditingTaskId(null)
         setEditingWasCancelled(false)
         setForm(emptyForm)
+        setFormOpen(false)
       }
       setMessage({
         type: 'success',
@@ -278,38 +291,41 @@ export function AuditActivationPage() {
 
   const items = tasksQuery.data?.items ?? []
 
+  const withStage = useMemo(
+    () =>
+      items.map((item) => ({
+        ...item,
+        funnel: resolveFunnelStage(item),
+      })),
+    [items],
+  )
+
   const counts = useMemo(() => {
     const base = {
-      all: items.length,
-      pending: 0,
-      invited: 0,
-      activated: 0,
-      cancelled: 0,
+      all: withStage.length,
+      awaiting_notify: 0,
+      awaiting_activate: 0,
+      awaiting_confirm: 0,
       rejected: 0,
+      joined: 0,
+      cancelled: 0,
     }
-    for (const item of items) {
-      base[item.status] += 1
-      if (
-        item.status === 'activated' &&
-        item.assignmentStatus === 'rejected'
-      ) {
-        base.rejected += 1
-      }
+    for (const item of withStage) {
+      base[item.funnel] += 1
     }
     return base
-  }, [items])
+  }, [withStage])
 
   const filteredItems = useMemo(() => {
-    if (statusFilter === 'all') return items
-    if (statusFilter === 'rejected') {
-      return items.filter(
-        (item) =>
-          item.status === 'activated' &&
-          item.assignmentStatus === 'rejected',
-      )
-    }
-    return items.filter((item) => item.status === statusFilter)
-  }, [items, statusFilter])
+    const q = keyword.trim().toLowerCase()
+    return withStage.filter((item) => {
+      if (statusFilter !== 'all' && item.funnel !== statusFilter) return false
+      if (!q) return true
+      const hay =
+        `${item.wecomDisplayName} ${item.expectedWecomUserId} ${item.operator?.displayName ?? ''}`.toLowerCase()
+      return hay.includes(q)
+    })
+  }, [withStage, statusFilter, keyword])
 
   const busy =
     saveMutation.isPending ||
@@ -349,20 +365,30 @@ export function AuditActivationPage() {
       operatorId: item.operator?.id ?? '',
       membershipCompletedAt: toLocalDateTime(item.membershipCompletedAt),
     })
+    setFormOpen(true)
     setMessage(
       item.status === 'cancelled'
         ? {
             type: 'success',
-            text: '正在编辑已作废任务：保存后将自动重新开启为「待发送」',
+            text: '正在编辑已作废任务：保存后将自动重新开启为「待通知」',
           }
         : null,
     )
+  }
+
+  function openCreate() {
+    setEditingTaskId(null)
+    setEditingWasCancelled(false)
+    setForm(emptyForm)
+    setFormOpen(true)
+    setMessage(null)
   }
 
   function stopEdit() {
     setEditingTaskId(null)
     setEditingWasCancelled(false)
     setForm(emptyForm)
+    setFormOpen(false)
   }
 
   async function requestCancel(item: ActivationTask) {
@@ -393,213 +419,113 @@ export function AuditActivationPage() {
 
   const filterTabs: { key: StatusFilter; label: string; count: number }[] = [
     { key: 'all', label: '全部', count: counts.all },
-    { key: 'pending', label: '待发送', count: counts.pending },
-    { key: 'invited', label: '已通知', count: counts.invited },
-    { key: 'activated', label: '已激活', count: counts.activated },
-    { key: 'rejected', label: '待重分配', count: counts.rejected },
+    {
+      key: 'awaiting_notify',
+      label: '待通知',
+      count: counts.awaiting_notify,
+    },
+    {
+      key: 'awaiting_activate',
+      label: '待激活',
+      count: counts.awaiting_activate,
+    },
+    {
+      key: 'awaiting_confirm',
+      label: '待运营确认',
+      count: counts.awaiting_confirm,
+    },
+    { key: 'rejected', label: '已拒绝', count: counts.rejected },
+    { key: 'joined', label: '已入会', count: counts.joined },
     { key: 'cancelled', label: '已取消', count: counts.cancelled },
   ]
 
   return (
     <div className="space-y-6">
       {confirmDialog}
+
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-brand-600">人员与主播</p>
             <h2 className="mt-1 text-2xl font-semibold text-slate-900">
-              主播档案开通
+              激活监管
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              创建开通任务、分配运营并发送企微提醒。作废可暂停并保留记录；彻底删除仅限已作废且未激活的任务。主播一旦激活，不能在此删除（需走归属/合作结束流程）。
+              入会前与待确认在此处理。运营确认后进入「主播全景」。进度：待通知 →
+              待激活 → 待运营确认 → 已入会。
             </p>
           </div>
-          <button
-            type="button"
-            className="app-btn-secondary shrink-0"
-            disabled={tasksQuery.isFetching}
-            onClick={() => void tasksQuery.refetch()}
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${tasksQuery.isFetching ? 'animate-spin' : ''}`}
-            />
-            刷新列表
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="app-btn-secondary shrink-0"
+              disabled={tasksQuery.isFetching}
+              onClick={() => void tasksQuery.refetch()}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${tasksQuery.isFetching ? 'animate-spin' : ''}`}
+              />
+              刷新
+            </button>
+            <button
+              type="button"
+              className="app-btn-primary shrink-0"
+              onClick={openCreate}
+            >
+              <UserPlus className="h-4 w-4" />
+              新建开通
+            </button>
+          </div>
         </div>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryChip
-            label="待发送"
-            value={counts.pending}
+            label="待通知"
+            value={counts.awaiting_notify}
             tone="amber"
-            active={statusFilter === 'pending'}
-            onClick={() => setStatusFilter('pending')}
+            active={statusFilter === 'awaiting_notify'}
+            onClick={() => setStatusFilter('awaiting_notify')}
           />
           <SummaryChip
-            label="已通知"
-            value={counts.invited}
+            label="待激活"
+            value={counts.awaiting_activate}
             tone="sky"
-            active={statusFilter === 'invited'}
-            onClick={() => setStatusFilter('invited')}
+            active={statusFilter === 'awaiting_activate'}
+            onClick={() => setStatusFilter('awaiting_activate')}
           />
           <SummaryChip
-            label="已激活"
-            value={counts.activated}
-            tone="emerald"
-            active={statusFilter === 'activated'}
-            onClick={() => setStatusFilter('activated')}
+            label="待运营确认"
+            value={counts.awaiting_confirm}
+            tone="violet"
+            active={statusFilter === 'awaiting_confirm'}
+            onClick={() => setStatusFilter('awaiting_confirm')}
           />
           <SummaryChip
-            label="待重分配"
+            label="运营已拒绝"
             value={counts.rejected}
             tone="rose"
             active={statusFilter === 'rejected'}
             onClick={() => setStatusFilter('rejected')}
           />
         </div>
+
+        {message ? (
+          <p
+            className={[
+              'mt-4 rounded-2xl px-3 py-2 text-sm',
+              message.type === 'success'
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-rose-50 text-rose-700',
+            ].join(' ')}
+          >
+            {message.text}
+          </p>
+        ) : null}
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
-        <section className="h-fit rounded-3xl border border-slate-200 bg-white p-6 shadow-soft xl:sticky xl:top-4">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
-              <UserPlus className="h-4 w-4" />
-            </span>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900">
-                {editingTaskId
-                  ? editingWasCancelled
-                    ? '编辑并重新开启'
-                    : '编辑开通资料'
-                  : '新建开通任务'}
-              </h3>
-              <p className="text-xs text-slate-500">
-                {editingTaskId
-                  ? editingWasCancelled
-                    ? '保存后任务会回到「待发送」'
-                    : '修改后保存，可继续发送提醒'
-                  : '同一企微UID若曾作废，再创建会自动重开原任务'}
-              </p>
-            </div>
-          </div>
-
-          <form className="mt-5 space-y-4" noValidate onSubmit={submit}>
-            <label className="block text-sm font-medium text-slate-700">
-              主播昵称
-              <input
-                className="mt-2 app-field"
-                required
-                value={form.wecomDisplayName}
-                onChange={(event) =>
-                  updateForm('wecomDisplayName', event.target.value)
-                }
-              />
-            </label>
-            <p className="-mt-2 text-xs leading-5 text-slate-400">
-              须与企业微信昵称、抖音直播昵称一致
-            </p>
-            <label className="block text-sm font-medium text-slate-700">
-              企微UID
-              <input
-                className="mt-2 app-field"
-                required
-                value={form.expectedWecomUserId}
-                onChange={(event) =>
-                  updateForm('expectedWecomUserId', event.target.value)
-                }
-              />
-            </label>
-            <label className="block text-sm font-medium text-slate-700">
-              分配运营
-              <select
-                className="mt-2 app-field"
-                required
-                value={form.operatorId}
-                onChange={(event) =>
-                  updateForm('operatorId', event.target.value)
-                }
-              >
-                <option value="">请选择运营老师</option>
-                {operatorsQuery.data?.items.map((operator) => (
-                  <option key={operator.id} value={operator.id}>
-                    {operator.displayName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {operatorsQuery.isError ? (
-              <p className="text-xs text-rose-600">
-                运营列表加载失败，请刷新后重试
-              </p>
-            ) : null}
-            <label className="block text-sm font-medium text-slate-700">
-              入会时间
-              <input
-                type="datetime-local"
-                className="mt-2 app-field"
-                required
-                value={form.membershipCompletedAt}
-                onChange={(event) =>
-                  updateForm('membershipCompletedAt', event.target.value)
-                }
-              />
-            </label>
-
-            {message ? (
-              <p
-                className={[
-                  'rounded-2xl px-3 py-2 text-sm',
-                  message.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : 'bg-rose-50 text-rose-700',
-                ].join(' ')}
-              >
-                {message.text}
-              </p>
-            ) : null}
-
-            <button
-              className="app-btn-primary w-full"
-              type="submit"
-              disabled={saveMutation.isPending}
-            >
-              {saveMutation.isPending ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" />
-              ) : (
-                <UserPlus className="h-4 w-4" />
-              )}
-              {editingTaskId
-                ? editingWasCancelled
-                  ? '保存并重新开启'
-                  : '保存开通资料'
-                : '创建档案开通任务'}
-            </button>
-            {editingTaskId ? (
-              <button
-                className="app-btn-secondary w-full"
-                type="button"
-                onClick={stopEdit}
-              >
-                取消编辑
-              </button>
-            ) : null}
-          </form>
-        </section>
-
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900">开通进度</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                共 {counts.all} 条
-                {statusFilter !== 'all'
-                  ? ` · 当前筛选 ${filteredItems.length} 条`
-                  : ''}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-2">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-wrap gap-2">
             {filterTabs.map((tab) => {
               const active = statusFilter === tab.key
               return (
@@ -618,7 +544,9 @@ export function AuditActivationPage() {
                   <span
                     className={[
                       'rounded-full px-1.5 py-0.5 text-[10px] tabular-nums',
-                      active ? 'bg-white/20 text-white' : 'bg-white text-slate-500',
+                      active
+                        ? 'bg-white/20 text-white'
+                        : 'bg-white text-slate-500',
                     ].join(' ')}
                   >
                     {tab.count}
@@ -627,234 +555,387 @@ export function AuditActivationPage() {
               )
             })}
           </div>
+          <label className="relative min-w-[14rem] flex-1 sm:max-w-xs sm:ml-auto">
+            <input
+              className="app-field"
+              placeholder="搜索昵称 / UID / 运营"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </label>
+        </div>
 
-          <div className="mt-5 space-y-3">
-            {tasksQuery.isLoading ? (
-              <LoadingBlock text="正在加载开通任务…" />
-            ) : null}
+        <div className="mt-4">
+          {tasksQuery.isLoading ? (
+            <LoadingBlock text="正在加载开通任务…" />
+          ) : null}
+          {tasksQuery.isError ? (
+            <ErrorBlock
+              message={
+                tasksQuery.error instanceof Error
+                  ? tasksQuery.error.message
+                  : '开通任务加载失败'
+              }
+            />
+          ) : null}
 
-            {tasksQuery.isError ? (
-              <ErrorBlock
-                message={
-                  tasksQuery.error instanceof Error
-                    ? tasksQuery.error.message
-                    : '开通任务加载失败'
-                }
-              />
-            ) : null}
+          {!tasksQuery.isLoading &&
+          !tasksQuery.isError &&
+          filteredItems.length === 0 ? (
+            <EmptyState
+              title={
+                statusFilter === 'all' && !keyword.trim()
+                  ? '暂无档案开通任务'
+                  : '当前筛选下没有任务'
+              }
+              description={
+                statusFilter === 'all' && !keyword.trim()
+                  ? '点击「新建开通」创建第一条任务。'
+                  : '切换筛选或清空搜索。'
+              }
+              tone="plain"
+            />
+          ) : null}
 
-            {!tasksQuery.isLoading &&
-            !tasksQuery.isError &&
-            filteredItems.length === 0 ? (
-              <EmptyState
-                title={
-                  statusFilter === 'all'
-                    ? '暂无档案开通任务'
-                    : '当前筛选下没有任务'
-                }
-                description={
-                  statusFilter === 'all'
-                    ? '在左侧填写主播信息并创建第一条开通任务。'
-                    : '切换筛选条件，或新建开通任务。'
-                }
-                tone="plain"
-              />
-            ) : null}
+          {!tasksQuery.isLoading &&
+          !tasksQuery.isError &&
+          filteredItems.length > 0 ? (
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="min-w-full border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
+                    <th className="whitespace-nowrap px-3 py-3">主播昵称</th>
+                    <th className="whitespace-nowrap px-3 py-3">企微 UID</th>
+                    <th className="whitespace-nowrap px-3 py-3">指定运营</th>
+                    <th className="whitespace-nowrap px-3 py-3">入会日期</th>
+                    <th className="whitespace-nowrap px-3 py-3">进度</th>
+                    <th className="whitespace-nowrap px-3 py-3">提醒</th>
+                    <th className="whitespace-nowrap px-3 py-3">创建时间</th>
+                    <th className="whitespace-nowrap px-3 py-3 text-right">
+                      操作
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {filteredItems.map((item) => {
+                    const meta = funnelMeta[item.funnel]
+                    const canNotify =
+                      item.funnel === 'awaiting_notify' ||
+                      item.funnel === 'awaiting_activate'
+                    const isCancelled = item.funnel === 'cancelled'
+                    const needsReassign = item.funnel === 'rejected'
 
-            {filteredItems.map((item) => {
-              const meta = statusMeta[item.status]
-              const assignment =
-                item.assignmentStatus != null
-                  ? assignmentMeta[item.assignmentStatus]
-                  : null
-              const actionable =
-                item.status === 'pending' || item.status === 'invited'
-              const isCancelled = item.status === 'cancelled'
-              const needsReassign =
-                item.status === 'activated' &&
-                item.assignmentStatus === 'rejected'
-
-              return (
-                <article
-                  key={item.id}
-                  className={[
-                    'rounded-2xl border p-4 transition hover:border-slate-300',
-                    isCancelled
-                      ? 'border-slate-200 bg-slate-50/60'
-                      : 'border-slate-200 bg-white',
-                  ].join(' ')}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="font-semibold text-slate-900">
+                    return (
+                      <tr
+                        key={item.id}
+                        className={[
+                          'align-top transition-colors',
+                          isCancelled
+                            ? 'bg-slate-50/60'
+                            : 'hover:bg-slate-50/80',
+                        ].join(' ')}
+                      >
+                        <td className="px-3 py-2.5 font-medium text-slate-900">
                           {item.wecomDisplayName}
-                        </h4>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.className}`}
-                        >
-                          {meta.label}
-                        </span>
-                        {assignment ? (
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${assignment.className}`}
-                          >
-                            {assignment.label}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="mt-1.5 text-sm text-slate-500">
-                        企微UID：
-                        <span className="font-mono text-slate-600">
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-xs text-slate-600">
                           {item.expectedWecomUserId}
-                        </span>
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        运营：{item.operator?.displayName ?? '待补充'}
-                        <span className="mx-1.5 text-slate-300">·</span>
-                        入会：{formatDateTime(item.membershipCompletedAt)}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-400">
-                        创建 {formatDateTime(item.createdAt)}
-                        <span className="mx-1.5">·</span>
-                        提醒 {item.invitationCount} 次
-                        {item.invitationSentAt
-                          ? ` · 最近 ${formatDateTime(item.invitationSentAt)}`
-                          : ''}
-                      </p>
-                      {isCancelled ? (
-                        <p className="mt-2 text-xs leading-5 text-slate-500">
-                          任务已作废：可「重新开启 / 编辑」继续，或「彻底删除」清掉记录（不可恢复）。
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
+                          {item.operator?.displayName ?? '待补充'}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
+                          {formatDateTime(item.membershipCompletedAt)}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${meta.className}`}
+                          >
+                            {meta.label}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
+                          {item.invitationCount} 次
+                          {item.invitationSentAt
+                            ? ` · ${formatDateTime(item.invitationSentAt)}`
+                            : ''}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
+                          {formatDateTime(item.createdAt)}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
+                            {canNotify ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="text-xs font-medium text-slate-600 hover:text-brand-700"
+                                  disabled={busy}
+                                  onClick={() => beginEdit(item)}
+                                >
+                                  编辑
+                                </button>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-600 hover:text-brand-700"
+                                  disabled={!item.operator || busy}
+                                  onClick={() => sendMutation.mutate(item.id)}
+                                >
+                                  {sendMutation.isPending ? (
+                                    <LoaderCircle className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Send className="h-3 w-3" />
+                                  )}
+                                  {item.invitationCount ? '再提醒' : '发送提醒'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-xs font-medium text-rose-600 hover:text-rose-700"
+                                  disabled={busy}
+                                  onClick={() => void requestCancel(item)}
+                                >
+                                  作废
+                                </button>
+                              </>
+                            ) : null}
 
-                  {actionable ? (
-                    <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-                      <button
-                        type="button"
-                        className="app-btn-secondary"
-                        disabled={busy}
-                        onClick={() => beginEdit(item)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        编辑资料
-                      </button>
-                      <button
-                        type="button"
-                        className="app-btn-secondary"
-                        disabled={!item.operator || busy}
-                        onClick={() => sendMutation.mutate(item.id)}
-                      >
-                        {sendMutation.isPending ? (
-                          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Send className="h-3.5 w-3.5" />
-                        )}
-                        {item.invitationCount ? '重新发送提醒' : '发送提醒'}
-                      </button>
-                      <button
-                        type="button"
-                        className="app-btn-secondary text-rose-600 hover:bg-rose-50"
-                        disabled={busy}
-                        onClick={() => void requestCancel(item)}
-                      >
-                        <XCircle className="h-3.5 w-3.5" />
-                        作废任务
-                      </button>
-                    </div>
-                  ) : null}
+                            {item.funnel === 'joined' ? (
+                              <Link
+                                to="/admin/anchors"
+                                className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                              >
+                                去全景
+                              </Link>
+                            ) : null}
 
-                  {isCancelled ? (
-                    <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-                      <button
-                        type="button"
-                        className="app-btn-primary"
-                        disabled={!item.operator || busy}
-                        onClick={() => reopenMutation.mutate(item.id)}
-                      >
-                        {reopenMutation.isPending ? (
-                          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <RotateCcw className="h-3.5 w-3.5" />
-                        )}
-                        重新开启
-                      </button>
-                      <button
-                        type="button"
-                        className="app-btn-secondary"
-                        disabled={busy}
-                        onClick={() => beginEdit(item)}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        编辑资料
-                      </button>
-                      <button
-                        type="button"
-                        className="app-btn-danger"
-                        disabled={busy}
-                        onClick={() => void requestDelete(item)}
-                      >
-                        {deleteMutation.isPending ? (
-                          <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
-                        )}
-                        彻底删除
-                      </button>
-                    </div>
-                  ) : null}
+                            {item.funnel === 'awaiting_confirm' ? (
+                              <span className="text-xs text-slate-400">
+                                等待运营确认
+                              </span>
+                            ) : null}
 
-                  {needsReassign ? (
-                    <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
-                      <label className="min-w-[12rem] flex-1 text-xs font-medium text-slate-600">
-                        选择新运营
-                        <select
-                          aria-label={`为${item.wecomDisplayName}重新分配运营`}
-                          className="mt-1.5 app-field"
-                          value={reassignments[item.id] ?? ''}
-                          onChange={(event) =>
-                            setReassignments((current) => ({
-                              ...current,
-                              [item.id]: event.target.value,
-                            }))
-                          }
-                        >
-                          <option value="">请选择运营老师</option>
-                          {operatorsQuery.data?.items.map((operator) => (
-                            <option key={operator.id} value={operator.id}>
-                              {operator.displayName}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <button
-                        type="button"
-                        className="app-btn-primary"
-                        disabled={!reassignments[item.id] || busy}
-                        onClick={() =>
-                          reassignMutation.mutate({
-                            taskId: item.id,
-                            operatorId: reassignments[item.id],
-                          })
-                        }
-                      >
-                        {reassignMutation.isPending ? (
-                          <LoaderCircle className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <CheckCircle2 className="h-4 w-4" />
-                        )}
-                        重新分配运营
-                      </button>
-                    </div>
-                  ) : null}
-                </article>
-              )
-            })}
+                            {needsReassign ? (
+                              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                                <select
+                                  aria-label={`为${item.wecomDisplayName}重新分配运营`}
+                                  className="app-field max-w-[9rem] py-1 text-xs"
+                                  value={reassignments[item.id] ?? ''}
+                                  onChange={(event) =>
+                                    setReassignments((current) => ({
+                                      ...current,
+                                      [item.id]: event.target.value,
+                                    }))
+                                  }
+                                >
+                                  <option value="">新运营</option>
+                                  {operatorsQuery.data?.items.map(
+                                    (operator) => (
+                                      <option
+                                        key={operator.id}
+                                        value={operator.id}
+                                      >
+                                        {operator.displayName}
+                                      </option>
+                                    ),
+                                  )}
+                                </select>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-600 hover:text-brand-700"
+                                  disabled={!reassignments[item.id] || busy}
+                                  onClick={() =>
+                                    reassignMutation.mutate({
+                                      taskId: item.id,
+                                      operatorId: reassignments[item.id],
+                                    })
+                                  }
+                                >
+                                  {reassignMutation.isPending ? (
+                                    <LoaderCircle className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 className="h-3 w-3" />
+                                  )}
+                                  改派
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-xs font-medium text-rose-600 hover:text-rose-700"
+                                  disabled={busy}
+                                  onClick={() => void requestCancel(item)}
+                                >
+                                  作废
+                                </button>
+                              </div>
+                            ) : null}
+
+                            {isCancelled ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-600 hover:text-brand-700"
+                                  disabled={!item.operator || busy}
+                                  onClick={() => reopenMutation.mutate(item.id)}
+                                >
+                                  {reopenMutation.isPending ? (
+                                    <LoaderCircle className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="h-3 w-3" />
+                                  )}
+                                  重开
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-xs font-medium text-slate-600 hover:text-brand-700"
+                                  disabled={busy}
+                                  onClick={() => beginEdit(item)}
+                                >
+                                  编辑
+                                </button>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-600 hover:text-rose-700"
+                                  disabled={busy}
+                                  onClick={() => void requestDelete(item)}
+                                >
+                                  {deleteMutation.isPending ? (
+                                    <LoaderCircle className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-3 w-3" />
+                                  )}
+                                  删除
+                                </button>
+                              </>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {formOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 py-8">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-soft">
+            <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">
+                  {editingTaskId
+                    ? editingWasCancelled
+                      ? '编辑并重新开启'
+                      : '编辑开通资料'
+                    : '新建开通任务'}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {editingTaskId
+                    ? editingWasCancelled
+                      ? '保存后任务会回到「待通知」'
+                      : '修改后保存，可继续发送提醒'
+                    : '同一企微UID若曾作废，再创建会自动重开原任务'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                onClick={stopEdit}
+                aria-label="关闭"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form className="space-y-4 px-5 py-4" noValidate onSubmit={submit}>
+              <label className="block text-sm font-medium text-slate-700">
+                主播昵称
+                <input
+                  className="mt-2 app-field"
+                  required
+                  value={form.wecomDisplayName}
+                  onChange={(event) =>
+                    updateForm('wecomDisplayName', event.target.value)
+                  }
+                />
+              </label>
+              <p className="-mt-2 text-xs leading-5 text-slate-400">
+                须与企业微信昵称、抖音直播昵称一致
+              </p>
+              <label className="block text-sm font-medium text-slate-700">
+                企微UID
+                <input
+                  className="mt-2 app-field"
+                  required
+                  value={form.expectedWecomUserId}
+                  onChange={(event) =>
+                    updateForm('expectedWecomUserId', event.target.value)
+                  }
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                分配运营
+                <select
+                  className="mt-2 app-field"
+                  required
+                  value={form.operatorId}
+                  onChange={(event) =>
+                    updateForm('operatorId', event.target.value)
+                  }
+                >
+                  <option value="">请选择运营老师</option>
+                  {operatorsQuery.data?.items.map((operator) => (
+                    <option key={operator.id} value={operator.id}>
+                      {operator.displayName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                入会时间
+                <input
+                  type="datetime-local"
+                  className="mt-2 app-field"
+                  required
+                  value={form.membershipCompletedAt}
+                  onChange={(event) =>
+                    updateForm('membershipCompletedAt', event.target.value)
+                  }
+                />
+              </label>
+
+              <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
+                <button
+                  className="app-btn-secondary"
+                  type="button"
+                  onClick={stopEdit}
+                >
+                  取消
+                </button>
+                <button
+                  className="app-btn-primary"
+                  type="submit"
+                  disabled={saveMutation.isPending}
+                >
+                  {saveMutation.isPending ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : editingTaskId ? (
+                    <Pencil className="h-4 w-4" />
+                  ) : (
+                    <UserPlus className="h-4 w-4" />
+                  )}
+                  {editingTaskId
+                    ? editingWasCancelled
+                      ? '保存并重新开启'
+                      : '保存'
+                    : '创建任务'}
+                </button>
+              </div>
+            </form>
           </div>
-        </section>
-      </div>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -868,7 +949,7 @@ function SummaryChip({
 }: {
   label: string
   value: number
-  tone: 'amber' | 'sky' | 'emerald' | 'rose'
+  tone: 'amber' | 'sky' | 'emerald' | 'rose' | 'violet'
   active: boolean
   onClick: () => void
 }) {
@@ -892,6 +973,11 @@ function SummaryChip({
       wrap: 'border-rose-100 bg-rose-50/70',
       value: 'text-rose-700',
       ring: 'ring-rose-300',
+    },
+    violet: {
+      wrap: 'border-violet-100 bg-violet-50/70',
+      value: 'text-violet-700',
+      ring: 'ring-violet-300',
     },
   }[tone]
 
