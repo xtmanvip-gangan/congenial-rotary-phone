@@ -437,23 +437,21 @@ export function StaffManagementPage() {
               )
             })}
           </div>
-          <label className="text-xs font-medium text-slate-600">
-            角色
-            <select
-              className="ml-2 app-field py-1.5 text-sm"
-              value={roleFilter}
-              onChange={(e) =>
-                setRoleFilter(e.target.value as StaffRole | 'all')
-              }
-            >
-              <option value="all">全部角色</option>
-              {roleOptions.map((item) => (
-                <option key={item.role} value={item.role}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <select
+            className="app-field min-w-[8.5rem] py-1.5 text-sm"
+            value={roleFilter}
+            aria-label="按角色筛选"
+            onChange={(e) =>
+              setRoleFilter(e.target.value as StaffRole | 'all')
+            }
+          >
+            <option value="all">全部角色</option>
+            {roleOptions.map((item) => (
+              <option key={item.role} value={item.role}>
+                {item.label}
+              </option>
+            ))}
+          </select>
           <label className="relative min-w-[14rem] flex-1 sm:max-w-xs sm:ml-auto">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
