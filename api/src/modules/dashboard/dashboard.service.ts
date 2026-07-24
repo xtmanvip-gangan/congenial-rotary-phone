@@ -31,6 +31,103 @@ export class DashboardService {
     }
   }
 
+  /** 超管：查看某一运营的业务数据摘要（只读监管） */
+  async getOperatorOverview(user: AuthenticatedUser, operatorId: string) {
+    await this.access.requirePasswordSuperAdmin(user)
+
+    const operator = await this.prisma.operatorAccount.findFirst({
+      where: {
+        id: operatorId,
+        role: 'operator',
+      },
+      include: {
+        staffRoles: {
+          select: { role: true },
+          orderBy: { role: 'asc' },
+        },
+      },
+    })
+    if (!operator) {
+      throw new ForbiddenException('未找到该运营老师')
+    }
+
+    const weekStart = startOfShanghaiWeek(new Date())
+    const metrics = await this.operatorDashboard(operatorId)
+    const [
+      pendingConfirmation,
+      rejectedAnchors,
+      giftPendingReview,
+      giftPendingGrant,
+      giftRecent7d,
+      trainingRegistrationsOpen,
+    ] = await Promise.all([
+      this.prisma.anchorProfile.count({
+        where: {
+          currentOperatorId: operatorId,
+          assignmentStatus: 'pending_confirmation',
+        },
+      }),
+      this.prisma.anchorProfile.count({
+        where: {
+          currentOperatorId: operatorId,
+          assignmentStatus: 'rejected',
+        },
+      }),
+      this.prisma.submission.count({
+        where: { operatorId, reviewStatus: 'pending' },
+      }),
+      this.prisma.submission.count({
+        where: {
+          operatorId,
+          reviewStatus: 'approved',
+          grantStatus: 'pending',
+        },
+      }),
+      this.prisma.submission.count({
+        where: {
+          operatorId,
+          createdAt: { gte: new Date(Date.now() - 7 * 24 * 3600_000) },
+        },
+      }),
+      this.prisma.trainingRegistration.count({
+        where: {
+          status: { in: ['registered', 'waitlisted'] },
+          anchorProfile: {
+            currentOperatorId: operatorId,
+            assignmentStatus: 'confirmed',
+          },
+          session: { scheduledStartAt: { gt: new Date() } },
+        },
+      }),
+    ])
+
+    return {
+      operator: {
+        id: operator.id,
+        displayName: operator.displayName,
+        wecomUserId: operator.wecomUserId ?? '',
+        status: operator.status,
+        roles: operator.staffRoles.map((item) => item.role),
+      },
+      metrics: {
+        ...metrics.metrics,
+        pendingConfirmation,
+        rejectedAnchors,
+        giftPendingReview,
+        giftPendingGrant,
+        giftRecent7d,
+        trainingRegistrationsOpen,
+        weekStart: weekStart.toISOString(),
+      },
+      links: {
+        anchors: `/admin/anchors?operatorId=${operator.id}`,
+        giftRecords: `/admin/records?operatorId=${operator.id}`,
+        training: `/operator/training?operatorId=${operator.id}`,
+        staff: `/admin/staff`,
+      },
+    }
+  }
+
   private async auditDashboard() {
     const [groups, activatedTasks, pendingOperatorConfirmation] =
       await Promise.all([

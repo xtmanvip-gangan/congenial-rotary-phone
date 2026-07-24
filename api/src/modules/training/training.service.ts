@@ -605,19 +605,27 @@ export class TrainingService {
     return { ok: true }
   }
 
-  async listOperatorRegistrations(currentUser: AuthenticatedUser) {
+  async listOperatorRegistrations(
+    currentUser: AuthenticatedUser,
+    query?: { operatorId?: string },
+  ) {
     await this.access.requireAnyRole(currentUser, ['operator'])
     const globalView =
       currentUser.role === 'super_admin' &&
       currentUser.loginType === 'password_admin'
+    const scopedOperatorId = globalView
+      ? query?.operatorId?.trim() || undefined
+      : currentUser.accountId ?? ''
     const items = await this.prisma.trainingRegistration.findMany({
       where: {
         status: { in: ['registered', 'waitlisted'] },
         anchorProfile: {
           assignmentStatus: 'confirmed',
-          ...(globalView
-            ? {}
-            : { currentOperatorId: currentUser.accountId ?? '' }),
+          ...(scopedOperatorId
+            ? { currentOperatorId: scopedOperatorId }
+            : globalView
+              ? {}
+              : { currentOperatorId: '' }),
         },
         session: {
           scheduledStartAt: { gt: new Date() },
@@ -741,18 +749,26 @@ export class TrainingService {
     }
   }
 
-  async listOperatorTrainingAnchors(currentUser: AuthenticatedUser) {
+  async listOperatorTrainingAnchors(
+    currentUser: AuthenticatedUser,
+    query?: { operatorId?: string },
+  ) {
     await this.access.requireAnyRole(currentUser, ['operator'])
     const globalView =
       currentUser.role === 'super_admin' &&
       currentUser.loginType === 'password_admin'
+    const scopedOperatorId = globalView
+      ? query?.operatorId?.trim() || undefined
+      : currentUser.accountId ?? ''
     const items = await this.prisma.anchorProfile.findMany({
       where: {
         assignmentStatus: 'confirmed',
         status: 'active',
-        ...(globalView
-          ? {}
-          : { currentOperatorId: currentUser.accountId ?? '' }),
+        ...(scopedOperatorId
+          ? { currentOperatorId: scopedOperatorId }
+          : globalView
+            ? {}
+            : { currentOperatorId: '' }),
       },
       include: {
         trainingProgress: true,

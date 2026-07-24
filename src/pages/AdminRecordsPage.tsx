@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, FolderKanban, RefreshCw } from 'lucide-react'
-import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
@@ -26,17 +26,47 @@ type ActivitiesResponse = {
 
 export function AdminRecordsPage() {
   const { session } = useAuth()
+  const [searchParams] = useSearchParams()
+  const operatorId = searchParams.get('operatorId') ?? ''
+  const isSuperAdmin = session?.user.role === 'super_admin'
+
+  const operatorsQuery = useQuery({
+    queryKey: ['active-operators'],
+    queryFn: () =>
+      apiJson<{ items: Array<{ id: string; displayName: string }> }>(
+        '/staff/operators/active',
+      ),
+    enabled: isSuperAdmin,
+  })
+
+  const [localOperatorId, setLocalOperatorId] = useState(operatorId)
+
+  useEffect(() => {
+    setLocalOperatorId(operatorId)
+  }, [operatorId])
+
+  // URL 与本地筛选同步（运营详情深链）
+  const scopedOperatorId = isSuperAdmin ? localOperatorId : ''
 
   const recordsQuery = useQuery({
-    queryKey: ['admin-submissions', 'overview'],
-    queryFn: () =>
-      apiJson<AdminSubmissionsResponse>('/submissions/admin?page=1&pageSize=500'),
+    queryKey: ['admin-submissions', 'overview', scopedOperatorId],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: '1', pageSize: '500' })
+      if (scopedOperatorId) params.set('operatorId', scopedOperatorId)
+      return apiJson<AdminSubmissionsResponse>(
+        `/submissions/admin?${params.toString()}`,
+      )
+    },
   })
 
   const activitiesQuery = useQuery({
     queryKey: ['activities', 'records-overview'],
     queryFn: () => apiJson<ActivitiesResponse>('/activities'),
   })
+
+  const operatorName = operatorsQuery.data?.items.find(
+    (item) => item.id === scopedOperatorId,
+  )?.displayName
 
   const activityCards = useMemo(() => {
     const sourceItems = recordsQuery.data?.items ?? []
@@ -117,9 +147,31 @@ export function AdminRecordsPage() {
           <p className="text-sm font-medium text-brand-600">记录管理</p>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">先按活动查看记录</h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            按活动查看提报记录。运营老师仅查看自己负责的活动，超级管理员可查看全部活动。
+            按活动查看提报记录。运营老师仅查看自己负责的活动；超级管理员可查看全部，也可按运营筛选。
+            {operatorName ? (
+              <span className="mt-1 block text-brand-700">
+                当前筛选运营：{operatorName}
+              </span>
+            ) : null}
           </p>
         </div>
+        {isSuperAdmin ? (
+          <label className="min-w-[12rem] text-xs font-medium text-slate-600">
+            按运营筛选
+            <select
+              className="mt-1.5 app-field"
+              value={scopedOperatorId}
+              onChange={(e) => setLocalOperatorId(e.target.value)}
+            >
+              <option value="">全部运营</option>
+              {(operatorsQuery.data?.items ?? []).map((op) => (
+                <option key={op.id} value={op.id}>
+                  {op.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <button
           type="button"
           onClick={() => {
@@ -245,7 +297,11 @@ export function AdminRecordsPage() {
                 </div>
 
                 <Link
-                  to={`/admin/records/activity/${activity.activityId}`}
+                  to={`/admin/records/activity/${activity.activityId}${
+                    scopedOperatorId
+                      ? `?operatorId=${encodeURIComponent(scopedOperatorId)}`
+                      : ''
+                  }`}
                   className="app-btn-primary justify-center py-3"
                 >
                   <FolderKanban className="h-4 w-4" />

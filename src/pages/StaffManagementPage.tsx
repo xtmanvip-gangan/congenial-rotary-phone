@@ -583,15 +583,25 @@ export function StaffManagementPage() {
                         编辑角色
                       </button>
                       {item.roles.includes('operator') ? (
-                        <Link
-                          className="app-btn-secondary"
-                          to={`/admin/anchors?operatorId=${encodeURIComponent(item.id)}`}
-                        >
-                          <ArrowRightLeft className="h-4 w-4" />
-                          {(item.managedAnchorCount ?? 0) > 0
-                            ? `主播全景(${item.managedAnchorCount})`
-                            : '主播全景'}
-                        </Link>
+                        <>
+                          <Link
+                            className="app-btn-secondary"
+                            to={`/admin/operators/${encodeURIComponent(item.id)}`}
+                          >
+                            <UserCog className="h-4 w-4" />
+                            查看工作台
+                          </Link>
+                          <Link
+                            className="app-btn-secondary"
+                            to={`/admin/anchors?operatorId=${encodeURIComponent(item.id)}`}
+                          >
+                            <ArrowRightLeft className="h-4 w-4" />
+                            在管主播
+                            {(item.managedAnchorCount ?? 0) > 0
+                              ? ` (${item.managedAnchorCount})`
+                              : ''}
+                          </Link>
+                        </>
                       ) : null}
                       <button
                         type="button"

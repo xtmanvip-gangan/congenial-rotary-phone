@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Eye, RefreshCw } from 'lucide-react'
 import { type ReactNode, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
@@ -30,6 +30,8 @@ type RecordStatusFilter = 'all' | 'pending_review' | 'approved' | 'rejected' | '
 
 export function AdminRecordActivityDetailPage() {
   const { activityId } = useParams<{ activityId: string }>()
+  const [searchParams] = useSearchParams()
+  const operatorIdFromUrl = searchParams.get('operatorId') ?? ''
   const { session } = useAuth()
   const showOperatorColumn = session?.user.role === 'super_admin'
   const queryClient = useQueryClient()
@@ -48,11 +50,18 @@ export function AdminRecordActivityDetailPage() {
   >({})
 
   const recordsQuery = useQuery({
-    queryKey: ['admin-submissions', activityId],
-    queryFn: () =>
-      apiJson<AdminSubmissionsResponse>(
-        `/submissions/admin?activityId=${encodeURIComponent(activityId ?? '')}&page=1&pageSize=200`,
-      ),
+    queryKey: ['admin-submissions', activityId, operatorIdFromUrl],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        activityId: activityId ?? '',
+        page: '1',
+        pageSize: '200',
+      })
+      if (operatorIdFromUrl) params.set('operatorId', operatorIdFromUrl)
+      return apiJson<AdminSubmissionsResponse>(
+        `/submissions/admin?${params.toString()}`,
+      )
+    },
     enabled: Boolean(activityId),
   })
 

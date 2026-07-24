@@ -15,6 +15,7 @@ import { OperatorOnboardingPage } from './pages/OperatorOnboardingPage'
 import { RuleManagementPage } from './pages/RuleManagementPage'
 import { StaffHomePage } from './pages/StaffHomePage'
 import { AdminAnchorsPage } from './pages/AdminAnchorsPage'
+import { AdminOperatorOverviewPage } from './pages/AdminOperatorOverviewPage'
 import { StaffManagementPage } from './pages/StaffManagementPage'
 import { TrainingCoursesPage } from './pages/TrainingCoursesPage'
 import { TrainingSessionsPage } from './pages/TrainingSessionsPage'
@@ -69,6 +70,14 @@ function App() {
           element={
             <AuthGate allowRoles={['super_admin']}>
               <AdminAnchorsPage />
+            </AuthGate>
+          }
+        />
+        <Route
+          path="/admin/operators/:operatorId"
+          element={
+            <AuthGate allowRoles={['super_admin']}>
+              <AdminOperatorOverviewPage />
             </AuthGate>
           }
         />

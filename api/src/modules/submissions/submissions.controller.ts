@@ -83,12 +83,14 @@ export class SubmissionsController {
   async listAdminSubmissions(
     @Headers('authorization') authorization?: string,
     @Query('activityId') activityId?: string,
+    @Query('operatorId') operatorId?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ) {
     const currentUser = this.authService.getCurrentUserFromAuthHeader(authorization)
     return this.submissionsService.listAdminSubmissions(currentUser, {
       activityId,
+      operatorId,
       page: page ? Number(page) : undefined,
       pageSize: pageSize ? Number(pageSize) : undefined,
     })

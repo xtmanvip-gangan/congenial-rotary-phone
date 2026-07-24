@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 import { apiJson } from '../lib/api'
 import { formatDateTime } from '../lib/dateTime'
 
@@ -26,6 +28,11 @@ type OperatorRegistration = {
 }
 
 export function OperatorTrainingPage() {
+  const { session } = useAuth()
+  const [searchParams] = useSearchParams()
+  const operatorIdFromUrl = searchParams.get('operatorId') ?? ''
+  const isSuperAdminView =
+    session?.user.role === 'super_admin' && Boolean(operatorIdFromUrl)
   const queryClient = useQueryClient()
   const [sessionId, setSessionId] = useState('')
   const [selectedAnchors, setSelectedAnchors] = useState<string[]>([])
@@ -33,20 +40,25 @@ export function OperatorTrainingPage() {
   const [recommendationAnchorId, setRecommendationAnchorId] = useState('')
   const [recommendationCourseId, setRecommendationCourseId] = useState('')
   const [recommendationReason, setRecommendationReason] = useState('')
+  const operatorQuery = operatorIdFromUrl
+    ? `?operatorId=${encodeURIComponent(operatorIdFromUrl)}`
+    : ''
   const anchorsQuery = useQuery({
-    queryKey: ['operator-training-anchors'],
+    queryKey: ['operator-training-anchors', operatorIdFromUrl],
     queryFn: () =>
-      apiJson<{ items: Anchor[] }>('/training/operator/anchors'),
+      apiJson<{ items: Anchor[] }>(
+        `/training/operator/anchors${operatorQuery}`,
+      ),
   })
   const sessionsQuery = useQuery({
     queryKey: ['training-sessions'],
     queryFn: () => apiJson<{ items: Session[] }>('/training/sessions'),
   })
   const registrationsQuery = useQuery({
-    queryKey: ['operator-training-registrations'],
+    queryKey: ['operator-training-registrations', operatorIdFromUrl],
     queryFn: () =>
       apiJson<{ items: OperatorRegistration[] }>(
-        '/training/operator/registrations',
+        `/training/operator/registrations${operatorQuery}`,
       ),
   })
   const coursesQuery = useQuery({
@@ -63,8 +75,11 @@ export function OperatorTrainingPage() {
     [sessionsQuery.data],
   )
   const mutation = useMutation({
-    mutationFn: () =>
-      apiJson<{
+    mutationFn: () => {
+      if (isSuperAdminView) {
+        throw new Error('超管监管视图不可代报名，请由对应运营操作')
+      }
+      return apiJson<{
         items: Array<{
           anchorProfileId: string
           ok: boolean
@@ -77,7 +92,8 @@ export function OperatorTrainingPage() {
           sessionId,
           anchorProfileIds: selectedAnchors,
         }),
-      }),
+      })
+    },
     onSuccess: (result) => {
       const success = result.items.filter((item) => item.ok).length
       const failed = result.items.length - success
@@ -87,10 +103,14 @@ export function OperatorTrainingPage() {
     },
   })
   const cancelMutation = useMutation({
-    mutationFn: (registrationId: string) =>
-      apiJson(`/training/registrations/operator/${registrationId}`, {
+    mutationFn: (registrationId: string) => {
+      if (isSuperAdminView) {
+        throw new Error('超管监管视图不可取消报名')
+      }
+      return apiJson(`/training/registrations/operator/${registrationId}`, {
         method: 'DELETE',
-      }),
+      })
+    },
     onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({
@@ -100,15 +120,19 @@ export function OperatorTrainingPage() {
       ]),
   })
   const recommendMutation = useMutation({
-    mutationFn: () =>
-      apiJson('/training/recommendations', {
+    mutationFn: () => {
+      if (isSuperAdminView) {
+        throw new Error('超管监管视图不可发送推荐')
+      }
+      return apiJson('/training/recommendations', {
         method: 'POST',
         body: JSON.stringify({
           anchorProfileId: recommendationAnchorId,
           courseId: recommendationCourseId,
           reason: recommendationReason || undefined,
         }),
-      }),
+      })
+    },
     onSuccess: () => {
       setRecommendationReason('')
       setResultText('课程推荐已发送，主播可在小程序“推荐课程”中查看。')
@@ -118,12 +142,18 @@ export function OperatorTrainingPage() {
   return (
     <div className="space-y-6">
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
-        <p className="text-sm font-medium text-brand-600">运营代报名</p>
+        <p className="text-sm font-medium text-brand-600">
+          {isSuperAdminView ? '组织调度 · 培训范围' : '运营代报名'}
+        </p>
         <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-          为我的主播安排课程
+          {isSuperAdminView
+            ? '查看该运营名下主播培训'
+            : '为我的主播安排课程'}
         </h2>
         <p className="mt-2 text-sm text-slate-500">
-          这里只显示已确认归属的主播；培训学习和直播同步进行，不设置考试。
+          {isSuperAdminView
+            ? '超管监管视图：仅展示所选运营名下已确认归属主播的报名数据。写操作请由对应运营执行。'
+            : '这里只显示已确认归属的主播；培训学习和直播同步进行，不设置考试。'}
         </p>
         <select
           className="app-select mt-5"

@@ -323,6 +323,7 @@ export class SubmissionsService {
     currentUser: AuthenticatedUser,
     query?: {
       activityId?: string
+      operatorId?: string
       page?: number
       pageSize?: number
     },
@@ -334,9 +335,13 @@ export class SubmissionsService {
         ? Number(query?.pageSize)
         : 200
     const pageSize = Math.min(500, Math.max(1, requestedSize))
+    // 运营固定自己；超管可传 operatorId 下钻某运营
+    const scopedOperatorId = operatorAccount
+      ? operatorAccount.id
+      : query?.operatorId?.trim() || undefined
     const where = {
       operatorAssignmentStatus: 'confirmed' as const,
-      ...(operatorAccount ? { operatorId: operatorAccount.id } : {}),
+      ...(scopedOperatorId ? { operatorId: scopedOperatorId } : {}),
       ...(query?.activityId?.trim()
         ? { activityId: query.activityId.trim() }
         : {}),

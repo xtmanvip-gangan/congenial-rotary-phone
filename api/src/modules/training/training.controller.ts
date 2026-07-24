@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common'
@@ -268,9 +269,11 @@ export class TrainingController {
   @Get('operator/registrations')
   operatorRegistrations(
     @Headers('authorization') authorization?: string,
+    @Query('operatorId') operatorId?: string,
   ) {
     return this.trainingService.listOperatorRegistrations(
       this.user(authorization),
+      { operatorId },
     )
   }
 
@@ -525,9 +528,13 @@ export class TrainingController {
   }
 
   @Get('operator/anchors')
-  operatorAnchors(@Headers('authorization') authorization?: string) {
+  operatorAnchors(
+    @Headers('authorization') authorization?: string,
+    @Query('operatorId') operatorId?: string,
+  ) {
     return this.trainingService.listOperatorTrainingAnchors(
       this.user(authorization),
+      { operatorId },
     )
   }
 }
