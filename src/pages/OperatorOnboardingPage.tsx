@@ -1117,7 +1117,7 @@ function ScreenshotUploadZone({
         <div>
           <p className="text-sm font-semibold text-slate-900">上传截图</p>
           <p className="mt-0.5 text-xs text-slate-500">
-            至少 1 张，支持多选；自动压缩后上传，适配企微
+            手机竖屏 9:16 截图更清晰；左侧上传，右侧预览
           </p>
         </div>
         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs tabular-nums text-slate-600">
@@ -1125,99 +1125,119 @@ function ScreenshotUploadZone({
         </span>
       </div>
 
-      <label
-        htmlFor={inputId}
-        onDragEnter={(e) => {
-          e.preventDefault()
-          setDragOver(true)
-        }}
-        onDragOver={(e) => {
-          e.preventDefault()
-          setDragOver(true)
-        }}
-        onDragLeave={(e) => {
-          e.preventDefault()
-          setDragOver(false)
-        }}
-        onDrop={(e) => {
-          e.preventDefault()
-          setDragOver(false)
-          if (!uploading) onPick(e.dataTransfer.files)
-        }}
-        className={[
-          'flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-8 transition',
-          dragOver
-            ? 'border-brand-400 bg-brand-50'
-            : 'border-slate-200 bg-slate-50/80 hover:border-brand-300 hover:bg-brand-50/40',
-          uploading ? 'pointer-events-none opacity-70' : '',
-        ].join(' ')}
-      >
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-brand-600 shadow-sm ring-1 ring-slate-200">
-          {uploading ? (
-            <LoaderCircle className="h-5 w-5 animate-spin" />
-          ) : (
-            <ImagePlus className="h-5 w-5" />
-          )}
-        </span>
-        <p className="mt-3 text-sm font-medium text-slate-800">
-          {uploading ? '正在压缩并上传…' : '点击选择图片，或拖拽到此处'}
-        </p>
-        <p className="mt-1 text-xs text-slate-500">
-          JPG / PNG / WEBP，建议清晰完整截图
-        </p>
-        <input
-          id={inputId}
-          type="file"
-          accept="image/*"
-          multiple
-          className="sr-only"
-          disabled={uploading}
-          onChange={(e) => {
-            onPick(e.target.files)
-            e.target.value = ''
+      {/* 左上传 / 右预览（小屏上下堆叠） */}
+      <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
+        <label
+          htmlFor={inputId}
+          onDragEnter={(e) => {
+            e.preventDefault()
+            setDragOver(true)
           }}
-        />
-      </label>
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragOver(true)
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault()
+            setDragOver(false)
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDragOver(false)
+            if (!uploading) onPick(e.dataTransfer.files)
+          }}
+          className={[
+            'flex min-h-[280px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-8 transition md:min-h-[360px]',
+            dragOver
+              ? 'border-brand-400 bg-brand-50'
+              : 'border-slate-200 bg-slate-50/80 hover:border-brand-300 hover:bg-brand-50/40',
+            uploading ? 'pointer-events-none opacity-70' : '',
+          ].join(' ')}
+        >
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-brand-600 shadow-sm ring-1 ring-slate-200">
+            {uploading ? (
+              <LoaderCircle className="h-5 w-5 animate-spin" />
+            ) : (
+              <ImagePlus className="h-5 w-5" />
+            )}
+          </span>
+          <p className="mt-3 text-center text-sm font-medium text-slate-800">
+            {uploading ? '正在压缩并上传…' : '点击选择图片'}
+          </p>
+          <p className="mt-1 max-w-[14rem] text-center text-xs leading-5 text-slate-500">
+            支持拖拽 · 可多选
+            <br />
+            建议竖屏 9:16 完整截图
+          </p>
+          <input
+            id={inputId}
+            type="file"
+            accept="image/*"
+            multiple
+            className="sr-only"
+            disabled={uploading}
+            onChange={(e) => {
+              onPick(e.target.files)
+              e.target.value = ''
+            }}
+          />
+        </label>
 
-      {attachmentUrls.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {attachmentUrls.map((url, index) => (
-            <div
-              key={url}
-              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-            >
-              <a
-                href={resolveUploadUrl(url)}
-                target="_blank"
-                rel="noreferrer"
-                className="block aspect-[4/3] bg-slate-100"
-              >
-                <img
-                  src={resolveUploadUrl(url)}
-                  alt={`截图 ${index + 1}`}
-                  className="h-full w-full object-cover"
-                />
-              </a>
-              <div className="flex items-center justify-between gap-2 px-2.5 py-2">
-                <span className="text-xs font-medium text-slate-600">
-                  截图 {index + 1}
-                </span>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-rose-600 hover:text-rose-700"
-                  onClick={() => onRemove(url)}
-                >
-                  移除
-                </button>
+        <div className="flex min-h-[280px] flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-sm md:min-h-[360px]">
+          <div className="mb-2 flex items-center justify-between gap-2 px-1">
+            <p className="text-xs font-semibold text-slate-700">预览</p>
+            <p className="text-[11px] text-slate-400">竖屏 9:16 比例展示</p>
+          </div>
+
+          {attachmentUrls.length > 0 ? (
+            <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-2">
+                {attachmentUrls.map((url, index) => (
+                  <div
+                    key={url}
+                    className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+                  >
+                    <a
+                      href={resolveUploadUrl(url)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="relative block aspect-[9/16] bg-slate-100"
+                      title="点击查看原图"
+                    >
+                      <img
+                        src={resolveUploadUrl(url)}
+                        alt={`截图 ${index + 1}`}
+                        className="absolute inset-0 h-full w-full object-cover object-top"
+                      />
+                    </a>
+                    <div className="flex items-center justify-between gap-1 px-2 py-1.5">
+                      <span className="text-[11px] font-medium text-slate-600">
+                        {index + 1}
+                      </span>
+                      <button
+                        type="button"
+                        className="text-[11px] font-medium text-rose-600 hover:text-rose-700"
+                        onClick={() => onRemove(url)}
+                      >
+                        移除
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center rounded-xl bg-slate-50 px-4 text-center">
+              <div className="w-16 overflow-hidden rounded-lg border border-dashed border-slate-200 bg-white shadow-sm">
+                <div className="aspect-[9/16] bg-gradient-to-b from-slate-50 to-slate-100" />
+              </div>
+              <p className="mt-3 text-xs text-slate-500">
+                上传后在此预览竖屏截图
+              </p>
+            </div>
+          )}
         </div>
-      ) : (
-        <p className="text-center text-xs text-slate-400">
-          尚未上传截图，提交前请至少上传 1 张
-        </p>
-      )}
+      </div>
     </div>
   )
 }
