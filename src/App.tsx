@@ -56,9 +56,9 @@ function App() {
             }
           >
             <div className={session ? '' : 'max-w-2xl'}>
-              <p className="text-sm font-medium text-brand-600">礼物收集活动管理系统</p>
+              <p className="text-sm font-medium text-brand-600">悦总统 · 主播培训中台</p>
               <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-                主播活动提报平台
+                礼物收集与培训运营平台
               </h1>
             </div>
             {session ? (

@@ -319,24 +319,46 @@ export class SubmissionsService {
     }
   }
 
-  async listAdminSubmissions(currentUser: AuthenticatedUser) {
+  async listAdminSubmissions(
+    currentUser: AuthenticatedUser,
+    query?: {
+      activityId?: string
+      page?: number
+      pageSize?: number
+    },
+  ) {
     const operatorAccount = await this.ensureAdmin(currentUser)
+    const page = Number.isFinite(query?.page) && (query?.page ?? 0) > 0 ? Number(query?.page) : 1
+    const requestedSize =
+      Number.isFinite(query?.pageSize) && (query?.pageSize ?? 0) > 0
+        ? Number(query?.pageSize)
+        : 200
+    const pageSize = Math.min(500, Math.max(1, requestedSize))
+    const where = {
+      operatorAssignmentStatus: 'confirmed' as const,
+      ...(operatorAccount ? { operatorId: operatorAccount.id } : {}),
+      ...(query?.activityId?.trim()
+        ? { activityId: query.activityId.trim() }
+        : {}),
+    }
 
-    const items = await this.prisma.submission.findMany({
-      where: operatorAccount
-        ? {
-            operatorId: operatorAccount.id,
-            operatorAssignmentStatus: 'confirmed',
-          }
-        : {
-            operatorAssignmentStatus: 'confirmed',
-          },
-      include: this.getSubmissionInclude(),
-      orderBy: [{ createdAt: 'desc' }],
-    })
+    const [total, items] = await this.prisma.$transaction([
+      this.prisma.submission.count({ where }),
+      this.prisma.submission.findMany({
+        where,
+        include: this.getSubmissionInclude(),
+        orderBy: [{ createdAt: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ])
 
     return {
       items: items.map((item: any) => this.formatSubmission(item)),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
     }
   }
 

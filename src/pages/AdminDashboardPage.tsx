@@ -78,7 +78,8 @@ export function AdminDashboardPage() {
 
   const recordsQuery = useQuery({
     queryKey: ['admin-submissions', 'dashboard'],
-    queryFn: () => apiJson<AdminSubmissionsResponse>('/submissions/admin'),
+    queryFn: () =>
+      apiJson<AdminSubmissionsResponse>('/submissions/admin?page=1&pageSize=500'),
   })
 
   const activitiesQuery = useQuery({

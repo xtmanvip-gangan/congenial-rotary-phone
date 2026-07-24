@@ -41,7 +41,8 @@ export function ExportCenterPage() {
   const operatorRecordsQuery = useQuery({
     enabled: session?.user.role === 'operator',
     queryKey: ['export-operator-submissions'],
-    queryFn: () => apiJson<AdminSubmissionsResponse>('/submissions/admin'),
+    queryFn: () =>
+      apiJson<AdminSubmissionsResponse>('/submissions/admin?page=1&pageSize=500'),
   })
 
   const exportActivities = useMemo(() => {

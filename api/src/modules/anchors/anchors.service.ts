@@ -238,10 +238,15 @@ export class AnchorsService {
     }
   }
 
+  /**
+   * 历史「主播自选运营」接口。一键开通后已废弃，保留路由仅返回明确错误，避免旧客户端静默失败。
+   */
   async selectOperator(currentUser: AuthenticatedUser, operatorId: string) {
     this.requireAnchorSession(currentUser)
     void operatorId
-    throw new BadRequestException('运营归属由审核老师分配，请联系审核老师处理')
+    throw new BadRequestException(
+      '运营归属由审核老师在开通任务中分配，主播端不可自选。请联系审核老师处理。',
+    )
   }
 
   async listPendingAssignments(currentUser: AuthenticatedUser) {

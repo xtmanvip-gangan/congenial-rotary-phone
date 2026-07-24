@@ -121,3 +121,15 @@
 - `https://ac.ydwy.net/api/health` 返回成功；PM2 新进程在线、重启次数为 0、错误日志为空。
 - 未登录访问激活任务接口返回 401。
 - 实际企微提醒未自动发送，需由审核老师补全旧任务运营后点击“发送提醒”完成真实账号验收。
+
+## 手工腾讯会议 + 固定运营对齐（2026-07-24）
+
+- 部署版本：`d9814b7`（后续细节优化可能叠加提交）
+- API release：`/www/wwwroot/shouji-releases/d9814b7`
+- Web 静态资源：`index-DmWe5l7S.js`（及后续构建哈希）
+- 上线前备份：`/www/backups/shouji/20260723-220810-before-manual-meeting`
+- 变更摘要：
+  - 培训场次发布不再调用腾讯会议 API；支持后补会议号与入会链接。
+  - 参会以腾讯导出 Excel（含观看时长表头）导入为主路径，≥80% 自动已学。
+  - Web 主播提报与小程序对齐：固定运营只读，不可自选。
+- 定时任务仍需在服务器 crontab 按 `scripts/cron-training-jobs.example` 接入。

@@ -50,6 +50,10 @@ export type AdminSubmissionRecordItem = {
 }
 
 export type AdminSubmissionsResponse = {
+  total?: number
+  page?: number
+  pageSize?: number
+  totalPages?: number
   items: AdminSubmissionRecordItem[]
 }
 

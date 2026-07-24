@@ -47,7 +47,11 @@ function makeService(assignmentStatus: 'confirmed' | 'pending_confirmation') {
     submission: {
       create: vi.fn().mockResolvedValue({ id: 'submission-1' }),
       findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
     },
+    $transaction: vi.fn(async (ops: Array<Promise<unknown>>) =>
+      Promise.all(ops),
+    ),
   }
   const notifications = {
     notifySubmissionCreated: vi.fn(),
@@ -129,21 +133,33 @@ describe('SubmissionsService fixed operator assignment', () => {
       id: 'operator-1',
     })
 
-    await service.listAdminSubmissions({
-      ...anchorUser,
-      accountId: 'operator-1',
-      role: 'operator',
-      roles: ['operator'],
-      loginType: 'wecom_staff',
-    })
+    const result = await service.listAdminSubmissions(
+      {
+        ...anchorUser,
+        accountId: 'operator-1',
+        role: 'operator',
+        roles: ['operator'],
+        loginType: 'wecom_staff',
+      },
+      { page: 1, pageSize: 50 },
+    )
 
     expect(prisma.submission.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          operatorId: 'operator-1',
           operatorAssignmentStatus: 'confirmed',
+          operatorId: 'operator-1',
         },
+        take: 50,
+        skip: 0,
       }),
     )
+    expect(result).toMatchObject({
+      total: 0,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
+    })
   })
 })
+

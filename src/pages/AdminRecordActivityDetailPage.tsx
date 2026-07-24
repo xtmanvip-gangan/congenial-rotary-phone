@@ -49,7 +49,11 @@ export function AdminRecordActivityDetailPage() {
 
   const recordsQuery = useQuery({
     queryKey: ['admin-submissions', activityId],
-    queryFn: () => apiJson<AdminSubmissionsResponse>('/submissions/admin'),
+    queryFn: () =>
+      apiJson<AdminSubmissionsResponse>(
+        `/submissions/admin?activityId=${encodeURIComponent(activityId ?? '')}&page=1&pageSize=200`,
+      ),
+    enabled: Boolean(activityId),
   })
 
   const activitiesQuery = useQuery({

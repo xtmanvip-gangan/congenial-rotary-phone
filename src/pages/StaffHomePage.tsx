@@ -16,7 +16,7 @@ const metricLabels: Record<string, { label: string; helper: string }> = {
   pendingActivation: { label: '待激活', helper: '尚未完成主播档案激活' },
   invitationsSent: { label: '已通知待激活', helper: '已发送激活通知' },
   activated: { label: '已激活', helper: '已建立主播档案' },
-  pendingOperatorConfirmation: { label: '待运营确认', helper: '主播已选择运营' },
+  pendingOperatorConfirmation: { label: '待运营确认', helper: '审核已分配运营，等待运营确认归属' },
   averageActivationHours: { label: '平均激活时长', helper: '单位：小时' },
   activeAnchors: { label: '在管主播', helper: '当前有效固定归属' },
   pendingFirstLive: { label: '待首播', helper: '需要继续跟进开播准备' },

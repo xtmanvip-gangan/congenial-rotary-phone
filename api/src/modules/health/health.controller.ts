@@ -7,7 +7,7 @@ export class HealthController {
     return {
       ok: true,
       service: 'shouji-api',
-      phase: 'foundation',
+      phase: 'training-platform-v1',
     }
   }
 }

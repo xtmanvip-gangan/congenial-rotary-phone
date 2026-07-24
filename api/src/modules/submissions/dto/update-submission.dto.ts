@@ -29,6 +29,10 @@ export class UpdateSubmissionDto {
   @MaxLength(100)
   anchorName?: string
 
+  /**
+   * 兼容旧客户端字段。服务端忽略该值，固定运营始终取自主播档案。
+   * @deprecated 请勿再提交
+   */
   @IsString()
   @IsOptional()
   operatorId?: string

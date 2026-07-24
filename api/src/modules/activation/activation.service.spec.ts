@@ -44,7 +44,14 @@ describe('ActivationService', () => {
     const access = {
       requireAnyRole: vi.fn().mockResolvedValue(undefined),
     }
-    const service = new ActivationService(prisma as never, access as never)
+    const notifications = {
+      sendBusinessNotification: vi.fn().mockResolvedValue({ status: 'success' }),
+    }
+    const service = new ActivationService(
+      prisma as never,
+      access as never,
+      notifications as never,
+    )
 
     await service.create(auditTeacher, {
       expectedWecomUserId: 'anchor-uid',
@@ -103,7 +110,14 @@ describe('ActivationService', () => {
       requireAnyRole: vi.fn().mockResolvedValue(undefined),
       hasRole: vi.fn().mockResolvedValue(false),
     }
-    const service = new ActivationService(prisma as never, access as never)
+    const notifications = {
+      sendBusinessNotification: vi.fn().mockResolvedValue({ status: 'success' }),
+    }
+    const service = new ActivationService(
+      prisma as never,
+      access as never,
+      notifications as never,
+    )
 
     await service.update(auditTeacher, 'task-1', {
       expectedWecomUserId: 'anchor-new',
@@ -179,7 +193,14 @@ describe('ActivationService', () => {
       requireAnyRole: vi.fn().mockResolvedValue(undefined),
       hasRole: vi.fn().mockResolvedValue(false),
     }
-    const service = new ActivationService(prisma as never, access as never)
+    const notifications = {
+      sendBusinessNotification: vi.fn().mockResolvedValue({ status: 'success' }),
+    }
+    const service = new ActivationService(
+      prisma as never,
+      access as never,
+      notifications as never,
+    )
 
     await service.reassignOperator(auditTeacher, 'task-1', 'operator-2')
 

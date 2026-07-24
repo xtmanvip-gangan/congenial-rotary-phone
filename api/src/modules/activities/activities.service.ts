@@ -412,6 +412,11 @@ export class ActivitiesService {
     return operatorAccount
   }
 
+  /** 供控制器上传封面等写操作复用 */
+  async assertCanManageActivities(currentUser: AuthenticatedUser) {
+    return this.ensureSuperAdmin(currentUser)
+  }
+
   private async ensureActivityCanBeActivated(activityId: string) {
     const activity = await this.prisma.activity.findUnique({
       where: {

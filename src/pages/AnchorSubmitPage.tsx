@@ -7,6 +7,16 @@ import { FileUploadField } from '../components/FileUploadField'
 import { useConfirmDialog } from '../components/useConfirmDialog'
 import { uploadFilesXhr, apiJson } from '../lib/api'
 
+type FixedOperatorProfile = {
+  id: string
+  anchorDisplayName: string
+  assignmentStatus: 'pending_confirmation' | 'confirmed' | string
+  operator: {
+    id: string
+    displayName: string
+  }
+}
+
 type ActivityDetailResponse = {
   item: {
     id: string
@@ -31,10 +41,8 @@ type ActivityDetailResponse = {
           rewardRules: Array<RewardRuleReference>
         }
   }
-  operators: Array<{
-    id: string
-    displayName: string
-  }>
+  /** 服务端按主播档案解析的固定运营，客户端不可改 */
+  anchorProfile: FixedOperatorProfile
 }
 
 type SubmissionDetailResponse = {
@@ -42,6 +50,8 @@ type SubmissionDetailResponse = {
     id: string
     anchorName: string
     operatorId: string
+    operatorName: string
+    operatorAssignmentStatus: 'pending_confirmation' | 'confirmed' | string
     liveDate: string
     liveStartTime: string
     reviewStatus: 'pending' | 'approved' | 'rejected'
@@ -58,7 +68,6 @@ type SubmissionDetailResponse = {
     pkValue: number | null
     activity: ActivityDetailResponse['item']
   }
-  operators: ActivityDetailResponse['operators']
 }
 
 type RewardRuleReference = {
@@ -112,7 +121,6 @@ export function AnchorSubmitPage() {
   const isEditMode = Boolean(recordId)
   const [anchorName, setAnchorName] = useState('')
   const [anchorNameTouched, setAnchorNameTouched] = useState(false)
-  const [operatorId, setOperatorId] = useState('')
   const [liveDate, setLiveDate] = useState(getTodayDate())
   const [liveStartTime, setLiveStartTime] = useState('')
   const [giftRows, setGiftRows] = useState<GiftSelectionRow[]>(() => [createGiftSelectionRow()])
@@ -142,18 +150,40 @@ export function AnchorSubmitPage() {
     ? submissionQuery.data
       ? {
           item: submissionQuery.data.item.activity,
-          operators: submissionQuery.data.operators,
+          fixedOperator: {
+            displayName: submissionQuery.data.item.operatorName,
+            assignmentStatus: submissionQuery.data.item.operatorAssignmentStatus,
+          },
         }
       : undefined
     : activityQuery.data
+      ? {
+          item: activityQuery.data.item,
+          fixedOperator: {
+            displayName: activityQuery.data.anchorProfile.operator.displayName,
+            assignmentStatus: activityQuery.data.anchorProfile.assignmentStatus,
+          },
+        }
+      : undefined
 
   const currentActivityId = isEditMode ? submissionQuery.data?.item.activity.id : activityId
 
   useEffect(() => {
-    if (!isEditMode && session?.user.name && !anchorNameTouched && !anchorName) {
-      setAnchorName(session.user.name)
+    if (isEditMode || anchorNameTouched || anchorName) {
+      return
     }
-  }, [anchorName, anchorNameTouched, isEditMode, session?.user.name])
+    const profileName =
+      activityQuery.data?.anchorProfile.anchorDisplayName || session?.user.name
+    if (profileName) {
+      setAnchorName(profileName)
+    }
+  }, [
+    activityQuery.data?.anchorProfile.anchorDisplayName,
+    anchorName,
+    anchorNameTouched,
+    isEditMode,
+    session?.user.name,
+  ])
 
   useEffect(() => {
     if (isEditMode || !activityQuery.data) {
@@ -161,10 +191,6 @@ export function AnchorSubmitPage() {
     }
 
     const formConfig = activityQuery.data.item.formConfig
-
-    if (!operatorId && activityQuery.data.operators.length > 0) {
-      setOperatorId(activityQuery.data.operators[0].id)
-    }
 
     if (formConfig.mode === 'gift_collection') {
       setGiftRows((current) => {
@@ -175,7 +201,7 @@ export function AnchorSubmitPage() {
         return [createGiftSelectionRow(formConfig.giftItems[0]?.itemName ?? '')]
       })
     }
-  }, [activityQuery.data, isEditMode, operatorId])
+  }, [activityQuery.data, isEditMode])
 
   useEffect(() => {
     if (!isEditMode || !submissionQuery.data) {
@@ -188,7 +214,6 @@ export function AnchorSubmitPage() {
     }
 
     setAnchorName(submission.anchorName)
-    setOperatorId(submission.operatorId)
     setLiveDate(submission.liveDate)
     setLiveStartTime(submission.liveStartTime)
     setExistingAttachments(submission.attachments)
@@ -284,10 +309,6 @@ export function AnchorSubmitPage() {
         throw new Error('请填写主播姓名')
       }
 
-      if (!operatorId) {
-        throw new Error('请选择运营老师')
-      }
-
       if (!liveDate) {
         throw new Error('请选择直播日期')
       }
@@ -303,6 +324,14 @@ export function AnchorSubmitPage() {
       const uploadResult = files.length > 0 ? await uploadImages(files) : { items: [] }
       const attachmentUrls = [...existingAttachments.map((item) => item.fileUrl), ...uploadResult.items.map((item) => item.fileUrl)]
 
+      // 运营归属由服务端按主播档案固定绑定，不提交 operatorId
+      const basePayload = {
+        anchorName: anchorName.trim(),
+        liveDate,
+        liveStartTime,
+        attachmentUrls,
+      }
+
       if (pageData.item.formConfig.mode === 'gift_collection') {
         if (normalizedGiftItems.length === 0) {
           throw new Error('请至少填写一项礼物数量')
@@ -312,12 +341,8 @@ export function AnchorSubmitPage() {
           return apiJson(`/submissions/mine/${recordId}`, {
             method: 'PUT',
             body: JSON.stringify({
-              anchorName: anchorName.trim(),
-              operatorId,
-              liveDate,
-              liveStartTime,
+              ...basePayload,
               items: normalizedGiftItems,
-              attachmentUrls,
             }),
           })
         }
@@ -325,13 +350,9 @@ export function AnchorSubmitPage() {
         return apiJson('/submissions', {
           method: 'POST',
           body: JSON.stringify({
+            ...basePayload,
             activityId: currentActivityId,
-            anchorName: anchorName.trim(),
-            operatorId,
-            liveDate,
-            liveStartTime,
             items: normalizedGiftItems,
-            attachmentUrls,
           }),
         })
       }
@@ -344,12 +365,8 @@ export function AnchorSubmitPage() {
         return apiJson(`/submissions/mine/${recordId}`, {
           method: 'PUT',
           body: JSON.stringify({
-            anchorName: anchorName.trim(),
-            operatorId,
-            liveDate,
-            liveStartTime,
+            ...basePayload,
             pkValue: Number(pkValue),
-            attachmentUrls,
           }),
         })
       }
@@ -357,13 +374,9 @@ export function AnchorSubmitPage() {
       return apiJson('/submissions', {
         method: 'POST',
         body: JSON.stringify({
+          ...basePayload,
           activityId: currentActivityId,
-          anchorName: anchorName.trim(),
-          operatorId,
-          liveDate,
-          liveStartTime,
           pkValue: Number(pkValue),
-          attachmentUrls,
         }),
       })
     },
@@ -499,21 +512,21 @@ export function AnchorSubmitPage() {
                 />
               </label>
 
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">运营老师</span>
-                <select
-                  value={operatorId}
-                  onChange={(event) => setOperatorId(event.target.value)}
-                  className="mt-2 app-select"
-                >
-                  <option value="">请选择运营老师</option>
-                  {pageData.operators.map((operator) => (
-                    <option key={operator.id} value={operator.id}>
-                      {operator.displayName}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="block">
+                <span className="text-sm font-medium text-slate-700">固定运营老师</span>
+                <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  {pageData.fixedOperator.displayName}
+                </div>
+                {pageData.fixedOperator.assignmentStatus === 'pending_confirmation' ? (
+                  <p className="mt-2 text-xs leading-5 text-amber-700">
+                    当前归属待运营确认：本次提报会先保存，确认后自动进入审核处理。
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    运营由审核老师分配，主播端不可修改。
+                  </p>
+                )}
+              </div>
 
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">直播日期</span>

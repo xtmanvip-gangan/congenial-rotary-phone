@@ -28,8 +28,9 @@ export function AdminRecordsPage() {
   const { session } = useAuth()
 
   const recordsQuery = useQuery({
-    queryKey: ['admin-submissions'],
-    queryFn: () => apiJson<AdminSubmissionsResponse>('/submissions/admin'),
+    queryKey: ['admin-submissions', 'overview'],
+    queryFn: () =>
+      apiJson<AdminSubmissionsResponse>('/submissions/admin?page=1&pageSize=500'),
   })
 
   const activitiesQuery = useQuery({

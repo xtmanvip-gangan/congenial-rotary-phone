@@ -686,7 +686,7 @@ async function uploadActivityCover(file: File) {
   const arrayBuffer = await file.arrayBuffer()
   const blob = new Blob([arrayBuffer], { type: file.type })
 
-  const result = await apiJson<{ items: Array<{ fileUrl: string }> }>('/submissions/upload-images-base64', {
+  const result = await apiJson<{ items: Array<{ fileUrl: string }> }>('/activities/upload-cover', {
     method: 'POST',
     body: JSON.stringify({
       fileName: file.name,

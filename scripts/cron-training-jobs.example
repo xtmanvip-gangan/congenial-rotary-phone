@@ -1,0 +1,12 @@
+# 培训任务定时调度示例（crontab -e）
+# 仅操作本项目 API，勿改其它站点进程。
+#
+# 请将下面变量换成服务器环境中的真实值（不要提交真实 Token）：
+#   API_BASE=https://ac.ydwy.net/api
+#   JOB_BEARER_TOKEN=运维账号登录后的 JWT
+#
+# 开课前 1 小时提醒（每 5 分钟）
+# */5 * * * * curl -fsS -X POST -H "Authorization: Bearer ${JOB_BEARER_TOKEN}" "${API_BASE}/jobs/training/send-one-hour-reminders" >> /var/log/shouji-cron-reminders.log 2>&1
+#
+# 失败通知重试（每 10 分钟）
+# */10 * * * * curl -fsS -X POST -H "Authorization: Bearer ${JOB_BEARER_TOKEN}" "${API_BASE}/jobs/training/retry-failed-notifications" >> /var/log/shouji-cron-retry.log 2>&1
