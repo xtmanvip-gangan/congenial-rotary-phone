@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowRightLeft,
+  ChevronRight,
   LoaderCircle,
   RefreshCw,
   Search,
@@ -217,7 +218,7 @@ export function AdminAnchorsPage() {
               主播全景
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              查看全部主播的运营归属与岗前进度。可勾选主播分散转交给不同运营；转交后需新运营确认。
+              全局查看主播归属与进度；点进某主播可看档案、礼物、课程与复盘（建设中）。列表可勾选分散转交，转交后需新运营确认。
             </p>
           </div>
           <button
@@ -345,7 +346,7 @@ export function AdminAnchorsPage() {
           items.length === 0 ? (
             <EmptyState
               title="没有符合条件的主播"
-              description="调整筛选条件，或从员工页进入某运营的在管列表。"
+              description="调整筛选条件，或从运营工作台跳转到该运营名下主播。"
               tone="plain"
             />
           ) : null}
@@ -383,9 +384,12 @@ export function AdminAnchorsPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="font-semibold text-slate-900">
+                      <Link
+                        to={`/admin/anchors/${item.id}`}
+                        className="font-semibold text-slate-900 hover:text-brand-700"
+                      >
                         {item.anchorDisplayName}
-                      </h4>
+                      </Link>
                       <span
                         className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${tone}`}
                       >
@@ -404,14 +408,13 @@ export function AdminAnchorsPage() {
                       {next ? ` · 下一步 ${next}` : done >= total ? ' · 岗前完成' : ''}
                     </p>
                   </div>
-                  {item.assignmentStatus === 'confirmed' ? (
-                    <Link
-                      className="app-btn-secondary text-xs"
-                      to={`/operator/anchors/${item.id}/onboarding`}
-                    >
-                      查看岗前
-                    </Link>
-                  ) : null}
+                  <Link
+                    className="app-btn-secondary text-xs"
+                    to={`/admin/anchors/${item.id}`}
+                  >
+                    查看全景
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
                 </div>
               </article>
             )

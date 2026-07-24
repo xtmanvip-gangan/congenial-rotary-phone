@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowRightLeft,
   LoaderCircle,
   Pencil,
   Plus,
@@ -583,25 +582,13 @@ export function StaffManagementPage() {
                         编辑角色
                       </button>
                       {item.roles.includes('operator') ? (
-                        <>
-                          <Link
-                            className="app-btn-secondary"
-                            to={`/admin/operators/${encodeURIComponent(item.id)}`}
-                          >
-                            <UserCog className="h-4 w-4" />
-                            查看工作台
-                          </Link>
-                          <Link
-                            className="app-btn-secondary"
-                            to={`/admin/anchors?operatorId=${encodeURIComponent(item.id)}`}
-                          >
-                            <ArrowRightLeft className="h-4 w-4" />
-                            在管主播
-                            {(item.managedAnchorCount ?? 0) > 0
-                              ? ` (${item.managedAnchorCount})`
-                              : ''}
-                          </Link>
-                        </>
+                        <Link
+                          className="app-btn-secondary"
+                          to={`/admin/operators/${encodeURIComponent(item.id)}`}
+                        >
+                          <UserCog className="h-4 w-4" />
+                          查看工作台
+                        </Link>
                       ) : null}
                       <button
                         type="button"

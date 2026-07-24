@@ -7,7 +7,10 @@ import {
 import { PrismaService } from '../../prisma/prisma.service.js'
 import { AccessService } from '../access/access.service.js'
 import type { AuthenticatedUser } from '../auth/auth.types.js'
-import { ONBOARDING_PROGRESS_MILESTONES } from '../onboarding/onboarding.constants.js'
+import {
+  MILESTONE_LABELS,
+  ONBOARDING_PROGRESS_MILESTONES,
+} from '../onboarding/onboarding.constants.js'
 
 const profileInclude = {
   wecomUser: {
@@ -414,6 +417,290 @@ export class AnchorsService {
             }
           : null,
       })),
+    }
+  }
+
+  /**
+   * 超管：主播全景详情（档案 + 岗前 + 礼物 + 培训；复盘暂占位）
+   */
+  async getAdminAnchorDetail(
+    currentUser: AuthenticatedUser,
+    anchorId: string,
+  ) {
+    await this.access.requirePasswordSuperAdmin(currentUser)
+
+    const id = anchorId?.trim()
+    if (!id) {
+      throw new BadRequestException('主播 ID 无效')
+    }
+
+    const profile = await this.prisma.anchorProfile.findUnique({
+      where: { id },
+      include: {
+        wecomUser: {
+          select: {
+            wecomName: true,
+            wecomUserId: true,
+          },
+        },
+        currentOperator: {
+          select: {
+            id: true,
+            displayName: true,
+          },
+        },
+        onboardingProgress: {
+          include: {
+            milestones: true,
+          },
+        },
+        assignments: {
+          include: {
+            operator: {
+              select: {
+                id: true,
+                displayName: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 30,
+        },
+        nameHistory: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        },
+      },
+    })
+
+    if (!profile) {
+      throw new NotFoundException('主播不存在')
+    }
+
+    const [submissions, registrations, learningProgress] = await Promise.all([
+      this.prisma.submission.findMany({
+        where: { anchorProfileId: profile.id },
+        include: {
+          activity: {
+            include: {
+              type: {
+                select: {
+                  typeCode: true,
+                  typeName: true,
+                },
+              },
+            },
+          },
+          operator: {
+            select: {
+              id: true,
+              displayName: true,
+            },
+          },
+          items: {
+            select: {
+              itemName: true,
+              quantity: true,
+            },
+          },
+          attachments: {
+            select: {
+              fileType: true,
+              fileUrl: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      this.prisma.trainingRegistration.findMany({
+        where: { anchorProfileId: profile.id },
+        include: {
+          session: {
+            include: {
+              course: {
+                select: {
+                  id: true,
+                  code: true,
+                  title: true,
+                  level: true,
+                },
+              },
+              teacher: {
+                select: {
+                  id: true,
+                  displayName: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { registeredAt: 'desc' },
+        take: 50,
+      }),
+      this.prisma.trainingLearningProgress.findMany({
+        where: { anchorProfileId: profile.id },
+        include: {
+          course: {
+            select: {
+              id: true,
+              code: true,
+              title: true,
+              level: true,
+              sequence: true,
+            },
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+      }),
+    ])
+
+    const milestoneMap = new Map(
+      (profile.onboardingProgress?.milestones ?? []).map((item) => [
+        item.type,
+        item,
+      ]),
+    )
+    const milestones = ONBOARDING_PROGRESS_MILESTONES.map((type) => {
+      const item = milestoneMap.get(type)
+      return {
+        type,
+        label: MILESTONE_LABELS[type],
+        status: item?.status ?? 'pending',
+        completedAt: item?.completedAt?.toISOString() ?? null,
+        submittedAt: item?.submittedAt?.toISOString() ?? null,
+        note: item?.note ?? null,
+        evidence:
+          item?.evidence &&
+          typeof item.evidence === 'object' &&
+          !Array.isArray(item.evidence)
+            ? (item.evidence as Record<string, unknown>)
+            : null,
+        attachmentUrls: item?.attachmentUrls ?? [],
+        rejectReason: item?.rejectReason ?? null,
+      }
+    })
+    const completedCount = milestones.filter(
+      (item) => item.status === 'completed',
+    ).length
+    const nextMilestone =
+      milestones.find((item) => item.status !== 'completed')?.type ?? null
+
+    const giftSummary = {
+      total: submissions.length,
+      pendingReview: submissions.filter((s) => s.reviewStatus === 'pending')
+        .length,
+      approved: submissions.filter((s) => s.reviewStatus === 'approved').length,
+      rejected: submissions.filter((s) => s.reviewStatus === 'rejected').length,
+      granted: submissions.filter((s) => s.grantStatus === 'granted').length,
+    }
+
+    const trainingSummary = {
+      registrationCount: registrations.length,
+      learnedCourseCount: learningProgress.filter(
+        (item) => item.status === 'learned',
+      ).length,
+      progressCount: learningProgress.length,
+    }
+
+    return {
+      profile: {
+        ...this.toProfileItem(profile),
+        wecomUserId: profile.wecomUser.wecomUserId,
+        source: profile.source,
+        createdAt: profile.createdAt.toISOString(),
+        updatedAt: profile.updatedAt.toISOString(),
+      },
+      assignmentHistory: profile.assignments.map((item) => ({
+        id: item.id,
+        status: item.status,
+        operator: item.operator,
+        startedAt: item.startedAt?.toISOString() ?? null,
+        endedAt: item.endedAt?.toISOString() ?? null,
+        reason: item.reason,
+        initiatedBy: item.initiatedBy,
+        confirmedBy: item.confirmedBy,
+        createdAt: item.createdAt.toISOString(),
+      })),
+      nameHistory: profile.nameHistory.map((item) => ({
+        id: item.id,
+        oldName: item.oldName,
+        newName: item.newName,
+        changedByType: item.changedByType,
+        createdAt: item.createdAt.toISOString(),
+      })),
+      onboarding: profile.onboardingProgress
+        ? {
+            currentStage: profile.onboardingProgress.currentStage,
+            firstLiveAt:
+              profile.onboardingProgress.firstLiveAt?.toISOString() ?? null,
+            firstReviewCompletedAt:
+              profile.onboardingProgress.firstReviewCompletedAt?.toISOString() ??
+              null,
+            completedCount,
+            totalCount: ONBOARDING_PROGRESS_MILESTONES.length,
+            nextMilestone,
+            milestones,
+          }
+        : null,
+      gifts: {
+        summary: giftSummary,
+        items: submissions.map((item) => ({
+          id: item.id,
+          activity: {
+            id: item.activity.id,
+            name: item.activity.name,
+            typeCode: item.activity.type.typeCode,
+            typeName: item.activity.type.typeName,
+          },
+          operatorName: item.operator.displayName,
+          liveDate: item.liveDate.toISOString().slice(0, 10),
+          liveStartTime: item.liveStartTime.toISOString().slice(11, 16),
+          reviewStatus: item.reviewStatus,
+          grantStatus: item.grantStatus,
+          rejectReason: item.rejectReason,
+          items: item.items.map((row) => ({
+            itemName: row.itemName,
+            quantity: Number(row.quantity),
+          })),
+          attachmentUrls: item.attachments
+            .filter((row) => row.fileType === 'submission_proof')
+            .map((row) => row.fileUrl),
+          createdAt: item.createdAt.toISOString(),
+        })),
+      },
+      training: {
+        summary: trainingSummary,
+        progress: learningProgress.map((item) => ({
+          courseId: item.course.id,
+          courseCode: item.course.code,
+          courseTitle: item.course.title,
+          courseLevel: item.course.level,
+          status: item.status,
+          makeupStatus: item.makeupStatus,
+          firstLearnedAt: item.firstLearnedAt?.toISOString() ?? null,
+          lastLearnedAt: item.lastLearnedAt?.toISOString() ?? null,
+        })),
+        registrations: registrations.map((item) => ({
+          id: item.id,
+          status: item.status,
+          learningType: item.learningType,
+          source: item.source,
+          registeredAt: item.registeredAt.toISOString(),
+          cancelledAt: item.cancelledAt?.toISOString() ?? null,
+          course: item.session.course,
+          teacher: item.session.teacher,
+          scheduledStartAt: item.session.scheduledStartAt.toISOString(),
+          scheduledEndAt: item.session.scheduledEndAt.toISOString(),
+          sessionStatus: item.session.status,
+        })),
+      },
+      /** 复盘记录：暂定项目，先占位 */
+      reviews: {
+        available: false as const,
+        message: '复盘记录功能建设中，后续将汇总首播复盘与日常复盘',
+        items: [] as const,
+      },
     }
   }
 

@@ -143,6 +143,17 @@ export class AdminAnchorsController {
     )
   }
 
+  @Get(':anchorId')
+  detail(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('anchorId') anchorId: string,
+  ) {
+    return this.anchorsService.getAdminAnchorDetail(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      anchorId,
+    )
+  }
+
   @Post('transfer')
   transfer(
     @Headers('authorization') authorization: string | undefined,
