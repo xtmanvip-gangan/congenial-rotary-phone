@@ -332,7 +332,12 @@ function EvidenceBlock({ item }: { item: OnboardingMilestone }) {
     return (
       <View className={styles.evidence}>
         <Text className={styles.evidenceLine}>
-          培训说明：{String(evidence.learningNote ?? item.note ?? '—')}
+          培训完成时间：{String(evidence.trainedAt ?? '—')}
+        </Text>
+        <Text className={styles.evidenceLine}>
+          {evidence.materialsDelivered
+            ? '运营已确认下发培训手册/直播脚本'
+            : '材料下发状态：未勾选'}
         </Text>
       </View>
     )

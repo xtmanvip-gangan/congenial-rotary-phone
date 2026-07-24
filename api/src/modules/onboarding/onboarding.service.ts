@@ -284,23 +284,15 @@ export class OnboardingService {
       const raw = dto.evidence ?? {}
       const trainedAt =
         typeof raw.trainedAt === 'string' ? raw.trainedAt.trim() : ''
-      const learningNote =
-        typeof raw.learningNote === 'string'
-          ? raw.learningNote.trim()
-          : dto.note?.trim() || ''
       if (!trainedAt) {
         throw new BadRequestException('请填写培训完成时间')
       }
-      if (!learningNote) {
-        throw new BadRequestException('请填写学习完成说明')
+      if (!raw.materialsDelivered) {
+        throw new BadRequestException('请确认已下发培训手册/直播脚本')
       }
-      const trainerName =
-        typeof raw.trainerName === 'string' ? raw.trainerName.trim() : ''
       return {
         trainedAt,
-        learningNote,
-        ...(trainerName ? { trainerName } : {}),
-        materialsDelivered: Boolean(raw.materialsDelivered),
+        materialsDelivered: true,
       }
     }
 

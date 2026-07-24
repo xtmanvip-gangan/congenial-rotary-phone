@@ -231,7 +231,7 @@ export function OperatorOnboardingPage() {
       live_software_ready: '上传直播软件截图，提交即完成',
       helper_software_ready: '上传辅助软件截图，提交即完成',
       prejob_learning_completed:
-        '标记培训完成并写说明，提交后主播勾选 10 项确认',
+        '填写培训完成时间并勾选材料下发，提交后主播勾选 10 项确认',
       first_live_completed: '上传首播截图，提交即完成',
       first_live_review_completed: '填写复盘结论，提交后等待主播确认',
     }),
@@ -277,8 +277,6 @@ export function OperatorOnboardingPage() {
     } else if (milestone.type === 'prejob_learning_completed') {
       setExtraForm({
         trainedAt: String(evidence.trainedAt ?? ''),
-        trainerName: String(evidence.trainerName ?? ''),
-        learningNote: String(evidence.learningNote ?? milestone.note ?? ''),
         materialsDelivered: evidence.materialsDelivered ? '1' : '',
       })
     } else if (milestone.type === 'first_live_review_completed') {
@@ -419,11 +417,8 @@ export function OperatorOnboardingPage() {
         type: activeType,
         evidence: {
           trainedAt: extraForm.trainedAt,
-          trainerName: extraForm.trainerName,
-          learningNote: extraForm.learningNote,
           materialsDelivered: extraForm.materialsDelivered === '1',
         },
-        note: extraForm.learningNote,
       })
       return
     }
@@ -891,33 +886,7 @@ export function OperatorOnboardingPage() {
                       }
                     />
                   </label>
-                  <label className="block text-sm font-medium text-slate-700">
-                    授课老师（选填）
-                    <input
-                      className="mt-2 app-field"
-                      value={extraForm.trainerName ?? ''}
-                      onChange={(e) =>
-                        setExtraForm((c) => ({
-                          ...c,
-                          trainerName: e.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-slate-700">
-                    学习完成说明
-                    <textarea
-                      className="mt-2 app-field min-h-[100px] resize-y"
-                      value={extraForm.learningNote ?? ''}
-                      onChange={(e) =>
-                        setExtraForm((c) => ({
-                          ...c,
-                          learningNote: e.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
                     <input
                       type="checkbox"
                       checked={extraForm.materialsDelivered === '1'}
@@ -930,6 +899,9 @@ export function OperatorOnboardingPage() {
                     />
                     已下发培训手册 / 直播脚本
                   </label>
+                  <p className="text-xs text-slate-500">
+                    提交后，主播需在小程序勾选 10 项培训确认清单。
+                  </p>
                   <FormActions
                     busy={submitMutation.isPending}
                     onSubmit={submitActive}
@@ -1083,7 +1055,8 @@ function EvidencePreview({
   if (type === 'prejob_learning_completed') {
     return (
       <p className="mt-2 text-sm text-slate-600">
-        培训说明：{String(evidence.learningNote ?? '—')}
+        培训完成：{String(evidence.trainedAt ?? '—')}
+        {evidence.materialsDelivered ? ' · 已下发手册/脚本' : ''}
       </p>
     )
   }
