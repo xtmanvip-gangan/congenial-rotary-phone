@@ -68,6 +68,8 @@ export function AdminAnchorsPage() {
   const [assignmentStatus, setAssignmentStatus] = useState(
     searchParams.get('assignmentStatus') ?? '',
   )
+  /** 默认浏览模式；开启后才出现勾选列与批量转交 */
+  const [transferMode, setTransferMode] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [transferOpen, setTransferOpen] = useState(false)
   const [targetOperatorId, setTargetOperatorId] = useState('')
@@ -75,6 +77,19 @@ export function AdminAnchorsPage() {
     type: 'success' | 'error'
     text: string
   } | null>(null)
+
+  function exitTransferMode() {
+    setTransferMode(false)
+    setSelected(new Set())
+    setTransferOpen(false)
+    setTargetOperatorId('')
+  }
+
+  function enterTransferMode() {
+    setFeedback(null)
+    setTransferMode(true)
+    setSelected(new Set())
+  }
 
   // 同步 URL 查询（员工页「去转交」会带 operatorId）
   useEffect(() => {
@@ -122,6 +137,7 @@ export function AdminAnchorsPage() {
       setTransferOpen(false)
       setTargetOperatorId('')
       setSelected(new Set())
+      setTransferMode(false)
       setFeedback({
         type: 'success',
         text: `已转交 ${result.transferredCount} 位主播给「${result.targetOperator.displayName}」${
@@ -188,6 +204,14 @@ export function AdminAnchorsPage() {
   }
 
   function openTransfer() {
+    if (!transferMode) {
+      enterTransferMode()
+      setFeedback({
+        type: 'success',
+        text: '已进入转交模式，请勾选要转交的主播后再点「确认转交」',
+      })
+      return
+    }
     if (selected.size === 0) {
       setFeedback({ type: 'error', text: '请先勾选要转交的主播' })
       return
@@ -309,17 +333,45 @@ export function AdminAnchorsPage() {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
           <p className="text-sm text-slate-500">
             共 {items.length} 人
-            {selected.size > 0 ? ` · 已选 ${selected.size}` : ''}
+            {transferMode
+              ? selected.size > 0
+                ? ` · 转交模式 · 已选 ${selected.size}`
+                : ' · 转交模式 · 请勾选主播'
+              : ' · 浏览模式'}
           </p>
-          <button
-            type="button"
-            className="app-btn-primary"
-            disabled={selected.size === 0 || transferMutation.isPending}
-            onClick={openTransfer}
-          >
-            <ArrowRightLeft className="h-4 w-4" />
-            转交所选主播
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {transferMode ? (
+              <>
+                <button
+                  type="button"
+                  className="app-btn-secondary"
+                  disabled={transferMutation.isPending}
+                  onClick={exitTransferMode}
+                >
+                  退出转交
+                </button>
+                <button
+                  type="button"
+                  className="app-btn-primary"
+                  disabled={selected.size === 0 || transferMutation.isPending}
+                  onClick={openTransfer}
+                >
+                  <ArrowRightLeft className="h-4 w-4" />
+                  转交所选
+                  {selected.size > 0 ? ` (${selected.size})` : ''}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="app-btn-secondary"
+                onClick={enterTransferMode}
+              >
+                <ArrowRightLeft className="h-4 w-4" />
+                批量转交
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="mt-4">
@@ -353,14 +405,16 @@ export function AdminAnchorsPage() {
               <table className="min-w-full border-collapse text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
-                    <th className="w-10 px-3 py-3">
-                      <input
-                        type="checkbox"
-                        checked={allVisibleSelected}
-                        onChange={toggleAllVisible}
-                        aria-label="全选当前列表"
-                      />
-                    </th>
+                    {transferMode ? (
+                      <th className="w-10 px-3 py-3">
+                        <input
+                          type="checkbox"
+                          checked={allVisibleSelected}
+                          onChange={toggleAllVisible}
+                          aria-label="全选当前列表"
+                        />
+                      </th>
+                    ) : null}
                     <th className="whitespace-nowrap px-3 py-3">主播</th>
                     <th className="whitespace-nowrap px-3 py-3">企微</th>
                     <th className="whitespace-nowrap px-3 py-3">运营</th>
@@ -396,19 +450,21 @@ export function AdminAnchorsPage() {
                         key={item.id}
                         className={[
                           'transition-colors',
-                          isSelected
+                          transferMode && isSelected
                             ? 'bg-brand-50/50'
                             : 'hover:bg-slate-50/80',
                         ].join(' ')}
                       >
-                        <td className="px-3 py-2.5 align-middle">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleOne(item.id)}
-                            aria-label={`选择 ${item.anchorDisplayName}`}
-                          />
-                        </td>
+                        {transferMode ? (
+                          <td className="px-3 py-2.5 align-middle">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleOne(item.id)}
+                              aria-label={`选择 ${item.anchorDisplayName}`}
+                            />
+                          </td>
+                        ) : null}
                         <td className="px-3 py-2.5 align-middle">
                           <Link
                             to={`/admin/anchors/${item.id}`}

@@ -228,12 +228,14 @@ const fallbackEvidenceLabels: Record<string, string> = {
   note: '备注',
   screenshotUrls: '截图',
   attachmentUrls: '附件',
+  reviewConclusion: '复盘结论',
   reviewSummary: '复盘摘要',
   reviewPoints: '复盘要点',
   liveDurationMinutes: '直播时长（分钟）',
   peakViewers: '最高在线',
   issues: '问题与改进',
   nextActions: '下一步动作',
+  materialsDelivered: '已下发培训资料',
 }
 
 /** 不在详情中展示的内部/冗余键 */
@@ -719,8 +721,12 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
                     </span>
                   </div>
 
-                  {selected.note ? (
+                  {shouldShowMilestoneNote(selected) ? (
                     <p className="mt-3 text-sm leading-6 text-slate-600">
+                      <span className="text-xs font-medium text-slate-400">
+                        备注
+                      </span>
+                      <br />
                       {selected.note}
                     </p>
                   ) : null}
@@ -904,6 +910,26 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
       </div>
     </div>
   )
+}
+
+/**
+ * note 与 evidence 内容重复时不展示（首播复盘会把同一结论写入 note + reviewConclusion）
+ */
+function shouldShowMilestoneNote(milestone: Milestone): boolean {
+  const note = milestone.note?.trim()
+  if (!note) return false
+  const evidence = milestone.evidence
+  if (!evidence) return true
+  const conclusion =
+    typeof evidence.reviewConclusion === 'string'
+      ? evidence.reviewConclusion.trim()
+      : ''
+  if (conclusion && conclusion === note) return false
+  // 任意 evidence 字符串字段与 note 完全相同也跳过
+  for (const value of Object.values(evidence)) {
+    if (typeof value === 'string' && value.trim() === note) return false
+  }
+  return true
 }
 
 /** 证据字段中文化展示；初次沟通额外展示入会日期 */
