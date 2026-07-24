@@ -21,22 +21,24 @@ export function RoleWorkspaceSwitcher() {
   }
 
   return (
-    <label className="flex items-center gap-2 text-sm text-slate-500">
-      <span>工作台</span>
+    <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:text-sm">
+      <span className="hidden sm:inline">工作台</span>
       <select
         value={session.user.role}
-        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700"
+        className="max-w-[9.5rem] rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700 sm:max-w-none sm:px-3 sm:py-1.5 sm:text-sm"
         onChange={(event) => {
           const role = event.target.value as AppRole
           selectRole(role)
           navigate(getRoleHomePath(role))
         }}
       >
-        {session.user.roles.map((role) => (
-          <option key={role} value={role}>
-            {roleLabels[role]}
-          </option>
-        ))}
+        {session.user.roles
+          .filter((role) => role !== 'anchor')
+          .map((role) => (
+            <option key={role} value={role}>
+              {roleLabels[role]}
+            </option>
+          ))}
       </select>
     </label>
   )

@@ -61,27 +61,28 @@ export function getToken() {
 
 export function getRoleHomePath(role: AppRole) {
   if (role === 'anchor') {
-    return '/'
+    // 主播业务由小程序承接；Web 仅提示页
+    return '/app'
   }
 
   if (role === 'super_admin') {
-    return '/admin/staff'
+    return '/admin/dashboard'
   }
 
   if (role === 'training_admin') {
-    return '/training/sessions'
+    return '/staff/home'
   }
 
   if (role === 'training_teacher') {
-    return '/training/sessions'
+    return '/staff/home'
   }
 
   if (role === 'audit_teacher') {
-    return '/audit/activations'
+    return '/staff/home'
   }
 
   if (role === 'operator') {
-    return '/operator/anchors'
+    return '/staff/home'
   }
 
   return '/staff/home'
