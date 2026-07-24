@@ -100,6 +100,26 @@ const liveStatusTone: Record<LiveStatus, string> = {
   exited: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/60',
 }
 
+/** 筛选 chip：选中 */
+const filterTabActiveTone: Record<LiveStatus, string> = {
+  pending_first_live: 'bg-sky-600 text-white shadow-sm',
+  incubating: 'bg-violet-600 text-white shadow-sm',
+  normal: 'bg-emerald-600 text-white shadow-sm',
+  offline: 'bg-amber-600 text-white shadow-sm',
+  leave: 'bg-slate-600 text-white shadow-sm',
+  exited: 'bg-rose-600 text-white shadow-sm',
+}
+
+/** 筛选 chip：未选中（浅色区分状态） */
+const filterTabIdleTone: Record<LiveStatus, string> = {
+  pending_first_live: 'bg-sky-50 text-sky-700 hover:bg-sky-100',
+  incubating: 'bg-violet-50 text-violet-700 hover:bg-violet-100',
+  normal: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100',
+  offline: 'bg-amber-50 text-amber-800 hover:bg-amber-100',
+  leave: 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+  exited: 'bg-rose-50 text-rose-700 hover:bg-rose-100',
+}
+
 export function OperatorAnchorsPage() {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -188,29 +208,40 @@ export function OperatorAnchorsPage() {
 
   const pendingItems = pendingQuery.data?.items ?? []
   const anchorItems = anchorsQuery.data?.items ?? []
-  const summary = anchorsQuery.data?.summary
   const incubationDays = anchorsQuery.data?.incubationDays ?? 30
 
-  const counts = useMemo(() => {
-    if (summary) {
-      return {
-        pending: pendingItems.length,
-        anchors: summary.total,
-        pendingFirstLive: summary.pendingFirstLive,
-        incubating: summary.incubating,
-        normal: summary.normal,
-        attention: summary.offline + summary.leave + summary.exited,
+  /** 筛选数字以当前列表数据为准，改状态后随 refetch 立即更新 */
+  const liveCounts = useMemo(() => {
+    const base = {
+      pending_first_live: 0,
+      incubating: 0,
+      normal: 0,
+      offline: 0,
+      leave: 0,
+      exited: 0,
+    }
+    for (const item of anchorItems) {
+      if (item.liveStatus in base) {
+        base[item.liveStatus as keyof typeof base] += 1
       }
     }
+    return base
+  }, [anchorItems])
+
+  const counts = useMemo(() => {
     return {
       pending: pendingItems.length,
       anchors: anchorItems.length,
-      pendingFirstLive: 0,
-      incubating: 0,
-      normal: 0,
-      attention: 0,
+      pendingFirstLive: liveCounts.pending_first_live,
+      incubating: liveCounts.incubating,
+      normal: liveCounts.normal,
+      offline: liveCounts.offline,
+      leave: liveCounts.leave,
+      exited: liveCounts.exited,
+      attention:
+        liveCounts.offline + liveCounts.leave + liveCounts.exited,
     }
-  }, [summary, pendingItems.length, anchorItems.length])
+  }, [pendingItems.length, anchorItems.length, liveCounts])
 
   const filteredAnchors = useMemo(() => {
     const q = keyword.trim().toLowerCase()
@@ -255,13 +286,9 @@ export function OperatorAnchorsPage() {
     },
     { key: 'incubating', label: '孵化中', count: counts.incubating },
     { key: 'normal', label: '正常', count: counts.normal },
-    {
-      key: 'offline',
-      label: '断播',
-      count: summary?.offline ?? 0,
-    },
-    { key: 'leave', label: '请假', count: summary?.leave ?? 0 },
-    { key: 'exited', label: '退会', count: summary?.exited ?? 0 },
+    { key: 'offline', label: '断播', count: counts.offline },
+    { key: 'leave', label: '请假', count: counts.leave },
+    { key: 'exited', label: '退会', count: counts.exited },
   ]
 
   return (
@@ -276,8 +303,8 @@ export function OperatorAnchorsPage() {
               我的主播
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              先处理待确认归属；已确认主播按经营状态跟进：待首播 → 孵化中（首播后
-              {incubationDays} 天）→ 正常 / 断播 / 请假 / 退会。
+              先处理待确认归属；已确认主播按直播状态跟进：待首播 → 孵化中（首播后
+              {incubationDays} 天）→ 正常 / 断播 / 请假 / 退会。断播、请假、退会可由运营标记。
             </p>
           </div>
           <button
@@ -305,7 +332,7 @@ export function OperatorAnchorsPage() {
             icon={<UserCheck className="h-4 w-4" />}
           />
           <SummaryCard
-            label="在管主播"
+            label="主播列表"
             value={counts.anchors}
             tone="sky"
             icon={<UsersRound className="h-4 w-4" />}
@@ -491,12 +518,12 @@ export function OperatorAnchorsPage() {
             </div>
           </section>
 
-          {/* 在管主播：与全景对齐的状态表 */}
+          {/* 主播列表：直播状态列表头 + 操作横排 */}
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">
-                  在管主播
+                  主播列表
                 </h3>
                 <p className="mt-1 text-sm text-slate-500">
                   共 {counts.anchors} 位
@@ -519,6 +546,16 @@ export function OperatorAnchorsPage() {
             <div className="mt-4 flex flex-wrap gap-2">
               {filterTabs.map((tab) => {
                 const active = liveFilter === tab.key
+                const chipTone =
+                  tab.key === 'all'
+                    ? active
+                      ? 'bg-brand-600 text-white shadow-sm'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    : active
+                      ? filterTabActiveTone[tab.key] ??
+                        'bg-brand-600 text-white shadow-sm'
+                      : filterTabIdleTone[tab.key] ??
+                        'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 return (
                   <button
                     key={tab.key}
@@ -532,9 +569,7 @@ export function OperatorAnchorsPage() {
                     }}
                     className={[
                       'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition',
-                      active
-                        ? 'bg-brand-600 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                      chipTone,
                     ].join(' ')}
                   >
                     {tab.label}
@@ -542,8 +577,8 @@ export function OperatorAnchorsPage() {
                       className={[
                         'rounded-full px-1.5 py-0.5 text-[10px] tabular-nums',
                         active
-                          ? 'bg-white/20 text-white'
-                          : 'bg-white text-slate-500',
+                          ? 'bg-white/25 text-inherit'
+                          : 'bg-white/80 text-slate-600',
                       ].join(' ')}
                     >
                       {tab.count}
@@ -575,12 +610,12 @@ export function OperatorAnchorsPage() {
                       <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
                         <th className="whitespace-nowrap px-3 py-3">主播</th>
                         <th className="whitespace-nowrap px-3 py-3">企微</th>
-                        <th className="whitespace-nowrap px-3 py-3">状态</th>
+                        <th className="whitespace-nowrap px-3 py-3">
+                          直播状态
+                        </th>
                         <th className="whitespace-nowrap px-3 py-3">岗前</th>
                         <th className="whitespace-nowrap px-3 py-3">首播时间</th>
-                        <th className="whitespace-nowrap px-3 py-3 text-right">
-                          操作
-                        </th>
+                        <th className="whitespace-nowrap px-3 py-3">操作</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
@@ -609,11 +644,23 @@ export function OperatorAnchorsPage() {
                               {item.wecomName || '—'}
                             </td>
                             <td className="px-3 py-2.5">
-                              <span
-                                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}
-                              >
-                                {liveStatusLabels[status] ?? status}
-                              </span>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${tone}`}
+                                >
+                                  {liveStatusLabels[status] ?? status}
+                                </span>
+                                {/* 稳定期四态可改；待首播/孵化中也可标断播请假 */}
+                                <AnchorStatusSelect
+                                  compact
+                                  anchorId={item.id}
+                                  status={item.status}
+                                  queryKeys={[
+                                    ['operator-anchors'],
+                                    ['dashboard'],
+                                  ]}
+                                />
+                              </div>
                             </td>
                             <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-slate-700">
                               {item.onboarding ? `${done}/${total}` : '—'}
@@ -623,17 +670,8 @@ export function OperatorAnchorsPage() {
                                 ? formatDateTime(item.firstLiveAt)
                                 : '—'}
                             </td>
-                            <td className="px-3 py-2.5 text-right">
-                              <div className="flex flex-col items-end gap-2">
-                                <AnchorStatusSelect
-                                  anchorId={item.id}
-                                  status={item.status}
-                                  queryKeys={[
-                                    ['operator-anchors'],
-                                    ['dashboard'],
-                                  ]}
-                                />
-                                <div className="flex flex-wrap items-center justify-end gap-2">
+                            <td className="px-3 py-2.5">
+                              <div className="flex flex-nowrap items-center gap-3 whitespace-nowrap">
                                   <Link
                                     className="text-xs font-medium text-slate-600 hover:text-brand-700"
                                     to={`/operator/anchors/${item.id}`}
@@ -653,7 +691,6 @@ export function OperatorAnchorsPage() {
                                   >
                                     日复盘
                                   </Link>
-                                </div>
                               </div>
                             </td>
                           </tr>

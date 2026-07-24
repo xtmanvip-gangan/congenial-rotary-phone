@@ -1512,11 +1512,9 @@ export class AnchorsService {
 }
 
 /**
- * 运营确认后的经营状态：
- * - 未首播 → 待首播
- * - 首播后 ≤30 天 → 孵化中
- * - 之后：正常 / 断播 / 请假 / 退会（档案 status）
- * 退会优先于阶段判断
+ * 运营确认后的直播状态：
+ * - 人工标记优先：退会 / 断播 / 请假（运营改状态后列表立即体现）
+ * - 否则：未首播 → 待首播；首播后 ≤30 天 → 孵化中；之后 → 正常
  */
 function resolveAnchorLiveStatus(input: {
   profileStatus: 'active' | 'paused' | 'leave' | 'exited' | string
@@ -1525,6 +1523,13 @@ function resolveAnchorLiveStatus(input: {
 }): AnchorLiveStatus {
   if (input.profileStatus === 'exited') {
     return 'exited'
+  }
+  // 运营手工标记的断播/请假优先于自动阶段，否则改状态后筛选数字不更新
+  if (input.profileStatus === 'paused') {
+    return 'offline'
+  }
+  if (input.profileStatus === 'leave') {
+    return 'leave'
   }
 
   if (!input.firstLiveAt) {
@@ -1538,12 +1543,6 @@ function resolveAnchorLiveStatus(input: {
     return 'incubating'
   }
 
-  if (input.profileStatus === 'paused') {
-    return 'offline'
-  }
-  if (input.profileStatus === 'leave') {
-    return 'leave'
-  }
   return 'normal'
 }
 

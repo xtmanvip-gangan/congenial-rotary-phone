@@ -437,15 +437,19 @@ export function OperatorAnchorDetailPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {profile ? (
-              <AnchorStatusSelect
-                anchorId={profile.id}
-                status={profile.status}
-                queryKeys={[
-                  ['operator-anchor-detail', anchorId],
-                  ['operator-anchors'],
-                  ['dashboard'],
-                ]}
-              />
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <span>直播状态</span>
+                <AnchorStatusSelect
+                  compact
+                  anchorId={profile.id}
+                  status={profile.status}
+                  queryKeys={[
+                    ['operator-anchor-detail', anchorId],
+                    ['operator-anchors'],
+                    ['dashboard'],
+                  ]}
+                />
+              </div>
             ) : null}
             {profile ? (
               <Link
