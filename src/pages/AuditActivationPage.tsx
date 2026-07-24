@@ -51,6 +51,8 @@ type ActivationTask = {
     | 'rejected'
     | 'ended'
     | null
+  /** 主播一点开通后才有，用于跳转个人全景档案 */
+  anchorProfileId?: string | null
 }
 
 type TaskForm = {
@@ -700,12 +702,18 @@ export function AuditActivationPage() {
                             ) : null}
 
                             {item.funnel === 'joined' ? (
-                              <Link
-                                to="/admin/anchors"
-                                className="text-xs font-medium text-brand-600 hover:text-brand-700"
-                              >
-                                去全景
-                              </Link>
+                              item.anchorProfileId ? (
+                                <Link
+                                  to={`/admin/anchors/${item.anchorProfileId}`}
+                                  className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                                >
+                                  查看档案
+                                </Link>
+                              ) : (
+                                <span className="text-xs text-slate-400">
+                                  已入会
+                                </span>
+                              )
                             ) : null}
 
                             {item.funnel === 'awaiting_confirm' ? (

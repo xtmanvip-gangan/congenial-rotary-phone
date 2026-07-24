@@ -452,6 +452,7 @@ export class ActivationService {
       membershipCompletedAt: task.membershipCompletedAt.toISOString(),
       operator: task.operator ?? null,
       assignmentStatus: task.activatedAnchorProfile?.assignmentStatus ?? null,
+      anchorProfileId: task.activatedAnchorProfile?.id ?? null,
       createdAt: task.createdAt.toISOString(),
       updatedAt: task.updatedAt.toISOString(),
     }
