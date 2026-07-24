@@ -281,6 +281,7 @@ model OperatorAccount {
   trainingWeeklyMeetings      TrainingWeeklyMeeting[]        @relation("TrainingWeeklyMeetingCreator")
   trainingWeeklyActions       TrainingWeeklyAction[]         @relation("TrainingWeeklyActionOwner")
   dailyReviews                AnchorDailyReview[]            @relation("DailyReviewOperator")
+  qaRecords                   AnchorQaRecord[]               @relation("QaRecordOperator")
 
   @@map("operator_accounts")
 }
@@ -344,9 +345,34 @@ model AnchorProfile {
   trainingApplicationFeedback TrainingApplicationFeedback[]
   trainingQuestions           TrainingQuestion[]
   dailyReviews                AnchorDailyReview[]
+  qaRecords                   AnchorQaRecord[]
 
   @@index([currentOperatorId, assignmentStatus])
   @@map("anchor_profiles")
+}
+
+/**
+ * 运营答疑记录
+ * 结果跟踪须在答疑时间后 7 日内填写
+ */
+model AnchorQaRecord {
+  id              String           @id @default(uuid()) @db.Uuid
+  anchorProfileId String           @map("anchor_profile_id") @db.Uuid
+  operatorId      String?          @map("operator_id") @db.Uuid
+  qaAt            DateTime         @map("qa_at")
+  question        String
+  reply           String
+  resultFollowUp  String?          @map("result_follow_up")
+  followUpAt      DateTime?        @map("follow_up_at")
+  createdBy       String           @map("created_by") @db.VarChar(64)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  anchorProfile   AnchorProfile    @relation(fields: [anchorProfileId], references: [id], onDelete: Cascade)
+  operator        OperatorAccount? @relation("QaRecordOperator", fields: [operatorId], references: [id])
+
+  @@index([anchorProfileId, qaAt])
+  @@index([operatorId, qaAt])
+  @@map("anchor_qa_records")
 }
 
 /** 主播日复盘（附件六：《主播日复盘表》） */

@@ -107,7 +107,7 @@ export function getStaffNavGroups(role: AppRole): NavGroup[] {
             icon: ListChecks,
           },
           {
-            label: '日复盘',
+            label: '答疑复盘',
             to: '/operator/reviews',
             icon: BookOpenCheck,
           },

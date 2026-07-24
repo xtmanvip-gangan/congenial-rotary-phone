@@ -19,6 +19,10 @@ import {
   UpdateLeaderNoteDto,
   UpsertDailyReviewDto,
 } from './dto/upsert-daily-review.dto.js'
+import {
+  CreateQaRecordDto,
+  UpdateQaFollowUpDto,
+} from './dto/upsert-qa-record.dto.js'
 
 @Controller('anchors')
 export class AnchorsController {
@@ -132,6 +136,43 @@ export class OperatorAnchorsController {
       this.authService.getCurrentUserFromAuthHeader(authorization),
       anchorId,
       dto,
+    )
+  }
+
+  @Get('anchors/:anchorId/qa-records')
+  listQaRecords(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('anchorId') anchorId: string,
+  ) {
+    return this.anchorsService.listQaRecords(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      anchorId,
+    )
+  }
+
+  @Post('anchors/:anchorId/qa-records')
+  createQaRecord(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('anchorId') anchorId: string,
+    @Body() dto: CreateQaRecordDto,
+  ) {
+    return this.anchorsService.createQaRecord(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      anchorId,
+      dto,
+    )
+  }
+
+  @Patch('qa-records/:recordId/follow-up')
+  updateQaFollowUp(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('recordId') recordId: string,
+    @Body() dto: UpdateQaFollowUpDto,
+  ) {
+    return this.anchorsService.updateQaFollowUp(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      recordId,
+      dto.resultFollowUp,
     )
   }
 

@@ -1,25 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, RefreshCw, Search } from 'lucide-react'
+import { ArrowRight, MessageCircle, RefreshCw, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
 import { LoadingBlock } from '../components/LoadingBlock'
 import { apiJson } from '../lib/api'
-import { formatDateTime } from '../lib/dateTime'
 
 type AnchorItem = {
   id: string
   wecomName: string
   anchorDisplayName: string
   liveStatus: string
-  firstLiveAt: string | null
 }
 
-type DailyReviewItem = {
+type QaItem = {
   id: string
-  reviewDate: string
-  updatedAt: string
+  followUpStatus: 'done' | 'pending' | 'overdue'
 }
 
 const liveStatusLabels: Record<string, string> = {
@@ -31,6 +28,7 @@ const liveStatusLabels: Record<string, string> = {
   exited: '退会',
 }
 
+/** 答疑复盘：主播列表 + 答疑 / 复盘入口 */
 export function OperatorReviewsListPage() {
   const [keyword, setKeyword] = useState('')
 
@@ -42,35 +40,39 @@ export function OperatorReviewsListPage() {
 
   const items = anchorsQuery.data?.items ?? []
 
-  // 为每位主播拉最近一条复盘（并行，人数通常不大）
-  const reviewsQuery = useQuery({
-    queryKey: [
-      'operator-latest-reviews',
-      items.map((item) => item.id).join(','),
-    ],
+  const qaSummaryQuery = useQuery({
+    queryKey: ['operator-qa-summary', items.map((i) => i.id).join(',')],
     enabled: items.length > 0,
     queryFn: async () => {
       const entries = await Promise.all(
         items.map(async (anchor) => {
           try {
-            const res = await apiJson<{ items: DailyReviewItem[] }>(
-              `/operators/me/anchors/${encodeURIComponent(anchor.id)}/daily-reviews`,
+            const res = await apiJson<{ items: QaItem[] }>(
+              `/operators/me/anchors/${encodeURIComponent(anchor.id)}/qa-records`,
             )
-            const latest = res.items[0] ?? null
-            return [anchor.id, latest] as const
+            const overdue = res.items.filter(
+              (r) => r.followUpStatus === 'overdue',
+            ).length
+            const pending = res.items.filter(
+              (r) => r.followUpStatus === 'pending',
+            ).length
+            return [
+              anchor.id,
+              { total: res.items.length, overdue, pending },
+            ] as const
           } catch {
-            return [anchor.id, null] as const
+            return [anchor.id, { total: 0, overdue: 0, pending: 0 }] as const
           }
         }),
       )
       return Object.fromEntries(entries) as Record<
         string,
-        DailyReviewItem | null
+        { total: number; overdue: number; pending: number }
       >
     },
   })
 
-  const latestMap = reviewsQuery.data ?? {}
+  const qaMap = qaSummaryQuery.data ?? {}
 
   const filtered = useMemo(() => {
     const q = keyword.trim().toLowerCase()
@@ -80,6 +82,11 @@ export function OperatorReviewsListPage() {
     )
   }, [items, keyword])
 
+  const overdueTotal = Object.values(qaMap).reduce(
+    (sum, row) => sum + row.overdue,
+    0,
+  )
+
   return (
     <div className="space-y-6">
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
@@ -87,24 +94,27 @@ export function OperatorReviewsListPage() {
           <div>
             <p className="text-sm font-medium text-brand-600">主播孵化</p>
             <h2 className="mt-1 text-2xl font-semibold text-slate-900">
-              日复盘
+              答疑复盘
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              按《主播日复盘表》记录每日开播数据与反思。点「填写」进入该主播复盘页。
+              「答疑」记录问题与回复，并在 7 日内补结果跟踪；「复盘」进入《主播日复盘表》独立页。
+              {overdueTotal > 0
+                ? ` 当前有 ${overdueTotal} 条答疑结果跟踪已逾期。`
+                : ''}
             </p>
           </div>
           <button
             type="button"
             className="app-btn-secondary shrink-0"
-            disabled={anchorsQuery.isFetching || reviewsQuery.isFetching}
+            disabled={anchorsQuery.isFetching || qaSummaryQuery.isFetching}
             onClick={() => {
               void anchorsQuery.refetch()
-              void reviewsQuery.refetch()
+              void qaSummaryQuery.refetch()
             }}
           >
             <RefreshCw
               className={`h-4 w-4 ${
-                anchorsQuery.isFetching || reviewsQuery.isFetching
+                anchorsQuery.isFetching || qaSummaryQuery.isFetching
                   ? 'animate-spin'
                   : ''
               }`}
@@ -149,7 +159,7 @@ export function OperatorReviewsListPage() {
               title={items.length === 0 ? '暂无已确认主播' : '没有匹配的主播'}
               description={
                 items.length === 0
-                  ? '先在「主播列表」确认归属后，再填写日复盘。'
+                  ? '先在「主播列表」确认归属。'
                   : '试试清空搜索。'
               }
               tone="plain"
@@ -164,13 +174,13 @@ export function OperatorReviewsListPage() {
                     <th className="whitespace-nowrap px-3 py-3">主播</th>
                     <th className="whitespace-nowrap px-3 py-3">企微</th>
                     <th className="whitespace-nowrap px-3 py-3">直播状态</th>
-                    <th className="whitespace-nowrap px-3 py-3">最近复盘</th>
+                    <th className="whitespace-nowrap px-3 py-3">答疑概况</th>
                     <th className="whitespace-nowrap px-3 py-3">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {filtered.map((item) => {
-                    const latest = latestMap[item.id]
+                    const qa = qaMap[item.id]
                     return (
                       <tr
                         key={item.id}
@@ -186,21 +196,36 @@ export function OperatorReviewsListPage() {
                           {liveStatusLabels[item.liveStatus] ??
                             item.liveStatus}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
-                          {reviewsQuery.isLoading
+                        <td className="px-3 py-2.5 text-xs text-slate-500">
+                          {qaSummaryQuery.isLoading
                             ? '…'
-                            : latest
-                              ? `${latest.reviewDate} · ${formatDateTime(latest.updatedAt)}`
-                              : '暂无'}
+                            : qa
+                              ? `${qa.total} 条${
+                                  qa.overdue > 0
+                                    ? ` · ${qa.overdue} 逾期`
+                                    : qa.pending > 0
+                                      ? ` · ${qa.pending} 待跟踪`
+                                      : ''
+                                }`
+                              : '0 条'}
                         </td>
                         <td className="px-3 py-2.5">
-                          <Link
-                            className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-600 hover:text-brand-700"
-                            to={`/operator/anchors/${item.id}?tab=reviews`}
-                          >
-                            填写
-                            <ArrowRight className="h-3.5 w-3.5" />
-                          </Link>
+                          <div className="flex flex-nowrap items-center gap-3 whitespace-nowrap">
+                            <Link
+                              className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-600 hover:text-brand-700"
+                              to={`/operator/anchors/${item.id}/qa`}
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              答疑
+                            </Link>
+                            <Link
+                              className="inline-flex items-center gap-0.5 text-xs font-medium text-slate-600 hover:text-brand-700"
+                              to={`/operator/anchors/${item.id}/reviews`}
+                            >
+                              复盘
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     )

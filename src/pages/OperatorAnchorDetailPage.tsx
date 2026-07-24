@@ -5,6 +5,7 @@ import {
   Check,
   ClipboardList,
   Gift,
+  MessageCircle,
   RefreshCw,
   Sparkles,
   UserRound,
@@ -22,7 +23,18 @@ import { LoadingBlock } from '../components/LoadingBlock'
 import { apiJson } from '../lib/api'
 import { formatDateTime } from '../lib/dateTime'
 
-type TabKey = 'profile' | 'gifts' | 'training' | 'reviews'
+type TabKey = 'profile' | 'gifts' | 'training' | 'reviews' | 'qa'
+
+type QaItem = {
+  id: string
+  qaAt: string
+  question: string
+  reply: string
+  resultFollowUp: string | null
+  followUpDueAt: string
+  followUpStatus: 'done' | 'pending' | 'overdue'
+  followUpDays: number
+}
 
 type Milestone = {
   type: string
@@ -158,6 +170,13 @@ type AnchorDetail = {
     firstLiveReviewCompletedAt?: string | null
     items: DailyReviewItem[]
   }
+  qaRecords?: {
+    available: boolean
+    message: string
+    followUpDays: number
+    overdueCount: number
+    items: QaItem[]
+  }
 }
 
 const assignmentLabels: Record<string, string> = {
@@ -266,7 +285,8 @@ const tabs: Array<{ key: TabKey; label: string; icon: typeof UserRound }> = [
   { key: 'profile', label: '档案与轨迹', icon: UserRound },
   { key: 'gifts', label: '礼物收集', icon: Gift },
   { key: 'training', label: '课程学习', icon: BookOpen },
-  { key: 'reviews', label: '复盘记录', icon: ClipboardList },
+  { key: 'reviews', label: '日复盘', icon: ClipboardList },
+  { key: 'qa', label: '答疑记录', icon: MessageCircle },
 ]
 
 function formatDateOnly(value: string | null | undefined) {
@@ -341,18 +361,19 @@ export function OperatorAnchorDetailPage() {
   const { anchorId = '' } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabFromUrl = searchParams.get('tab') as TabKey | null
+  const validTabs: TabKey[] = [
+    'profile',
+    'gifts',
+    'training',
+    'reviews',
+    'qa',
+  ]
   const [tab, setTab] = useState<TabKey>(
-    tabFromUrl && ['profile', 'gifts', 'training', 'reviews'].includes(tabFromUrl)
-      ? tabFromUrl
-      : 'profile',
+    tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'profile',
   )
 
   useEffect(() => {
-    if (
-      tabFromUrl &&
-      ['profile', 'gifts', 'training', 'reviews'].includes(tabFromUrl) &&
-      tabFromUrl !== tab
-    ) {
+    if (tabFromUrl && validTabs.includes(tabFromUrl) && tabFromUrl !== tab) {
       setTab(tabFromUrl)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -543,6 +564,7 @@ export function OperatorAnchorDetailPage() {
           {tab === 'reviews' ? (
             <ReviewsTab data={data} anchorId={anchorId} />
           ) : null}
+          {tab === 'qa' ? <QaTab data={data} anchorId={anchorId} /> : null}
         </>
       ) : null}
     </div>
@@ -1226,18 +1248,17 @@ function ReviewsTab({
 }) {
   return (
     <div className="space-y-4">
-      {data.onboarding?.firstReviewCompletedAt ||
-      data.reviews.firstLiveReviewCompletedAt ? (
-        <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          岗前「首播复盘」节点已于{' '}
-          {formatDateTime(
-            data.reviews.firstLiveReviewCompletedAt ||
-              data.onboarding?.firstReviewCompletedAt ||
-              '',
-          )}{' '}
-          完成。以下为日常《主播日复盘表》。
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-slate-500">
+          完整填写也可进入独立复盘页
         </p>
-      ) : null}
+        <Link
+          className="text-xs font-medium text-brand-600 hover:text-brand-700"
+          to={`/operator/anchors/${anchorId}/reviews`}
+        >
+          打开日复盘页
+        </Link>
+      </div>
       <DailyReviewPanel
         anchorId={anchorId}
         items={data.reviews.items ?? []}
@@ -1246,6 +1267,90 @@ function ReviewsTab({
         queryKeyToInvalidate={['operator-anchor-detail', anchorId]}
       />
     </div>
+  )
+}
+
+function QaTab({
+  data,
+  anchorId,
+}: {
+  data: AnchorDetail
+  anchorId: string
+}) {
+  const items = data.qaRecords?.items ?? []
+  const overdue = data.qaRecords?.overdueCount ?? 0
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="text-base font-semibold text-slate-900">答疑记录</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            {data.qaRecords?.message ??
+              '答疑后 7 日内须填写结果跟踪'}
+            {overdue > 0 ? ` · ${overdue} 条已逾期` : ''}
+          </p>
+        </div>
+        <Link
+          className="app-btn-primary"
+          to={`/operator/anchors/${anchorId}/qa`}
+        >
+          <MessageCircle className="h-4 w-4" />
+          管理答疑
+        </Link>
+      </div>
+      <div className="mt-4 space-y-3">
+        {items.length === 0 ? (
+          <EmptyState
+            title="暂无答疑"
+            description="在答疑页新建记录。"
+            tone="plain"
+          />
+        ) : (
+          items.slice(0, 20).map((item) => (
+            <article
+              key={item.id}
+              className="rounded-2xl border border-slate-100 px-3 py-2 text-sm"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-slate-400">
+                  {formatDateTime(item.qaAt)}
+                </span>
+                <span
+                  className={[
+                    'rounded-full px-2 py-0.5 text-[11px] font-medium',
+                    item.followUpStatus === 'done'
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : item.followUpStatus === 'overdue'
+                        ? 'bg-rose-50 text-rose-700'
+                        : 'bg-amber-50 text-amber-800',
+                  ].join(' ')}
+                >
+                  {item.followUpStatus === 'done'
+                    ? '已跟踪'
+                    : item.followUpStatus === 'overdue'
+                      ? '已逾期'
+                      : '待跟踪'}
+                </span>
+              </div>
+              <p className="mt-1.5 text-slate-700">
+                <span className="text-slate-400">问题：</span>
+                {item.question}
+              </p>
+              <p className="mt-1 text-slate-700">
+                <span className="text-slate-400">回复：</span>
+                {item.reply}
+              </p>
+              {item.resultFollowUp ? (
+                <p className="mt-1 text-slate-600">
+                  <span className="text-slate-400">跟踪：</span>
+                  {item.resultFollowUp}
+                </p>
+              ) : null}
+            </article>
+          ))
+        )}
+      </div>
+    </section>
   )
 }
 

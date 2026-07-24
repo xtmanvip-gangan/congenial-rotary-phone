@@ -57,6 +57,9 @@ const HIGHLIGHT_MOMENT_CATALOG = [
 /** 首播后孵化窗口（天） */
 const INCUBATION_DAYS = 30
 
+/** 答疑结果跟踪截止：答疑后 N 天内必须填写 */
+const QA_FOLLOW_UP_DAYS = 7
+
 /** 主播全景展示状态（运营确认后起算） */
 export type AnchorLiveStatus =
   | 'pending_first_live'
@@ -627,7 +630,7 @@ export class AnchorsService {
       )
     }
 
-    const [submissions, registrations, learningProgress, dailyReviews] =
+    const [submissions, registrations, learningProgress, dailyReviews, qaRecords] =
       await Promise.all([
         this.prisma.submission.findMany({
           where: { anchorProfileId: profile.id },
@@ -711,6 +714,14 @@ export class AnchorsService {
           },
           orderBy: { reviewDate: 'desc' },
           take: 60,
+        }),
+        this.prisma.anchorQaRecord.findMany({
+          where: { anchorProfileId: profile.id },
+          include: {
+            operator: { select: { id: true, displayName: true } },
+          },
+          orderBy: { qaAt: 'desc' },
+          take: 100,
         }),
       ])
 
@@ -889,6 +900,16 @@ export class AnchorsService {
           null,
         items: dailyReviews.map((item) => this.formatDailyReview(item)),
       },
+      qaRecords: {
+        available: true as const,
+        message: '答疑后 7 日内须填写结果跟踪',
+        followUpDays: QA_FOLLOW_UP_DAYS,
+        overdueCount: qaRecords.filter((item) => {
+          const f = this.formatQaRecord(item)
+          return f.followUpStatus === 'overdue'
+        }).length,
+        items: qaRecords.map((item) => this.formatQaRecord(item)),
+      },
     }
   }
 
@@ -1033,6 +1054,144 @@ export class AnchorsService {
       },
     })
     return { item: this.formatDailyReview(item) }
+  }
+
+  async listQaRecords(currentUser: AuthenticatedUser, anchorId: string) {
+    await this.requireOwnedConfirmedAnchor(currentUser, anchorId)
+    const items = await this.prisma.anchorQaRecord.findMany({
+      where: { anchorProfileId: anchorId },
+      include: {
+        operator: { select: { id: true, displayName: true } },
+      },
+      orderBy: { qaAt: 'desc' },
+      take: 100,
+    })
+    return {
+      followUpDays: QA_FOLLOW_UP_DAYS,
+      items: items.map((item) => this.formatQaRecord(item)),
+    }
+  }
+
+  async createQaRecord(
+    currentUser: AuthenticatedUser,
+    anchorId: string,
+    dto: { qaAt: string; question: string; reply: string },
+  ) {
+    await this.access.requireAnyRole(currentUser, ['operator'])
+    const profile = await this.requireOwnedConfirmedAnchor(
+      currentUser,
+      anchorId,
+    )
+    const qaAt = new Date(dto.qaAt)
+    if (Number.isNaN(qaAt.getTime())) {
+      throw new BadRequestException('答疑时间无效')
+    }
+    const question = dto.question.trim()
+    const reply = dto.reply.trim()
+    if (!question || !reply) {
+      throw new BadRequestException('请填写主播问题与运营回复')
+    }
+
+    const operatorId =
+      currentUser.role === 'super_admin' &&
+      currentUser.loginType === 'password_admin'
+        ? profile.currentOperatorId
+        : (currentUser.accountId ?? profile.currentOperatorId)
+
+    const item = await this.prisma.anchorQaRecord.create({
+      data: {
+        anchorProfileId: profile.id,
+        operatorId,
+        qaAt,
+        question,
+        reply,
+        createdBy:
+          currentUser.wecomUserId || currentUser.accountId || 'operator',
+      },
+      include: {
+        operator: { select: { id: true, displayName: true } },
+      },
+    })
+    return { item: this.formatQaRecord(item) }
+  }
+
+  async updateQaFollowUp(
+    currentUser: AuthenticatedUser,
+    recordId: string,
+    resultFollowUp: string,
+  ) {
+    await this.access.requireAnyRole(currentUser, ['operator'])
+    const existing = await this.prisma.anchorQaRecord.findUnique({
+      where: { id: recordId },
+      include: { anchorProfile: { select: { id: true, currentOperatorId: true, assignmentStatus: true } } },
+    })
+    if (!existing) {
+      throw new NotFoundException('答疑记录不存在')
+    }
+    await this.requireOwnedConfirmedAnchor(
+      currentUser,
+      existing.anchorProfileId,
+    )
+
+    const text = resultFollowUp.trim()
+    if (!text) {
+      throw new BadRequestException('请填写结果跟踪')
+    }
+
+    const item = await this.prisma.anchorQaRecord.update({
+      where: { id: recordId },
+      data: {
+        resultFollowUp: text,
+        followUpAt: new Date(),
+      },
+      include: {
+        operator: { select: { id: true, displayName: true } },
+      },
+    })
+    return { item: this.formatQaRecord(item) }
+  }
+
+  private formatQaRecord(item: {
+    id: string
+    anchorProfileId: string
+    operatorId: string | null
+    qaAt: Date
+    question: string
+    reply: string
+    resultFollowUp: string | null
+    followUpAt: Date | null
+    createdBy: string
+    createdAt: Date
+    updatedAt: Date
+    operator?: { id: string; displayName: string } | null
+  }) {
+    const dueAt = new Date(
+      item.qaAt.getTime() + QA_FOLLOW_UP_DAYS * 24 * 60 * 60 * 1000,
+    )
+    const now = new Date()
+    let followUpStatus: 'done' | 'pending' | 'overdue' = 'pending'
+    if (item.resultFollowUp?.trim()) {
+      followUpStatus = 'done'
+    } else if (now.getTime() > dueAt.getTime()) {
+      followUpStatus = 'overdue'
+    }
+
+    return {
+      id: item.id,
+      anchorProfileId: item.anchorProfileId,
+      operator: item.operator ?? null,
+      qaAt: item.qaAt.toISOString(),
+      question: item.question,
+      reply: item.reply,
+      resultFollowUp: item.resultFollowUp,
+      followUpAt: item.followUpAt?.toISOString() ?? null,
+      followUpDueAt: dueAt.toISOString(),
+      followUpStatus,
+      followUpDays: QA_FOLLOW_UP_DAYS,
+      createdBy: item.createdBy,
+      createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
+    }
   }
 
   private async requireOwnedConfirmedAnchor(

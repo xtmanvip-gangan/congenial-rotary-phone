@@ -5,6 +5,7 @@ import {
   Check,
   ClipboardList,
   Gift,
+  MessageCircle,
   RefreshCw,
   Sparkles,
   UserRound,
@@ -21,7 +22,16 @@ import { LoadingBlock } from '../components/LoadingBlock'
 import { apiJson } from '../lib/api'
 import { formatDateTime } from '../lib/dateTime'
 
-type TabKey = 'profile' | 'gifts' | 'training' | 'reviews'
+type TabKey = 'profile' | 'gifts' | 'training' | 'reviews' | 'qa'
+
+type QaItem = {
+  id: string
+  qaAt: string
+  question: string
+  reply: string
+  resultFollowUp: string | null
+  followUpStatus: 'done' | 'pending' | 'overdue'
+}
 
 type Milestone = {
   type: string
@@ -157,6 +167,12 @@ type AnchorDetail = {
     firstLiveReviewCompletedAt?: string | null
     items: DailyReviewItem[]
   }
+  qaRecords?: {
+    available: boolean
+    message: string
+    overdueCount: number
+    items: QaItem[]
+  }
 }
 
 const assignmentLabels: Record<string, string> = {
@@ -265,7 +281,8 @@ const tabs: Array<{ key: TabKey; label: string; icon: typeof UserRound }> = [
   { key: 'profile', label: '档案与轨迹', icon: UserRound },
   { key: 'gifts', label: '礼物收集', icon: Gift },
   { key: 'training', label: '课程学习', icon: BookOpen },
-  { key: 'reviews', label: '复盘记录', icon: ClipboardList },
+  { key: 'reviews', label: '日复盘', icon: ClipboardList },
+  { key: 'qa', label: '答疑记录', icon: MessageCircle },
 ]
 
 function formatDateOnly(value: string | null | undefined) {
@@ -502,6 +519,7 @@ export function AdminAnchorDetailPage() {
           {tab === 'reviews' ? (
             <ReviewsTab data={data} anchorId={anchorId} />
           ) : null}
+          {tab === 'qa' ? <AdminQaTab data={data} /> : null}
         </>
       ) : null}
     </div>
@@ -1185,18 +1203,6 @@ function ReviewsTab({
 }) {
   return (
     <div className="space-y-4">
-      {data.onboarding?.firstReviewCompletedAt ||
-      data.reviews.firstLiveReviewCompletedAt ? (
-        <p className="rounded-2xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          岗前「首播复盘」节点已于{' '}
-          {formatDateTime(
-            data.reviews.firstLiveReviewCompletedAt ||
-              data.onboarding?.firstReviewCompletedAt ||
-              '',
-          )}{' '}
-          完成。以下为日常《主播日复盘表》（可写会长批注）。
-        </p>
-      ) : null}
       <DailyReviewPanel
         anchorId={anchorId}
         items={data.reviews.items ?? []}
@@ -1205,6 +1211,60 @@ function ReviewsTab({
         queryKeyToInvalidate={['admin-anchor-detail', anchorId]}
       />
     </div>
+  )
+}
+
+function AdminQaTab({ data }: { data: AnchorDetail }) {
+  const items = data.qaRecords?.items ?? []
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+      <h3 className="text-base font-semibold text-slate-900">答疑记录</h3>
+      <p className="mt-1 text-sm text-slate-500">
+        {data.qaRecords?.message ?? '运营填写的答疑与结果跟踪'}
+        {(data.qaRecords?.overdueCount ?? 0) > 0
+          ? ` · ${data.qaRecords!.overdueCount} 条逾期`
+          : ''}
+      </p>
+      <div className="mt-4 space-y-3">
+        {items.length === 0 ? (
+          <EmptyState
+            title="暂无答疑记录"
+            description="运营在「答疑复盘」中填写后会出现在这里。"
+            tone="plain"
+          />
+        ) : (
+          items.map((item) => (
+            <article
+              key={item.id}
+              className="rounded-2xl border border-slate-100 px-3 py-2 text-sm"
+            >
+              <p className="text-xs text-slate-400">
+                {formatDateTime(item.qaAt)} ·{' '}
+                {item.followUpStatus === 'done'
+                  ? '已跟踪'
+                  : item.followUpStatus === 'overdue'
+                    ? '已逾期'
+                    : '待跟踪'}
+              </p>
+              <p className="mt-1.5">
+                <span className="text-slate-400">问题：</span>
+                {item.question}
+              </p>
+              <p className="mt-1">
+                <span className="text-slate-400">回复：</span>
+                {item.reply}
+              </p>
+              {item.resultFollowUp ? (
+                <p className="mt-1">
+                  <span className="text-slate-400">跟踪：</span>
+                  {item.resultFollowUp}
+                </p>
+              ) : null}
+            </article>
+          ))
+        )}
+      </div>
+    </section>
   )
 }
 
