@@ -25,13 +25,36 @@ export function AuthGate({ children, allowRoles }: AuthGateProps) {
     return <Navigate to="/" replace />
   }
 
-  const hasAllowedRole =
-    !allowRoles ||
-    allowRoles.some((role) => session.user.roles.includes(role))
-
-  if (!hasAllowedRole) {
+  if (allowRoles && !isAllowed(session.user.role, session.user.roles, allowRoles)) {
     return <Navigate to={getRoleHomePath(session.user.role)} replace />
   }
 
   return <>{children}</>
+}
+
+/**
+ * 超级管理员可进入全部非主播业务页；
+ * 主播专属页（仅 allow anchor）仍仅主播可进。
+ */
+function isAllowed(
+  currentRole: AppRole,
+  roles: AppRole[],
+  allowRoles: AppRole[],
+) {
+  const isSuperAdmin =
+    currentRole === 'super_admin' || roles.includes('super_admin')
+  const anchorOnly =
+    allowRoles.length > 0 && allowRoles.every((role) => role === 'anchor')
+
+  if (anchorOnly) {
+    return currentRole === 'anchor' || roles.includes('anchor')
+  }
+
+  if (isSuperAdmin) {
+    return true
+  }
+
+  return allowRoles.some(
+    (role) => roles.includes(role) || currentRole === role,
+  )
 }

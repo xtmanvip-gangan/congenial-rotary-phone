@@ -57,8 +57,12 @@ export function getStaffNavGroups(role: AppRole): NavGroup[] {
         ],
       },
       {
-        title: '人员',
-        items: [{ label: '员工与角色', to: '/admin/staff', icon: Users }],
+        title: '人员与主播',
+        items: [
+          { label: '员工与角色', to: '/admin/staff', icon: Users },
+          { label: '主播激活', to: '/audit/activations', icon: UserCheck },
+          { label: '主播与归属', to: '/operator/anchors', icon: UsersRound },
+        ],
       },
       {
         title: '礼物业务',
@@ -70,10 +74,13 @@ export function getStaffNavGroups(role: AppRole): NavGroup[] {
         ],
       },
       {
-        title: '培训',
+        title: '培训中心',
         items: [
-          { label: '参会导入', to: '/training/attendance', icon: ListChecks },
-          { label: '培训运营', to: '/training/operations', icon: GraduationCap },
+          { label: '课程管理', to: '/training/courses', icon: BookOpen },
+          { label: '排课与场次', to: '/training/sessions', icon: CalendarDays },
+          { label: '参会处理', to: '/training/attendance', icon: ListChecks },
+          { label: '培训代报名', to: '/operator/training', icon: GraduationCap },
+          { label: '培训运营', to: '/training/operations', icon: Activity },
         ],
       },
       {

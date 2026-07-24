@@ -122,7 +122,9 @@ function App() {
         <Route
           path="/audit/activations"
           element={
-            <AuthGate allowRoles={['audit_teacher', 'training_admin']}>
+            <AuthGate
+              allowRoles={['audit_teacher', 'training_admin', 'super_admin']}
+            >
               <AuditActivationPage />
             </AuthGate>
           }
@@ -130,7 +132,7 @@ function App() {
         <Route
           path="/operator/anchors"
           element={
-            <AuthGate allowRoles={['operator']}>
+            <AuthGate allowRoles={['operator', 'super_admin']}>
               <OperatorAnchorsPage />
             </AuthGate>
           }
@@ -138,7 +140,7 @@ function App() {
         <Route
           path="/operator/anchors/:anchorId/onboarding"
           element={
-            <AuthGate allowRoles={['operator']}>
+            <AuthGate allowRoles={['operator', 'super_admin']}>
               <OperatorOnboardingPage />
             </AuthGate>
           }
@@ -146,7 +148,7 @@ function App() {
         <Route
           path="/operator/training"
           element={
-            <AuthGate allowRoles={['operator']}>
+            <AuthGate allowRoles={['operator', 'super_admin']}>
               <OperatorTrainingPage />
             </AuthGate>
           }
@@ -160,6 +162,7 @@ function App() {
                 'operator',
                 'training_teacher',
                 'training_admin',
+                'super_admin',
               ]}
             >
               <StaffHomePage />
@@ -169,7 +172,7 @@ function App() {
         <Route
           path="/training/courses"
           element={
-            <AuthGate allowRoles={['training_admin']}>
+            <AuthGate allowRoles={['training_admin', 'super_admin']}>
               <TrainingCoursesPage />
             </AuthGate>
           }
@@ -177,7 +180,9 @@ function App() {
         <Route
           path="/training/sessions"
           element={
-            <AuthGate allowRoles={['training_teacher', 'training_admin']}>
+            <AuthGate
+              allowRoles={['training_teacher', 'training_admin', 'super_admin']}
+            >
               <TrainingSessionsPage />
             </AuthGate>
           }

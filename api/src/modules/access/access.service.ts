@@ -36,6 +36,12 @@ export class AccessService {
   }
 
   async requireAnyRole(user: AuthenticatedUser, roles: StaffRole[]) {
+    // 超级管理员拥有全部员工角色业务权限（密码登录）
+    if (user.role === 'super_admin' && user.loginType === 'password_admin') {
+      await this.requirePasswordSuperAdmin(user)
+      return
+    }
+
     if (user.loginType !== 'wecom_staff' || !user.accountId) {
       throw new ForbiddenException('当前账号没有所需权限')
     }

@@ -24,6 +24,32 @@ describe('AccessService', () => {
     expect(prisma.operatorAccount.findFirst).not.toHaveBeenCalled()
   })
 
+  it('allows password super admin to pass any staff role gate', async () => {
+    const prisma = {
+      operatorAccount: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 'admin-1',
+        }),
+      },
+    }
+    const service = new AccessService(prisma as never)
+
+    await expect(
+      service.requireAnyRole(
+        {
+          accountId: 'admin-1',
+          wecomUserId: 'admin',
+          name: '超管',
+          avatarUrl: null,
+          role: 'super_admin',
+          roles: ['super_admin'],
+          loginType: 'password_admin',
+        },
+        ['operator'],
+      ),
+    ).resolves.toBeUndefined()
+  })
+
   it('rejects a stale staff token after the role is removed in database', async () => {
     const prisma = {
       operatorAccount: {

@@ -253,7 +253,9 @@ export class AnchorsService {
     await this.access.requireAnyRole(currentUser, ['operator'])
     const items = await this.prisma.anchorOperatorAssignment.findMany({
       where: {
-        operatorId: currentUser.accountId ?? '',
+        ...(isGlobalOperatorView(currentUser)
+          ? {}
+          : { operatorId: currentUser.accountId ?? '' }),
         status: 'pending_confirmation',
       },
       include: {
@@ -280,7 +282,9 @@ export class AnchorsService {
     await this.access.requireAnyRole(currentUser, ['operator'])
     const items = await this.prisma.anchorProfile.findMany({
       where: {
-        currentOperatorId: currentUser.accountId ?? '',
+        ...(isGlobalOperatorView(currentUser)
+          ? {}
+          : { currentOperatorId: currentUser.accountId ?? '' }),
         assignmentStatus: 'confirmed',
       },
       include: {
@@ -328,7 +332,9 @@ export class AnchorsService {
     const assignment = await this.prisma.anchorOperatorAssignment.findFirst({
       where: {
         id: assignmentId,
-        operatorId: currentUser.accountId ?? '',
+        ...(isGlobalOperatorView(currentUser)
+          ? {}
+          : { operatorId: currentUser.accountId ?? '' }),
         status: 'pending_confirmation',
       },
       include: {
@@ -423,7 +429,9 @@ export class AnchorsService {
     const assignment = await this.prisma.anchorOperatorAssignment.findFirst({
       where: {
         id: assignmentId,
-        operatorId: currentUser.accountId ?? '',
+        ...(isGlobalOperatorView(currentUser)
+          ? {}
+          : { operatorId: currentUser.accountId ?? '' }),
         status: 'pending_confirmation',
       },
     })
@@ -518,4 +526,9 @@ export class AnchorsService {
       activatedAt: profile.activatedAt.toISOString(),
     }
   }
+}
+
+/** 超级管理员可查看/处理全部运营数据域 */
+function isGlobalOperatorView(user: AuthenticatedUser) {
+  return user.role === 'super_admin' && user.loginType === 'password_admin'
 }

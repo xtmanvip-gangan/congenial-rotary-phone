@@ -3,17 +3,10 @@ import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
   ArrowUpRight,
-  BookOpen,
   CalendarDays,
   ClipboardList,
-  Download,
-  FolderKanban,
-  GraduationCap,
-  ListChecks,
   RefreshCw,
-  Settings2,
   ShieldAlert,
-  UserCheck,
   Users,
   UsersRound,
 } from 'lucide-react'
@@ -30,16 +23,6 @@ type MetricCardConfig = {
   icon: ReactNode
   href: string
   todo?: boolean
-}
-
-type EntryGroup = {
-  title: string
-  items: Array<{
-    label: string
-    description: string
-    to: string
-    icon: ReactNode
-  }>
 }
 
 const platformMetrics: MetricCardConfig[] = [
@@ -95,89 +78,6 @@ const platformMetrics: MetricCardConfig[] = [
     icon: <AlertTriangle className="h-4 w-4" />,
     href: '/operations',
     todo: true,
-  },
-]
-
-const entryGroups: EntryGroup[] = [
-  {
-    title: '人员与主播',
-    items: [
-      {
-        label: '员工与角色',
-        description: '账号、多角色、启停',
-        to: '/admin/staff',
-        icon: <Users className="h-4 w-4" />,
-      },
-      {
-        label: '主播激活',
-        description: '开通任务与企微提醒',
-        to: '/audit/activations',
-        icon: <UserCheck className="h-4 w-4" />,
-      },
-    ],
-  },
-  {
-    title: '礼物业务',
-    items: [
-      {
-        label: '活动记录',
-        description: '审核与发放',
-        to: '/admin/records',
-        icon: <ClipboardList className="h-4 w-4" />,
-      },
-      {
-        label: '活动管理',
-        description: '活动与状态',
-        to: '/admin/activities',
-        icon: <FolderKanban className="h-4 w-4" />,
-      },
-      {
-        label: '规则管理',
-        description: '礼物 / PK 规则',
-        to: '/admin/rules',
-        icon: <Settings2 className="h-4 w-4" />,
-      },
-      {
-        label: '导出中心',
-        description: '提报导出',
-        to: '/admin/exports',
-        icon: <Download className="h-4 w-4" />,
-      },
-    ],
-  },
-  {
-    title: '培训中心',
-    items: [
-      {
-        label: '参会导入',
-        description: '腾讯导出认定',
-        to: '/training/attendance',
-        icon: <ListChecks className="h-4 w-4" />,
-      },
-      {
-        label: '培训运营',
-        description: '反馈 / 问题 / 周会',
-        to: '/training/operations',
-        icon: <GraduationCap className="h-4 w-4" />,
-      },
-      {
-        label: '课程与场次',
-        description: '由培训管理员维护',
-        to: '/training/sessions',
-        icon: <BookOpen className="h-4 w-4" />,
-      },
-    ],
-  },
-  {
-    title: '运维',
-    items: [
-      {
-        label: '任务与异常',
-        description: '任务运行与集成异常',
-        to: '/operations',
-        icon: <ShieldAlert className="h-4 w-4" />,
-      },
-    ],
   },
 ]
 
@@ -291,45 +191,6 @@ export function AdminDashboardPage() {
                   icon={item.icon}
                   href={item.href}
                 />
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-3 text-sm font-medium text-slate-500">业务入口</p>
-            <div className="grid gap-4 lg:grid-cols-2">
-              {entryGroups.map((group) => (
-                <section
-                  key={group.title}
-                  className="rounded-2xl border border-slate-200 bg-white p-4"
-                >
-                  <h2 className="text-sm font-semibold text-slate-900">
-                    {group.title}
-                  </h2>
-                  <ul className="mt-3 space-y-1.5">
-                    {group.items.map((item) => (
-                      <li key={item.to}>
-                        <Link
-                          to={item.to}
-                          className="group flex items-center gap-3 rounded-xl px-2.5 py-2.5 transition hover:bg-brand-50"
-                        >
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-brand-600 group-hover:bg-white">
-                            {item.icon}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-medium text-slate-800">
-                              {item.label}
-                            </span>
-                            <span className="block text-xs text-slate-400">
-                              {item.description}
-                            </span>
-                          </span>
-                          <ArrowUpRight className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-brand-500" />
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
               ))}
             </div>
           </div>

@@ -467,12 +467,17 @@ export class TrainingService {
     sessionId: string,
   ) {
     await this.access.requireAnyRole(currentUser, ['operator'])
+    const globalView =
+      currentUser.role === 'super_admin' &&
+      currentUser.loginType === 'password_admin'
     const profile = await this.prisma.anchorProfile.findFirst({
       where: {
         id: anchorProfileId,
-        currentOperatorId: currentUser.accountId ?? '',
         assignmentStatus: 'confirmed',
         status: 'active',
+        ...(globalView
+          ? {}
+          : { currentOperatorId: currentUser.accountId ?? '' }),
       },
       include: {
         currentOperator: true,
@@ -480,7 +485,11 @@ export class TrainingService {
       },
     })
     if (!profile) {
-      throw new ForbiddenException('只能为自己已确认归属的主播报名')
+      throw new ForbiddenException(
+        globalView
+          ? '未找到可代报名的主播档案'
+          : '只能为自己已确认归属的主播报名',
+      )
     }
     return this.registerProfile(
       profile,
@@ -570,18 +579,27 @@ export class TrainingService {
     registrationId: string,
   ) {
     await this.access.requireAnyRole(currentUser, ['operator'])
+    const globalView =
+      currentUser.role === 'super_admin' &&
+      currentUser.loginType === 'password_admin'
     const registration = await this.prisma.trainingRegistration.findFirst({
       where: {
         id: registrationId,
         anchorProfile: {
-          currentOperatorId: currentUser.accountId ?? '',
           assignmentStatus: 'confirmed',
+          ...(globalView
+            ? {}
+            : { currentOperatorId: currentUser.accountId ?? '' }),
         },
       },
       include: { session: true },
     })
     if (!registration) {
-      throw new ForbiddenException('只能取消自己已确认归属主播的报名')
+      throw new ForbiddenException(
+        globalView
+          ? '未找到可取消的报名'
+          : '只能取消自己已确认归属主播的报名',
+      )
     }
     await this.cancelRegistration(registration, registration.anchorProfileId)
     return { ok: true }
@@ -589,12 +607,17 @@ export class TrainingService {
 
   async listOperatorRegistrations(currentUser: AuthenticatedUser) {
     await this.access.requireAnyRole(currentUser, ['operator'])
+    const globalView =
+      currentUser.role === 'super_admin' &&
+      currentUser.loginType === 'password_admin'
     const items = await this.prisma.trainingRegistration.findMany({
       where: {
         status: { in: ['registered', 'waitlisted'] },
         anchorProfile: {
-          currentOperatorId: currentUser.accountId ?? '',
           assignmentStatus: 'confirmed',
+          ...(globalView
+            ? {}
+            : { currentOperatorId: currentUser.accountId ?? '' }),
         },
         session: {
           scheduledStartAt: { gt: new Date() },
@@ -720,11 +743,16 @@ export class TrainingService {
 
   async listOperatorTrainingAnchors(currentUser: AuthenticatedUser) {
     await this.access.requireAnyRole(currentUser, ['operator'])
+    const globalView =
+      currentUser.role === 'super_admin' &&
+      currentUser.loginType === 'password_admin'
     const items = await this.prisma.anchorProfile.findMany({
       where: {
-        currentOperatorId: currentUser.accountId ?? '',
         assignmentStatus: 'confirmed',
         status: 'active',
+        ...(globalView
+          ? {}
+          : { currentOperatorId: currentUser.accountId ?? '' }),
       },
       include: {
         trainingProgress: true,

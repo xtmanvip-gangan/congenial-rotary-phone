@@ -171,17 +171,24 @@ export class OnboardingService {
     anchorId: string,
   ) {
     await this.access.requireAnyRole(currentUser, ['operator'])
+    const globalView =
+      currentUser.role === 'super_admin' &&
+      currentUser.loginType === 'password_admin'
+    const ownershipWhere = {
+      id: anchorId,
+      assignmentStatus: 'confirmed' as const,
+      ...(globalView ? {} : { currentOperatorId: currentUser.accountId ?? '' }),
+    }
+
     let anchor = await this.prisma.anchorProfile.findFirst({
-      where: {
-        id: anchorId,
-        currentOperatorId: currentUser.accountId ?? '',
-        assignmentStatus: 'confirmed',
-      },
+      where: ownershipWhere,
       include: progressInclude,
     })
 
     if (!anchor) {
-      throw new NotFoundException('未找到归属于当前运营的主播')
+      throw new NotFoundException(
+        globalView ? '未找到该主播' : '未找到归属于当前运营的主播',
+      )
     }
 
     if (!anchor.onboardingProgress) {
@@ -206,15 +213,13 @@ export class OnboardingService {
         update: {},
       })
       anchor = await this.prisma.anchorProfile.findFirst({
-        where: {
-          id: anchorId,
-          currentOperatorId: currentUser.accountId ?? '',
-          assignmentStatus: 'confirmed',
-        },
+        where: ownershipWhere,
         include: progressInclude,
       })
       if (!anchor) {
-        throw new NotFoundException('未找到归属于当前运营的主播')
+        throw new NotFoundException(
+          globalView ? '未找到该主播' : '未找到归属于当前运营的主播',
+        )
       }
     }
 
