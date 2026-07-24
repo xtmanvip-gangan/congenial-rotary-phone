@@ -194,7 +194,7 @@ const highlightCategoryLabels: Record<string, string> = {
   training: '培训',
 }
 
-/** 前端兜底：与 API evidenceFieldLabels 对齐 */
+/** 前端兜底：与 API evidenceFieldLabels 对齐，避免展示英文字段名 */
 const fallbackEvidenceLabels: Record<string, string> = {
   communicatedAt: '沟通时间',
   channel: '沟通方式',
@@ -213,6 +213,7 @@ const fallbackEvidenceLabels: Record<string, string> = {
   anchorChecklist: '主播确认清单',
   trainedAt: '培训完成时间',
   materialsConfirmed: '资料已确认',
+  materialsChecked: '资料已确认',
   liveSoftwareReady: '直播软件已安装并会使用',
   accountPackReady: '直播账号四件套已设置',
   redLinesUnderstood: '违规红线13条已清楚',
@@ -223,7 +224,23 @@ const fallbackEvidenceLabels: Record<string, string> = {
   scriptReceived: '直播脚本已收到',
   processMemorized: '直播流程已记住',
   firstLiveScheduled: '首播时间已定好',
+  anchorConfirmedAt: '主播确认时间',
+  note: '备注',
+  screenshotUrls: '截图',
+  attachmentUrls: '附件',
+  reviewSummary: '复盘摘要',
+  reviewPoints: '复盘要点',
+  liveDurationMinutes: '直播时长（分钟）',
+  peakViewers: '最高在线',
+  issues: '问题与改进',
+  nextActions: '下一步动作',
 }
+
+/** 不在详情中展示的内部/冗余键 */
+const HIDDEN_EVIDENCE_KEYS = new Set([
+  'availableScheduleStart',
+  'availableScheduleEnd',
+])
 
 const tabs: Array<{ key: TabKey; label: string; icon: typeof UserRound }> = [
   { key: 'profile', label: '档案与轨迹', icon: UserRound },
@@ -241,27 +258,61 @@ function formatDateOnly(value: string | null | undefined) {
   }).format(new Date(value))
 }
 
+function humanizeFieldKey(key: string): string {
+  if (/[\u4e00-\u9fff]/.test(key)) return key
+  return key
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function labelEvidenceKey(
   key: string,
   labels?: Record<string, string>,
 ): string {
-  return labels?.[key] ?? fallbackEvidenceLabels[key] ?? key
+  return (
+    labels?.[key] ??
+    fallbackEvidenceLabels[key] ??
+    // 不直接甩出 camelCase 英文，尽量可读（仍非业务文案时仅作兜底）
+    humanizeFieldKey(key)
+  )
 }
 
-function formatEvidenceValue(value: unknown): string {
+function formatEvidenceValue(
+  value: unknown,
+  labels?: Record<string, string>,
+): string {
   if (value == null) return ''
   if (typeof value === 'boolean') return value ? '是' : '否'
-  if (Array.isArray(value)) return value.map(String).join('、')
+  if (Array.isArray(value)) {
+    return value
+      .map((item) =>
+        typeof item === 'object' && item !== null
+          ? formatEvidenceValue(item, labels)
+          : String(item),
+      )
+      .filter(Boolean)
+      .join('、')
+  }
   if (typeof value === 'object') {
     return Object.entries(value as Record<string, unknown>)
       .filter(([, v]) => v != null && v !== '' && v !== false)
       .map(([k, v]) => {
-        const subLabel = fallbackEvidenceLabels[k] ?? k
+        const subLabel = labelEvidenceKey(k, labels)
         if (typeof v === 'boolean') return v ? subLabel : null
-        return `${subLabel}：${formatEvidenceValue(v)}`
+        return `${subLabel}：${formatEvidenceValue(v, labels)}`
       })
       .filter(Boolean)
       .join('；')
+  }
+  // ISO 时间可读化
+  if (
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T/.test(value) &&
+    !Number.isNaN(Date.parse(value))
+  ) {
+    return formatDateTime(value)
   }
   return String(value)
 }
@@ -431,17 +482,6 @@ export function AdminAnchorDetailPage() {
   )
 }
 
-function defaultSelectedMilestoneType(
-  onboarding: AnchorDetail['onboarding'],
-): string | null {
-  if (!onboarding?.milestones.length) return null
-  if (onboarding.nextMilestone) return onboarding.nextMilestone
-  const lastDone = [...onboarding.milestones]
-    .reverse()
-    .find((item) => item.status === 'completed')
-  return lastDone?.type ?? onboarding.milestones[0]?.type ?? null
-}
-
 function ProfileTab({ data }: { data: AnchorDetail }) {
   const labels = data.evidenceFieldLabels
   const milestones = data.onboarding?.milestones ?? []
@@ -449,24 +489,28 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
   const done = data.onboarding?.completedCount ?? 0
   const progressPct = total > 0 ? Math.round((done / total) * 100) : 0
 
-  const [selectedType, setSelectedType] = useState<string | null>(() =>
-    defaultSelectedMilestoneType(data.onboarding),
-  )
+  // null = 收起；点击同一节点再点一次收回
+  const [expandedType, setExpandedType] = useState<string | null>(null)
 
   useEffect(() => {
-    setSelectedType((current) => {
+    setExpandedType((current) => {
+      if (!current) return null
       const list = data.onboarding?.milestones ?? []
-      if (current && list.some((item) => item.type === current)) {
-        return current
-      }
-      return defaultSelectedMilestoneType(data.onboarding)
+      return list.some((item) => item.type === current) ? current : null
     })
   }, [data.onboarding])
 
-  const selected = milestones.find((item) => item.type === selectedType) ?? null
+  const selected =
+    expandedType
+      ? (milestones.find((item) => item.type === expandedType) ?? null)
+      : null
   const selectedIndex = selected
     ? milestones.findIndex((item) => item.type === selected.type)
     : -1
+
+  function toggleNode(type: string) {
+    setExpandedType((current) => (current === type ? null : type))
+  }
 
   return (
     <div className="space-y-6">
@@ -475,14 +519,11 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
         <div className="border-b border-slate-100 bg-gradient-to-r from-brand-50/80 via-white to-cyan-50/40 px-6 py-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-brand-600">
-                Growth Track
-              </p>
-              <h3 className="mt-1 text-lg font-semibold text-slate-900">
+              <h3 className="text-lg font-semibold text-slate-900">
                 岗前成长轨迹
               </h3>
               <p className="mt-1 text-sm text-slate-500">
-                点击节点查看详情；桌面悬停可预览状态与时间
+                点击节点展开详情，再点一次收回；桌面悬停可预览状态与时间
               </p>
             </div>
             <div className="text-right">
@@ -531,7 +572,7 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
                     const waiting = item.status === 'awaiting_anchor_confirm'
                     const isCurrent =
                       data.onboarding?.nextMilestone === item.type && !completed
-                    const isSelected = selectedType === item.type
+                    const isSelected = expandedType === item.type
                     const statusText =
                       isCurrent && item.status === 'pending'
                         ? '进行中'
@@ -552,8 +593,9 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
                           type="button"
                           title={tip}
                           aria-label={tip}
+                          aria-expanded={isSelected}
                           aria-pressed={isSelected}
-                          onClick={() => setSelectedType(item.type)}
+                          onClick={() => toggleNode(item.type)}
                           className={[
                             'group relative flex flex-col items-center outline-none',
                             'focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 rounded-full',
@@ -616,18 +658,20 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
               </div>
 
               <p className="mt-3 text-center text-xs text-slate-400">
-                {data.onboarding.nextMilestone
-                  ? `当前推进：${
-                      milestones.find(
-                        (m) => m.type === data.onboarding?.nextMilestone,
-                      )?.label ?? data.onboarding.nextMilestone
-                    }`
-                  : done >= total
-                    ? '岗前轨迹已全部完成'
-                    : null}
+                {expandedType
+                  ? '再次点击同一节点可收回详情'
+                  : data.onboarding.nextMilestone
+                    ? `当前推进：${
+                        milestones.find(
+                          (m) => m.type === data.onboarding?.nextMilestone,
+                        )?.label ?? data.onboarding.nextMilestone
+                      }（点击节点查看详情）`
+                    : done >= total
+                      ? '岗前轨迹已全部完成（点击节点查看详情）'
+                      : '点击节点查看详情'}
               </p>
 
-              {/* 选中节点详情 */}
+              {/* 展开的节点详情（默认收起） */}
               {selected ? (
                 <div
                   className={[
@@ -725,7 +769,7 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
                       className="app-btn-secondary text-xs"
                       disabled={selectedIndex <= 0}
                       onClick={() =>
-                        setSelectedType(
+                        setExpandedType(
                           milestones[selectedIndex - 1]?.type ?? null,
                         )
                       }
@@ -740,12 +784,19 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
                         selectedIndex >= milestones.length - 1
                       }
                       onClick={() =>
-                        setSelectedType(
+                        setExpandedType(
                           milestones[selectedIndex + 1]?.type ?? null,
                         )
                       }
                     >
                       下一节点
+                    </button>
+                    <button
+                      type="button"
+                      className="app-btn-secondary text-xs"
+                      onClick={() => setExpandedType(null)}
+                    >
+                      收起
                     </button>
                   </div>
                 </div>
@@ -763,10 +814,7 @@ function ProfileTab({ data }: { data: AnchorDetail }) {
               <Sparkles className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-amber-700">
-                Highlight Moments
-              </p>
-              <h3 className="mt-1 text-lg font-semibold text-slate-900">
+              <h3 className="text-lg font-semibold text-slate-900">
                 高光时刻
               </h3>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
@@ -870,7 +918,8 @@ function EvidenceBlock({
   membershipCompletedAt: string | null
   milestoneType: string
 }) {
-  const entries = Object.entries(evidence).filter(([, value]) => {
+  const entries = Object.entries(evidence).filter(([key, value]) => {
+    if (HIDDEN_EVIDENCE_KEYS.has(key)) return false
     if (value == null || value === '') return false
     if (Array.isArray(value) && value.length === 0) return false
     return true
@@ -884,12 +933,6 @@ function EvidenceBlock({
     scheduleStart &&
     typeof scheduleEnd === 'string' &&
     scheduleEnd
-
-  const skipKeys = new Set(
-    hasSchedule
-      ? ['availableScheduleStart', 'availableScheduleEnd']
-      : ([] as string[]),
-  )
 
   const rows: Array<{ label: string; value: string }> = []
 
@@ -908,8 +951,7 @@ function EvidenceBlock({
   }
 
   for (const [key, value] of entries) {
-    if (skipKeys.has(key)) continue
-    const formatted = formatEvidenceValue(value)
+    const formatted = formatEvidenceValue(value, labels)
     if (!formatted) continue
     rows.push({
       label: labelEvidenceKey(key, labels),
