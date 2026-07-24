@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none">
+  <!-- 悦总统品牌标识：可替换为公司正式 logo 文件 brand-logo.svg / brand-logo.png -->
+  <rect width="80" height="80" rx="20" fill="url(#bg)"/>
+  <path
+    d="M24 28h32c1.1 0 2 .9 2 2v4.2c0 .8-.5 1.6-1.2 1.9L42 42.5V52h6c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2H32c-1.1 0-2-.9-2-2v-2c0-1.1.9-2 2-2h6v-9.5L23.2 36.1c-.7-.3-1.2-1.1-1.2-1.9V30c0-1.1.9-2 2-2z"
+    fill="white"
+    fill-opacity="0.95"
+  />
+  <circle cx="58" cy="24" r="5" fill="#93C5FD" fill-opacity="0.9"/>
+  <defs>
+    <linearGradient id="bg" x1="8" y1="4" x2="72" y2="76" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5EA0F6"/>
+      <stop offset="1" stop-color="#214CA4"/>
+    </linearGradient>
+  </defs>
+</svg>
