@@ -7,7 +7,11 @@ import {
   Param,
   PayloadTooLargeException,
   Post,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common'
+import { FilesInterceptor } from '@nestjs/platform-express'
+import { diskStorage } from 'multer'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -44,8 +48,56 @@ export class OnboardingController {
     )
   }
 
+  /**
+   * multipart 上传（推荐，企微内置浏览器兼容更好）
+   * 字段名：files
+   */
   @Post('upload-images')
-  uploadImages(
+  @UseInterceptors(
+    FilesInterceptor('files', 9, {
+      storage: diskStorage({
+        destination: (_req: any, _file: any, callback: any) => {
+          mkdirSync(onboardingUploadDirectory, { recursive: true })
+          callback(null, onboardingUploadDirectory)
+        },
+        filename: (_req: any, file: any, callback: any) => {
+          const extension =
+            extname(file.originalname || '').toLowerCase() || '.jpg'
+          callback(null, `${Date.now()}-${randomUUID()}${extension}`)
+        },
+      }),
+      fileFilter: (_req: any, file: any, callback: any) => {
+        if (!file.mimetype.startsWith('image/')) {
+          callback(new Error('仅支持上传图片文件'), false)
+          return
+        }
+        callback(null, true)
+      },
+      limits: {
+        fileSize: maxImageBytes,
+        files: 9,
+      },
+    }),
+  )
+  uploadImagesMultipart(
+    @Headers('authorization') authorization: string | undefined,
+    @UploadedFiles() files: Array<any>,
+  ) {
+    this.authService.getCurrentUserFromAuthHeader(authorization)
+    if (!files?.length) {
+      throw new BadRequestException('请选择至少一张图片')
+    }
+    return {
+      items: files.map((file) => ({
+        fileName: file.filename,
+        fileUrl: `/api/uploads/onboarding-proofs/${file.filename}`,
+      })),
+    }
+  }
+
+  /** base64 兜底（外部浏览器/旧客户端） */
+  @Post('upload-images-base64')
+  uploadImagesBase64(
     @Headers('authorization') authorization: string | undefined,
     @Body()
     body: { fileName?: string; mimeType?: string; base64Data?: string },
@@ -132,7 +184,6 @@ function saveOnboardingImage(body: {
 }) {
   const fileName = body.fileName?.trim()
   const mimeType = body.mimeType?.trim().toLowerCase() || 'image/jpeg'
-  // 兼容 data URL 前缀：data:image/jpeg;base64,xxxx
   const rawBase64 = body.base64Data?.trim() ?? ''
   const base64Data = rawBase64.includes(',')
     ? rawBase64.slice(rawBase64.indexOf(',') + 1)

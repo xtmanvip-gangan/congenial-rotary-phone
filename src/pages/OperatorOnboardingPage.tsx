@@ -7,11 +7,11 @@ import {
   RefreshCw,
   Sparkles,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ErrorBlock } from '../components/ErrorBlock'
 import { LoadingBlock } from '../components/LoadingBlock'
-import { apiJson } from '../lib/api'
+import { apiJson, getApiBaseUrl, uploadFilesXhr } from '../lib/api'
 import { formatDateTime } from '../lib/dateTime'
 
 type MilestoneType =
@@ -350,45 +350,48 @@ export function OperatorOnboardingPage() {
     setUploading(true)
     setFeedback(null)
     try {
-      const nextUrls: string[] = []
+      const formData = new FormData()
+      let count = 0
       for (const file of Array.from(files)) {
-        if (!file.type.startsWith('image/') && file.type !== '') {
+        if (file.type && !file.type.startsWith('image/')) {
           throw new Error(`不支持的文件类型：${file.type || file.name}`)
         }
-        // 先压缩，避免企微/手机原图 base64 超过接口体积限制
-        const prepared = await compressImageForUpload(file)
-        const result = await apiJson<{
-          items: Array<{ fileUrl: string }>
-        }>(`/operators/me/anchors/${anchorId}/onboarding/upload-images`, {
-          method: 'POST',
-          body: JSON.stringify({
-            fileName: prepared.fileName,
-            mimeType: prepared.mimeType,
-            base64Data: prepared.base64Data,
-          }),
-        })
-        if (result.items[0]?.fileUrl) {
-          nextUrls.push(result.items[0].fileUrl)
-        }
+        // 压缩后以 multipart 上传（企微内置浏览器比 base64 JSON 更稳）
+        const prepared = await compressImageToBlob(file)
+        formData.append('files', prepared.blob, prepared.fileName)
+        count += 1
       }
+
+      const result = await uploadFilesXhr<{
+        items: Array<{ fileUrl: string }>
+      }>(
+        `/operators/me/anchors/${anchorId}/onboarding/upload-images`,
+        formData,
+        1,
+      )
+
+      const nextUrls = (result.items ?? [])
+        .map((item) => item.fileUrl)
+        .filter(Boolean)
       if (nextUrls.length === 0) {
         throw new Error('上传成功但未返回图片地址，请重试')
       }
       setAttachmentUrls((current) => [...current, ...nextUrls])
       setFeedback({
         type: 'success',
-        text: `已上传 ${nextUrls.length} 张截图`,
+        text: `已上传 ${nextUrls.length} 张截图（共选 ${count} 张）`,
       })
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '上传失败'
+      const message = error instanceof Error ? error.message : '上传失败'
       setFeedback({
         type: 'error',
         text:
-          message.includes('413') || message.includes('entity too large')
-            ? '图片过大，请换更小的截图或重试'
-            : message.includes('Failed to fetch') || message.includes('Load failed')
-              ? '网络或网关拦截了上传，请换外部浏览器重试或压缩后再传'
+          message.includes('413') || message.includes('过大')
+            ? '图片过大，请换更小的截图'
+            : message.includes('Load failed') ||
+                message.includes('网络请求失败') ||
+                message.includes('Failed to fetch')
+              ? '企微内上传失败，已切换为文件直传；请再试一次或用外部浏览器'
               : message,
       })
     } finally {
@@ -969,52 +972,15 @@ export function OperatorOnboardingPage() {
                 activeType === 'live_software_ready' ||
                 activeType === 'helper_software_ready' ||
                 activeType === 'first_live_completed') ? (
-                <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
-                  <label className="block text-sm font-medium text-slate-700">
-                    上传截图（至少 1 张）
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="mt-2 block w-full text-sm"
-                      disabled={uploading}
-                      onChange={(e) => void uploadFiles(e.target.files)}
-                    />
-                  </label>
-                  {uploading ? (
-                    <p className="flex items-center gap-2 text-sm text-slate-500">
-                      <LoaderCircle className="h-4 w-4 animate-spin" />
-                      上传中…
-                    </p>
-                  ) : null}
-                  {attachmentUrls.length > 0 ? (
-                    <ul className="space-y-1 text-sm text-slate-600">
-                      {attachmentUrls.map((url, i) => (
-                        <li
-                          key={url}
-                          className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2"
-                        >
-                          <span>截图 {i + 1}</span>
-                          <button
-                            type="button"
-                            className="text-rose-600"
-                            onClick={() =>
-                              setAttachmentUrls((c) =>
-                                c.filter((item) => item !== url),
-                              )
-                            }
-                          >
-                            移除
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="flex items-center gap-2 text-xs text-slate-400">
-                      <ImagePlus className="h-3.5 w-3.5" />
-                      尚未选择截图
-                    </p>
-                  )}
+                <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                  <ScreenshotUploadZone
+                    uploading={uploading}
+                    attachmentUrls={attachmentUrls}
+                    onPick={(files) => void uploadFiles(files)}
+                    onRemove={(url) =>
+                      setAttachmentUrls((c) => c.filter((item) => item !== url))
+                    }
+                  />
                   <FormActions
                     busy={submitMutation.isPending || uploading}
                     onSubmit={submitActive}
@@ -1131,59 +1097,195 @@ function EvidencePreview({
   return null
 }
 
-/** 压缩截图：最长边 1600，JPEG 0.82，降低 base64 体积，适配企微内置浏览器 */
-async function compressImageForUpload(file: File): Promise<{
+function ScreenshotUploadZone({
+  uploading,
+  attachmentUrls,
+  onPick,
+  onRemove,
+}: {
+  uploading: boolean
+  attachmentUrls: string[]
+  onPick: (files: FileList | null) => void
+  onRemove: (url: string) => void
+}) {
+  const inputId = useId()
+  const [dragOver, setDragOver] = useState(false)
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">上传截图</p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            至少 1 张，支持多选；自动压缩后上传，适配企微
+          </p>
+        </div>
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs tabular-nums text-slate-600">
+          已选 {attachmentUrls.length} 张
+        </span>
+      </div>
+
+      <label
+        htmlFor={inputId}
+        onDragEnter={(e) => {
+          e.preventDefault()
+          setDragOver(true)
+        }}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragOver(true)
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault()
+          setDragOver(false)
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          setDragOver(false)
+          if (!uploading) onPick(e.dataTransfer.files)
+        }}
+        className={[
+          'flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-8 transition',
+          dragOver
+            ? 'border-brand-400 bg-brand-50'
+            : 'border-slate-200 bg-slate-50/80 hover:border-brand-300 hover:bg-brand-50/40',
+          uploading ? 'pointer-events-none opacity-70' : '',
+        ].join(' ')}
+      >
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-brand-600 shadow-sm ring-1 ring-slate-200">
+          {uploading ? (
+            <LoaderCircle className="h-5 w-5 animate-spin" />
+          ) : (
+            <ImagePlus className="h-5 w-5" />
+          )}
+        </span>
+        <p className="mt-3 text-sm font-medium text-slate-800">
+          {uploading ? '正在压缩并上传…' : '点击选择图片，或拖拽到此处'}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          JPG / PNG / WEBP，建议清晰完整截图
+        </p>
+        <input
+          id={inputId}
+          type="file"
+          accept="image/*"
+          multiple
+          className="sr-only"
+          disabled={uploading}
+          onChange={(e) => {
+            onPick(e.target.files)
+            e.target.value = ''
+          }}
+        />
+      </label>
+
+      {attachmentUrls.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {attachmentUrls.map((url, index) => (
+            <div
+              key={url}
+              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+            >
+              <a
+                href={resolveUploadUrl(url)}
+                target="_blank"
+                rel="noreferrer"
+                className="block aspect-[4/3] bg-slate-100"
+              >
+                <img
+                  src={resolveUploadUrl(url)}
+                  alt={`截图 ${index + 1}`}
+                  className="h-full w-full object-cover"
+                />
+              </a>
+              <div className="flex items-center justify-between gap-2 px-2.5 py-2">
+                <span className="text-xs font-medium text-slate-600">
+                  截图 {index + 1}
+                </span>
+                <button
+                  type="button"
+                  className="text-xs font-medium text-rose-600 hover:text-rose-700"
+                  onClick={() => onRemove(url)}
+                >
+                  移除
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-center text-xs text-slate-400">
+          尚未上传截图，提交前请至少上传 1 张
+        </p>
+      )}
+    </div>
+  )
+}
+
+function resolveUploadUrl(url: string) {
+  if (!url) return ''
+  if (/^https?:\/\//.test(url)) return url
+  // /api/uploads/... → 相对当前站点
+  if (url.startsWith('/api/')) return url
+  return `${getApiBaseUrl()}${url.startsWith('/') ? '' : '/'}${url}`
+}
+
+/** 压缩为 Blob，走 multipart，避免企微 Load failed */
+async function compressImageToBlob(file: File): Promise<{
   fileName: string
-  mimeType: string
-  base64Data: string
+  blob: Blob
 }> {
   const maxEdge = 1600
   const quality = 0.82
-
-  const dataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result ?? ''))
-    reader.onerror = () => reject(new Error('读取图片失败'))
-    reader.readAsDataURL(file)
-  })
-
-  if (!dataUrl.startsWith('data:image/')) {
-    // 非图片或读取失败时退回原始 base64（小文件）
-    const raw = dataUrl.includes(',') ? dataUrl.slice(dataUrl.indexOf(',') + 1) : dataUrl
-    return {
-      fileName: file.name || 'upload.jpg',
-      mimeType: file.type || 'image/jpeg',
-      base64Data: raw,
-    }
-  }
-
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('图片解码失败，请换一张截图'))
-    img.src = dataUrl
-  })
-
-  const scale = Math.min(1, maxEdge / Math.max(image.width, image.height))
-  const width = Math.max(1, Math.round(image.width * scale))
-  const height = Math.max(1, Math.round(image.height * scale))
-
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
-    throw new Error('当前浏览器无法压缩图片')
-  }
-  ctx.drawImage(image, 0, 0, width, height)
-
-  const compressedDataUrl = canvas.toDataURL('image/jpeg', quality)
-  const base64Data = compressedDataUrl.slice(compressedDataUrl.indexOf(',') + 1)
   const baseName = (file.name || 'screenshot').replace(/\.[^.]+$/, '')
 
-  return {
-    fileName: `${baseName}.jpg`,
-    mimeType: 'image/jpeg',
-    base64Data,
+  // 小图直接上传，减少 canvas 兼容问题
+  if (file.size > 0 && file.size < 400 * 1024 && file.type.startsWith('image/')) {
+    return { fileName: file.name || `${baseName}.jpg`, blob: file }
+  }
+
+  try {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result ?? ''))
+      reader.onerror = () => reject(new Error('读取图片失败'))
+      reader.readAsDataURL(file)
+    })
+
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = () => reject(new Error('图片解码失败，请换一张截图'))
+      img.src = dataUrl
+    })
+
+    const scale = Math.min(1, maxEdge / Math.max(image.width, image.height))
+    const width = Math.max(1, Math.round(image.width * scale))
+    const height = Math.max(1, Math.round(image.height * scale))
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      return { fileName: file.name || `${baseName}.jpg`, blob: file }
+    }
+    ctx.drawImage(image, 0, 0, width, height)
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((result) => resolve(result), 'image/jpeg', quality)
+    })
+
+    if (!blob) {
+      return { fileName: file.name || `${baseName}.jpg`, blob: file }
+    }
+
+    return {
+      fileName: `${baseName}.jpg`,
+      blob,
+    }
+  } catch {
+    // 企微等环境 canvas 异常时退回原文件 multipart
+    return { fileName: file.name || `${baseName}.jpg`, blob: file }
   }
 }
