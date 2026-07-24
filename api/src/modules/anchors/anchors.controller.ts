@@ -91,6 +91,14 @@ export class OperatorAnchorsController {
     )
   }
 
+  /** 答疑复盘中心概览 + 列表计数 */
+  @Get('qa-review-hub')
+  qaReviewHub(@Headers('authorization') authorization?: string) {
+    return this.anchorsService.getOperatorQaReviewHub(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+    )
+  }
+
   @Get('anchors/:anchorId')
   anchorDetail(
     @Headers('authorization') authorization: string | undefined,

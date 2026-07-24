@@ -558,6 +558,134 @@ export class AnchorsService {
     })
   }
 
+  /**
+   * 答疑复盘中心：概览 + 每位主播答疑/复盘条数
+   */
+  async getOperatorQaReviewHub(currentUser: AuthenticatedUser) {
+    await this.access.requireAnyRole(currentUser, ['operator'])
+    const globalView = isGlobalOperatorView(currentUser)
+    const operatorId = globalView ? undefined : (currentUser.accountId ?? '')
+
+    const anchors = await this.prisma.anchorProfile.findMany({
+      where: {
+        assignmentStatus: 'confirmed',
+        ...(operatorId ? { currentOperatorId: operatorId } : {}),
+      },
+      select: {
+        id: true,
+        anchorDisplayName: true,
+        wecomUser: { select: { wecomName: true } },
+        status: true,
+        onboardingProgress: { select: { firstLiveAt: true } },
+      },
+      orderBy: { anchorDisplayName: 'asc' },
+    })
+
+    const anchorIds = anchors.map((item) => item.id)
+    if (anchorIds.length === 0) {
+      return {
+        overview: {
+          todayActiveAnchors: 0,
+          weekActiveAnchors: 0,
+          monthActiveAnchors: 0,
+          monthUncoveredAnchors: 0,
+        },
+        items: [],
+      }
+    }
+
+    const { startOfToday, startOfWeek, startOfMonth } =
+      shanghaiPeriodStarts(new Date())
+
+    const [qaRecords, dailyReviews] = await Promise.all([
+      this.prisma.anchorQaRecord.findMany({
+        where: { anchorProfileId: { in: anchorIds } },
+        select: {
+          anchorProfileId: true,
+          qaAt: true,
+          followUpAt: true,
+          resultFollowUp: true,
+        },
+      }),
+      this.prisma.anchorDailyReview.findMany({
+        where: { anchorProfileId: { in: anchorIds } },
+        select: {
+          anchorProfileId: true,
+          reviewDate: true,
+          updatedAt: true,
+        },
+      }),
+    ])
+
+    const qaCountMap = new Map<string, number>()
+    const reviewCountMap = new Map<string, number>()
+    const activeToday = new Set<string>()
+    const activeWeek = new Set<string>()
+    const activeMonth = new Set<string>()
+    const coveredMonth = new Set<string>()
+
+    for (const item of qaRecords) {
+      qaCountMap.set(
+        item.anchorProfileId,
+        (qaCountMap.get(item.anchorProfileId) ?? 0) + 1,
+      )
+      const t = item.qaAt.getTime()
+      if (t >= startOfToday.getTime()) activeToday.add(item.anchorProfileId)
+      if (t >= startOfWeek.getTime()) activeWeek.add(item.anchorProfileId)
+      if (t >= startOfMonth.getTime()) {
+        activeMonth.add(item.anchorProfileId)
+        coveredMonth.add(item.anchorProfileId)
+      }
+    }
+
+    for (const item of dailyReviews) {
+      reviewCountMap.set(
+        item.anchorProfileId,
+        (reviewCountMap.get(item.anchorProfileId) ?? 0) + 1,
+      )
+      // reviewDate 按日存 UTC 零点，用日期串比较更稳
+      const day = item.reviewDate.toISOString().slice(0, 10)
+      const todayStr = toShanghaiDateString(new Date())
+      const weekStartStr = toShanghaiDateString(startOfWeek)
+      const monthStartStr = toShanghaiDateString(startOfMonth)
+      if (day >= todayStr) activeToday.add(item.anchorProfileId)
+      if (day >= weekStartStr) activeWeek.add(item.anchorProfileId)
+      if (day >= monthStartStr) {
+        activeMonth.add(item.anchorProfileId)
+        coveredMonth.add(item.anchorProfileId)
+      }
+    }
+
+    const items = anchors.map((anchor) => {
+      const firstLiveAt = anchor.onboardingProgress?.firstLiveAt ?? null
+      const liveStatus = resolveAnchorLiveStatus({
+        profileStatus: anchor.status,
+        firstLiveAt,
+      })
+      return {
+        id: anchor.id,
+        anchorDisplayName: anchor.anchorDisplayName,
+        wecomName: anchor.wecomUser.wecomName ?? '',
+        liveStatus,
+        qaCount: qaCountMap.get(anchor.id) ?? 0,
+        reviewCount: reviewCountMap.get(anchor.id) ?? 0,
+      }
+    })
+
+    return {
+      overview: {
+        todayActiveAnchors: activeToday.size,
+        weekActiveAnchors: activeWeek.size,
+        monthActiveAnchors: activeMonth.size,
+        monthUncoveredAnchors: Math.max(
+          0,
+          anchors.length - coveredMonth.size,
+        ),
+      },
+      items,
+    }
+  }
+
   private async loadAnchorDetailBundle(
     anchorId: string,
     options: { scope: 'admin' | 'operator'; operatorId?: string },
@@ -1720,4 +1848,40 @@ function parseReviewDate(value: string) {
     throw new BadRequestException('复盘日期无效')
   }
   return date
+}
+
+function toShanghaiDateString(date: Date) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+}
+
+function shanghaiPeriodStarts(now: Date) {
+  const todayStr = toShanghaiDateString(now)
+  const [y, m] = todayStr.split('-').map(Number)
+  const startOfToday = new Date(`${todayStr}T00:00:00+08:00`)
+  const shParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Shanghai',
+    weekday: 'short',
+  }).format(now)
+  const map: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  }
+  const wd = map[shParts] ?? 1
+  const daysFromMonday = (wd + 6) % 7
+  const startOfWeek = new Date(
+    startOfToday.getTime() - daysFromMonday * 24 * 60 * 60 * 1000,
+  )
+  const monthStr = `${y}-${String(m).padStart(2, '0')}-01`
+  const startOfMonth = new Date(`${monthStr}T00:00:00+08:00`)
+  return { startOfToday, startOfWeek, startOfMonth }
 }

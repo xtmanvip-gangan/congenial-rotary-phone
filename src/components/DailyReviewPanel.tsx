@@ -178,9 +178,10 @@ export function DailyReviewPanel({
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-slate-900">日复盘</h3>
+          <h3 className="text-base font-semibold text-slate-900">日复盘记录</h3>
           <p className="mt-1 text-sm text-slate-500">
             依据《主播日复盘表》：数据 + 做得最好 / 最大问题 / 明日优化
+            {!canWrite ? '（只读）' : ''}
           </p>
         </div>
         {canWrite ? (
@@ -346,6 +347,7 @@ export function DailyReviewPanel({
                     编辑
                   </button>
                 ) : null}
+                {/* 档案只读时不展示编辑 */}
               </div>
               <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
                 <Metric label="直播时长" value={fmtMin(item.liveDurationMinutes)} />

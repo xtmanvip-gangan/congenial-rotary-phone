@@ -1,22 +1,36 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, MessageCircle, RefreshCw, Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import {
+  ClipboardList,
+  MessageCircle,
+  RefreshCw,
+  Search,
+  Users,
+  UsersRound,
+} from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorBlock } from '../components/ErrorBlock'
 import { LoadingBlock } from '../components/LoadingBlock'
 import { apiJson } from '../lib/api'
 
-type AnchorItem = {
+type HubItem = {
   id: string
   wecomName: string
   anchorDisplayName: string
   liveStatus: string
+  qaCount: number
+  reviewCount: number
 }
 
-type QaItem = {
-  id: string
-  followUpStatus: 'done' | 'pending' | 'overdue'
+type HubResponse = {
+  overview: {
+    todayActiveAnchors: number
+    weekActiveAnchors: number
+    monthActiveAnchors: number
+    monthUncoveredAnchors: number
+  }
+  items: HubItem[]
 }
 
 const liveStatusLabels: Record<string, string> = {
@@ -28,51 +42,18 @@ const liveStatusLabels: Record<string, string> = {
   exited: '退会',
 }
 
-/** 答疑复盘：主播列表 + 答疑 / 复盘入口 */
+/** 答疑复盘：概览 + 主播列表（答疑 / 复盘入口） */
 export function OperatorReviewsListPage() {
   const [keyword, setKeyword] = useState('')
 
-  const anchorsQuery = useQuery({
-    queryKey: ['operator-anchors'],
+  const hubQuery = useQuery({
+    queryKey: ['operator-qa-review-hub'],
     queryFn: () =>
-      apiJson<{ items: AnchorItem[] }>('/operators/me/anchors'),
+      apiJson<HubResponse>('/operators/me/qa-review-hub'),
   })
 
-  const items = anchorsQuery.data?.items ?? []
-
-  const qaSummaryQuery = useQuery({
-    queryKey: ['operator-qa-summary', items.map((i) => i.id).join(',')],
-    enabled: items.length > 0,
-    queryFn: async () => {
-      const entries = await Promise.all(
-        items.map(async (anchor) => {
-          try {
-            const res = await apiJson<{ items: QaItem[] }>(
-              `/operators/me/anchors/${encodeURIComponent(anchor.id)}/qa-records`,
-            )
-            const overdue = res.items.filter(
-              (r) => r.followUpStatus === 'overdue',
-            ).length
-            const pending = res.items.filter(
-              (r) => r.followUpStatus === 'pending',
-            ).length
-            return [
-              anchor.id,
-              { total: res.items.length, overdue, pending },
-            ] as const
-          } catch {
-            return [anchor.id, { total: 0, overdue: 0, pending: 0 }] as const
-          }
-        }),
-      )
-      return Object.fromEntries(entries) as Record<
-        string,
-        { total: number; overdue: number; pending: number }
-      >
-    },
-  })
-
-  const qaMap = qaSummaryQuery.data ?? {}
+  const overview = hubQuery.data?.overview
+  const items = hubQuery.data?.items ?? []
 
   const filtered = useMemo(() => {
     const q = keyword.trim().toLowerCase()
@@ -81,11 +62,6 @@ export function OperatorReviewsListPage() {
       `${item.anchorDisplayName} ${item.wecomName}`.toLowerCase().includes(q),
     )
   }, [items, keyword])
-
-  const overdueTotal = Object.values(qaMap).reduce(
-    (sum, row) => sum + row.overdue,
-    0,
-  )
 
   return (
     <div className="space-y-6">
@@ -97,30 +73,51 @@ export function OperatorReviewsListPage() {
               答疑复盘
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              「答疑」记录问题与回复，并在 7 日内补结果跟踪；「复盘」进入《主播日复盘表》独立页。
-              {overdueTotal > 0
-                ? ` 当前有 ${overdueTotal} 条答疑结果跟踪已逾期。`
-                : ''}
+              「答疑」记录问题与 7 日结果跟踪；「复盘」进入独立日复盘页。概览按上海时区统计有答疑或日复盘的主播人数。
             </p>
           </div>
           <button
             type="button"
             className="app-btn-secondary shrink-0"
-            disabled={anchorsQuery.isFetching || qaSummaryQuery.isFetching}
-            onClick={() => {
-              void anchorsQuery.refetch()
-              void qaSummaryQuery.refetch()
-            }}
+            disabled={hubQuery.isFetching}
+            onClick={() => void hubQuery.refetch()}
           >
             <RefreshCw
-              className={`h-4 w-4 ${
-                anchorsQuery.isFetching || qaSummaryQuery.isFetching
-                  ? 'animate-spin'
-                  : ''
-              }`}
+              className={`h-4 w-4 ${hubQuery.isFetching ? 'animate-spin' : ''}`}
             />
             刷新
           </button>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <OverviewCard
+            label="今日答疑复盘人数"
+            value={overview?.todayActiveAnchors ?? 0}
+            helper="今日有答疑或日复盘"
+            icon={<MessageCircle className="h-4 w-4" />}
+            tone="sky"
+          />
+          <OverviewCard
+            label="本周答疑复盘人数"
+            value={overview?.weekActiveAnchors ?? 0}
+            helper="本周一至今"
+            icon={<ClipboardList className="h-4 w-4" />}
+            tone="brand"
+          />
+          <OverviewCard
+            label="本月答疑复盘人数"
+            value={overview?.monthActiveAnchors ?? 0}
+            helper="本月已覆盖"
+            icon={<UsersRound className="h-4 w-4" />}
+            tone="emerald"
+          />
+          <OverviewCard
+            label="本月未覆盖主播"
+            value={overview?.monthUncoveredAnchors ?? 0}
+            helper="本月无答疑且无日复盘"
+            icon={<Users className="h-4 w-4" />}
+            tone="amber"
+          />
         </div>
       </section>
 
@@ -139,21 +136,21 @@ export function OperatorReviewsListPage() {
         </div>
 
         <div className="mt-4">
-          {anchorsQuery.isLoading ? (
-            <LoadingBlock text="正在加载主播…" />
+          {hubQuery.isLoading ? (
+            <LoadingBlock text="正在加载答疑复盘…" />
           ) : null}
-          {anchorsQuery.isError ? (
+          {hubQuery.isError ? (
             <ErrorBlock
               message={
-                anchorsQuery.error instanceof Error
-                  ? anchorsQuery.error.message
+                hubQuery.error instanceof Error
+                  ? hubQuery.error.message
                   : '加载失败'
               }
             />
           ) : null}
 
-          {!anchorsQuery.isLoading &&
-          !anchorsQuery.isError &&
+          {!hubQuery.isLoading &&
+          !hubQuery.isError &&
           filtered.length === 0 ? (
             <EmptyState
               title={items.length === 0 ? '暂无已确认主播' : '没有匹配的主播'}
@@ -174,68 +171,112 @@ export function OperatorReviewsListPage() {
                     <th className="whitespace-nowrap px-3 py-3">主播</th>
                     <th className="whitespace-nowrap px-3 py-3">企微</th>
                     <th className="whitespace-nowrap px-3 py-3">直播状态</th>
-                    <th className="whitespace-nowrap px-3 py-3">答疑概况</th>
+                    <th className="whitespace-nowrap px-3 py-3">
+                      答疑复盘概况
+                    </th>
                     <th className="whitespace-nowrap px-3 py-3">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
-                  {filtered.map((item) => {
-                    const qa = qaMap[item.id]
-                    return (
-                      <tr
-                        key={item.id}
-                        className="transition-colors hover:bg-slate-50/80"
-                      >
-                        <td className="px-3 py-2.5 font-medium text-slate-900">
-                          {item.anchorDisplayName}
-                        </td>
-                        <td className="px-3 py-2.5 text-slate-600">
-                          {item.wecomName || '—'}
-                        </td>
-                        <td className="px-3 py-2.5 text-slate-600">
-                          {liveStatusLabels[item.liveStatus] ??
-                            item.liveStatus}
-                        </td>
-                        <td className="px-3 py-2.5 text-xs text-slate-500">
-                          {qaSummaryQuery.isLoading
-                            ? '…'
-                            : qa
-                              ? `${qa.total} 条${
-                                  qa.overdue > 0
-                                    ? ` · ${qa.overdue} 逾期`
-                                    : qa.pending > 0
-                                      ? ` · ${qa.pending} 待跟踪`
-                                      : ''
-                                }`
-                              : '0 条'}
-                        </td>
-                        <td className="px-3 py-2.5">
-                          <div className="flex flex-nowrap items-center gap-3 whitespace-nowrap">
-                            <Link
-                              className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-600 hover:text-brand-700"
-                              to={`/operator/anchors/${item.id}/qa`}
-                            >
-                              <MessageCircle className="h-3.5 w-3.5" />
-                              答疑
-                            </Link>
-                            <Link
-                              className="inline-flex items-center gap-0.5 text-xs font-medium text-slate-600 hover:text-brand-700"
-                              to={`/operator/anchors/${item.id}/reviews`}
-                            >
-                              复盘
-                              <ArrowRight className="h-3.5 w-3.5" />
-                            </Link>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                  {filtered.map((item) => (
+                    <tr
+                      key={item.id}
+                      className="transition-colors hover:bg-slate-50/80"
+                    >
+                      <td className="px-3 py-2.5 font-medium text-slate-900">
+                        {item.anchorDisplayName}
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-600">
+                        {item.wecomName || '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-600">
+                        {liveStatusLabels[item.liveStatus] ?? item.liveStatus}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-slate-700">
+                        <span title="答疑条数 / 日复盘条数">
+                          {item.qaCount}/{item.reviewCount}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex flex-nowrap items-center gap-2 whitespace-nowrap">
+                          <Link
+                            to={`/operator/anchors/${item.id}/qa`}
+                            className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 ring-1 ring-inset ring-sky-200/70 hover:bg-sky-100"
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            答疑
+                          </Link>
+                          <Link
+                            to={`/operator/anchors/${item.id}/reviews`}
+                            className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-200/70 hover:bg-violet-100"
+                          >
+                            <ClipboardList className="h-3.5 w-3.5" />
+                            复盘
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
           ) : null}
         </div>
       </section>
+    </div>
+  )
+}
+
+function OverviewCard({
+  label,
+  value,
+  helper,
+  icon,
+  tone,
+}: {
+  label: string
+  value: number
+  helper: string
+  icon: ReactNode
+  tone: 'sky' | 'brand' | 'emerald' | 'amber'
+}) {
+  const tones = {
+    sky: {
+      wrap: 'border-sky-100 bg-sky-50/70',
+      value: 'text-sky-700',
+      icon: 'bg-sky-100 text-sky-700',
+    },
+    brand: {
+      wrap: 'border-brand-100 bg-brand-50/70',
+      value: 'text-brand-700',
+      icon: 'bg-brand-100 text-brand-700',
+    },
+    emerald: {
+      wrap: 'border-emerald-100 bg-emerald-50/70',
+      value: 'text-emerald-700',
+      icon: 'bg-emerald-100 text-emerald-700',
+    },
+    amber: {
+      wrap: 'border-amber-100 bg-amber-50/70',
+      value: 'text-amber-800',
+      icon: 'bg-amber-100 text-amber-800',
+    },
+  }[tone]
+
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${tones.wrap}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium text-slate-500">{label}</p>
+        <span
+          className={`flex h-7 w-7 items-center justify-center rounded-xl ${tones.icon}`}
+        >
+          {icon}
+        </span>
+      </div>
+      <p className={`mt-1 text-2xl font-semibold tabular-nums ${tones.value}`}>
+        {value}
+      </p>
+      <p className="mt-1 text-xs text-slate-400">{helper}</p>
     </div>
   )
 }

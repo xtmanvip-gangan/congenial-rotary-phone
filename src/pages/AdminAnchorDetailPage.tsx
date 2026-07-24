@@ -1203,10 +1203,13 @@ function ReviewsTab({
 }) {
   return (
     <div className="space-y-4">
+      <p className="text-sm text-slate-500">
+        档案仅展示记录；可补充会长批注。运营填写在「答疑复盘」。
+      </p>
       <DailyReviewPanel
         anchorId={anchorId}
         items={data.reviews.items ?? []}
-        canWrite
+        canWrite={false}
         canLeaderNote
         queryKeyToInvalidate={['admin-anchor-detail', anchorId]}
       />

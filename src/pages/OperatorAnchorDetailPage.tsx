@@ -564,7 +564,7 @@ export function OperatorAnchorDetailPage() {
           {tab === 'reviews' ? (
             <ReviewsTab data={data} anchorId={anchorId} />
           ) : null}
-          {tab === 'qa' ? <QaTab data={data} anchorId={anchorId} /> : null}
+          {tab === 'qa' ? <QaTab data={data} /> : null}
         </>
       ) : null}
     </div>
@@ -1248,21 +1248,13 @@ function ReviewsTab({
 }) {
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-slate-500">
-          完整填写也可进入独立复盘页
-        </p>
-        <Link
-          className="text-xs font-medium text-brand-600 hover:text-brand-700"
-          to={`/operator/anchors/${anchorId}/reviews`}
-        >
-          打开日复盘页
-        </Link>
-      </div>
+      <p className="text-sm text-slate-500">
+        档案仅展示记录。填写请到「答疑复盘」→ 复盘。
+      </p>
       <DailyReviewPanel
         anchorId={anchorId}
         items={data.reviews.items ?? []}
-        canWrite
+        canWrite={false}
         canLeaderNote={false}
         queryKeyToInvalidate={['operator-anchor-detail', anchorId]}
       />
@@ -1270,43 +1262,27 @@ function ReviewsTab({
   )
 }
 
-function QaTab({
-  data,
-  anchorId,
-}: {
-  data: AnchorDetail
-  anchorId: string
-}) {
+function QaTab({ data }: { data: AnchorDetail }) {
   const items = data.qaRecords?.items ?? []
   const overdue = data.qaRecords?.overdueCount ?? 0
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-base font-semibold text-slate-900">答疑记录</h3>
-          <p className="mt-1 text-sm text-slate-500">
-            {data.qaRecords?.message ??
-              '答疑后 7 日内须填写结果跟踪'}
-            {overdue > 0 ? ` · ${overdue} 条已逾期` : ''}
-          </p>
-        </div>
-        <Link
-          className="app-btn-primary"
-          to={`/operator/anchors/${anchorId}/qa`}
-        >
-          <MessageCircle className="h-4 w-4" />
-          管理答疑
-        </Link>
+      <div>
+        <h3 className="text-base font-semibold text-slate-900">答疑记录</h3>
+        <p className="mt-1 text-sm text-slate-500">
+          档案仅展示记录。填写请到「答疑复盘」→ 答疑。
+          {overdue > 0 ? ` · ${overdue} 条已逾期` : ''}
+        </p>
       </div>
       <div className="mt-4 space-y-3">
         {items.length === 0 ? (
           <EmptyState
             title="暂无答疑"
-            description="在答疑页新建记录。"
+            description="在答疑复盘入口新建记录后会出现在这里。"
             tone="plain"
           />
         ) : (
-          items.slice(0, 20).map((item) => (
+          items.slice(0, 50).map((item) => (
             <article
               key={item.id}
               className="rounded-2xl border border-slate-100 px-3 py-2 text-sm"
