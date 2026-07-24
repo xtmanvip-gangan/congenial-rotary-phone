@@ -536,14 +536,46 @@ export class AnchorsService {
     anchorId: string,
   ) {
     await this.access.requirePasswordSuperAdmin(currentUser)
+    return this.loadAnchorDetailBundle(anchorId, { scope: 'admin' })
+  }
 
+  /**
+   * 运营：在管主播档案（仅已确认归属；超管密码登录可看全部已确认）
+   */
+  async getOperatorAnchorDetail(
+    currentUser: AuthenticatedUser,
+    anchorId: string,
+  ) {
+    await this.access.requireAnyRole(currentUser, ['operator'])
+    return this.loadAnchorDetailBundle(anchorId, {
+      scope: 'operator',
+      operatorId: isGlobalOperatorView(currentUser)
+        ? undefined
+        : (currentUser.accountId ?? ''),
+    })
+  }
+
+  private async loadAnchorDetailBundle(
+    anchorId: string,
+    options: { scope: 'admin' | 'operator'; operatorId?: string },
+  ) {
     const id = anchorId?.trim()
     if (!id) {
       throw new BadRequestException('主播 ID 无效')
     }
 
-    const profile = await this.prisma.anchorProfile.findUnique({
-      where: { id },
+    const profile = await this.prisma.anchorProfile.findFirst({
+      where: {
+        id,
+        ...(options.scope === 'operator'
+          ? {
+              assignmentStatus: 'confirmed' as const,
+              ...(options.operatorId
+                ? { currentOperatorId: options.operatorId }
+                : {}),
+            }
+          : {}),
+      },
       include: {
         wecomUser: {
           select: {
@@ -588,7 +620,11 @@ export class AnchorsService {
     })
 
     if (!profile) {
-      throw new NotFoundException('主播不存在')
+      throw new NotFoundException(
+        options.scope === 'operator'
+          ? '未找到归属于你的已确认主播档案'
+          : '主播不存在',
+      )
     }
 
     const [submissions, registrations, learningProgress] = await Promise.all([

@@ -580,7 +580,12 @@ export function OperatorAnchorsPage() {
                             className="transition-colors hover:bg-slate-50/80"
                           >
                             <td className="px-3 py-2.5 font-medium text-slate-900">
-                              {item.anchorDisplayName}
+                              <Link
+                                to={`/operator/anchors/${item.id}`}
+                                className="hover:text-brand-700"
+                              >
+                                {item.anchorDisplayName}
+                              </Link>
                             </td>
                             <td className="max-w-[10rem] truncate px-3 py-2.5 text-slate-600">
                               {item.wecomName || '—'}
@@ -601,13 +606,21 @@ export function OperatorAnchorsPage() {
                                 : '—'}
                             </td>
                             <td className="px-3 py-2.5 text-right">
-                              <Link
-                                className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-600 hover:text-brand-700"
-                                to={`/operator/anchors/${item.id}/onboarding`}
-                              >
-                                岗前进度
-                                <ArrowRight className="h-3.5 w-3.5" />
-                              </Link>
+                              <div className="flex flex-wrap items-center justify-end gap-2">
+                                <Link
+                                  className="text-xs font-medium text-slate-600 hover:text-brand-700"
+                                  to={`/operator/anchors/${item.id}`}
+                                >
+                                  档案
+                                </Link>
+                                <Link
+                                  className="inline-flex items-center gap-0.5 text-xs font-medium text-brand-600 hover:text-brand-700"
+                                  to={`/operator/anchors/${item.id}/onboarding`}
+                                >
+                                  岗前
+                                  <ArrowRight className="h-3.5 w-3.5" />
+                                </Link>
+                              </div>
                             </td>
                           </tr>
                         )

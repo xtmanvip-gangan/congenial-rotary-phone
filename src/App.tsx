@@ -10,6 +10,7 @@ import { AuditActivationPage } from './pages/AuditActivationPage'
 import { ExportCenterPage } from './pages/ExportCenterPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { OperatorAnchorDetailPage } from './pages/OperatorAnchorDetailPage'
 import { OperatorAnchorsPage } from './pages/OperatorAnchorsPage'
 import { OperatorOnboardingPage } from './pages/OperatorOnboardingPage'
 import { RuleManagementPage } from './pages/RuleManagementPage'
@@ -161,6 +162,14 @@ function App() {
           element={
             <AuthGate allowRoles={['operator', 'super_admin']}>
               <OperatorAnchorsPage />
+            </AuthGate>
+          }
+        />
+        <Route
+          path="/operator/anchors/:anchorId"
+          element={
+            <AuthGate allowRoles={['operator', 'super_admin']}>
+              <OperatorAnchorDetailPage />
             </AuthGate>
           }
         />

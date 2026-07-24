@@ -438,7 +438,7 @@ export function OperatorOnboardingPage() {
   if (query.error || !progress) {
     return (
       <div className="space-y-4">
-        <BackLink />
+        <BackLink anchorId={anchorId || undefined} />
         <ErrorBlock
           message={
             query.error instanceof Error
@@ -454,11 +454,16 @@ export function OperatorOnboardingPage() {
     progress.totalCount > 0
       ? Math.round((progress.completedCount / progress.totalCount) * 100)
       : 0
+  const currentLabel = nextType
+    ? progress.milestones.find((m) => m.type === nextType)?.label ?? nextType
+    : progress.completedCount >= progress.totalCount
+      ? '岗前已全部完成'
+      : null
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <BackLink />
+        <BackLink anchorId={anchorId || undefined} />
         <button
           type="button"
           className="app-btn-secondary"
@@ -472,30 +477,79 @@ export function OperatorOnboardingPage() {
         </button>
       </div>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
-        <p className="text-sm font-medium text-brand-600">主播孵化进度</p>
-        <h2 className="mt-1 text-2xl font-semibold text-slate-900">
-          {progress.anchor.anchorDisplayName}
-        </h2>
-        <p className="mt-2 text-sm text-slate-500">
-          已完成 {progress.completedCount} / {progress.totalCount} 个节点
-        </p>
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span>整体进度</span>
-            <span className="tabular-nums">{pct}%</span>
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-brand-50/80 via-white to-cyan-50/40 px-6 py-5">
+          <p className="text-sm font-medium text-brand-600">岗前成长轨迹</p>
+          <h2 className="mt-1 text-2xl font-semibold text-slate-900">
+            {progress.anchor.anchorDisplayName}
+          </h2>
+          <p className="mt-2 text-sm text-slate-500">
+            按节点顺序填写；需主播确认的节点提交后可改再提。已完成{' '}
+            {progress.completedCount}/{progress.totalCount}
+            {currentLabel ? ` · 当前：${currentLabel}` : ''}
+          </p>
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>完成度</span>
+              <span className="tabular-nums">{pct}%</span>
+            </div>
+            <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-brand-500 to-cyan-400 transition-all"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
           </div>
-          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-100">
-            <div
-              className="h-full rounded-full bg-brand-500 transition-all"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
+
+          {/* 横向节点速览 */}
+          <ol className="mt-5 grid grid-cols-7 gap-1">
+            {progress.milestones.map((milestone, index) => {
+              const completed = milestone.status === 'completed'
+              const waiting = milestone.status === 'awaiting_anchor_confirm'
+              const isCurrent = milestone.type === nextType && !completed
+              return (
+                <li
+                  key={milestone.type}
+                  className="flex flex-col items-center text-center"
+                >
+                  <span
+                    className={[
+                      'flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold',
+                      completed
+                        ? 'bg-brand-600 text-white'
+                        : waiting
+                          ? 'bg-amber-400 text-white'
+                          : isCurrent
+                            ? 'border-2 border-brand-500 bg-white text-brand-600'
+                            : 'border border-slate-200 bg-white text-slate-400',
+                    ].join(' ')}
+                  >
+                    {completed ? (
+                      <CheckCircle2 className="h-4 w-4" />
+                    ) : (
+                      index + 1
+                    )}
+                  </span>
+                  <span
+                    className={[
+                      'mt-1.5 max-w-[4.5rem] text-[10px] font-medium leading-3 sm:max-w-none sm:text-[11px]',
+                      isCurrent || completed
+                        ? 'text-slate-700'
+                        : 'text-slate-400',
+                    ].join(' ')}
+                  >
+                    {milestone.label}
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
         </div>
+
         {feedback ? (
           <p
             className={[
-              'mt-4 rounded-2xl px-3 py-2 text-sm',
+              'mx-6 mt-4 rounded-2xl px-3 py-2 text-sm',
               feedback.type === 'success'
                 ? 'bg-emerald-50 text-emerald-700'
                 : 'bg-rose-50 text-rose-700',
@@ -581,9 +635,7 @@ export function OperatorOnboardingPage() {
                       ))}
                     </div>
                   ) : null}
-                  {milestone.evidence &&
-                  milestone.status !== 'pending' &&
-                  milestone.type !== 'initial_communication' ? (
+                  {milestone.evidence && milestone.status !== 'pending' ? (
                     <EvidencePreview
                       type={milestone.type}
                       evidence={milestone.evidence}
@@ -1032,16 +1084,43 @@ function FormActions({
   )
 }
 
-function BackLink() {
+function BackLink({ anchorId }: { anchorId?: string }) {
   return (
-    <Link
-      className="inline-flex items-center gap-1 text-sm font-medium text-brand-600"
-      to="/operator/anchors"
-    >
-      <ArrowLeft className="h-4 w-4" />
-      返回主播与归属
-    </Link>
+    <div className="flex flex-wrap items-center gap-3">
+      <Link
+        className="inline-flex items-center gap-1 text-sm font-medium text-brand-600"
+        to="/operator/anchors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        返回我的主播
+      </Link>
+      {anchorId ? (
+        <Link
+          className="text-sm font-medium text-slate-500 hover:text-brand-700"
+          to={`/operator/anchors/${anchorId}`}
+        >
+          查看档案
+        </Link>
+      ) : null}
+    </div>
   )
+}
+
+const initialFieldLabels: Record<string, string> = {
+  communicatedAt: '沟通时间',
+  channel: '沟通方式',
+  availableScheduleStart: '可直播开始',
+  availableScheduleEnd: '可直播结束',
+  deviceNetwork: '设备与网络',
+  voiceTraits: '声音特点',
+  interestsAndExperience: '兴趣经历',
+  liveExperience: '直播经验',
+  learningCommitment: '学习与投入',
+  liveGoals: '直播目标',
+  concerns: '担心顾虑',
+  contentRecommendation: '内容推荐',
+  basicConditionsJudgment: '基本条件判断',
+  stabilityRisks: '稳定开播风险',
 }
 
 function EvidencePreview({
@@ -1051,7 +1130,30 @@ function EvidencePreview({
   type: MilestoneType
   evidence: Record<string, unknown>
 }) {
-  // 初次沟通不在卡片摘要展示正文，需点「修改重提」查看/编辑
+  if (type === 'initial_communication') {
+    const rows = Object.entries(evidence)
+      .filter(([, v]) => {
+        if (v == null || v === '') return false
+        if (Array.isArray(v) && v.length === 0) return false
+        return true
+      })
+      .slice(0, 6)
+    if (rows.length === 0) return null
+    return (
+      <dl className="mt-2 grid gap-1 rounded-xl bg-slate-50 px-3 py-2 text-xs sm:grid-cols-2">
+        {rows.map(([key, value]) => (
+          <div key={key}>
+            <dt className="text-slate-400">
+              {initialFieldLabels[key] ?? key}
+            </dt>
+            <dd className="mt-0.5 text-slate-700 break-words">
+              {Array.isArray(value) ? value.join('、') : String(value)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    )
+  }
   if (type === 'prejob_learning_completed') {
     return (
       <p className="mt-2 text-sm text-slate-600">
@@ -1063,7 +1165,7 @@ function EvidencePreview({
   if (type === 'first_live_review_completed') {
     return (
       <p className="mt-2 text-sm text-slate-600">
-        复盘：{String(evidence.reviewConclusion ?? '—')}
+        复盘结论：{String(evidence.reviewConclusion ?? '—')}
       </p>
     )
   }

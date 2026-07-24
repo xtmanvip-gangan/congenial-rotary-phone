@@ -82,6 +82,17 @@ export class OperatorAnchorsController {
     )
   }
 
+  @Get('anchors/:anchorId')
+  anchorDetail(
+    @Headers('authorization') authorization: string | undefined,
+    @Param('anchorId') anchorId: string,
+  ) {
+    return this.anchorsService.getOperatorAnchorDetail(
+      this.authService.getCurrentUserFromAuthHeader(authorization),
+      anchorId,
+    )
+  }
+
   @Get('assignments/pending')
   pending(@Headers('authorization') authorization?: string) {
     return this.anchorsService.listPendingAssignments(
