@@ -48,7 +48,12 @@ export function getStaffNavGroups(role: AppRole): NavGroup[] {
       {
         title: '总览',
         items: [
-          { label: '后台首页', to: '/admin/dashboard', icon: LayoutDashboard },
+          {
+            label: '后台首页',
+            to: '/admin/dashboard',
+            icon: LayoutDashboard,
+            end: true,
+          },
         ],
       },
       {
