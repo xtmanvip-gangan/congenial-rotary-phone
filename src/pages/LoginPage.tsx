@@ -119,10 +119,11 @@ export function LoginPage() {
               <div className="mt-2.5">
                 <ProjectWordmark variant="light" className="h-14 max-w-[18rem]" />
               </div>
-              <p className="mt-2 text-base font-medium text-accent-100">主播服务中台</p>
             </div>
 
-            <p className="relative z-10 text-sm text-blue-100/70">内部系统</p>
+            <p className="relative z-10 text-sm font-medium text-blue-100/90">
+              主播服务中台
+            </p>
           </section>
 
           <section className="flex flex-col justify-center px-6 py-8 sm:px-10 sm:py-12">

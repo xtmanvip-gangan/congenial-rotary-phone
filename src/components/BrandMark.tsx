@@ -45,20 +45,15 @@ export function ProjectWordmark({
   )
 }
 
-/** 浅色顶栏/侧栏：彩色 logo-1 + 深色字标 */
+/** 浅色顶栏/侧栏：彩色 logo-1 + 深色字标（不含副标题） */
 export function BrandLockup({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`flex items-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
       <CompanyLogo className={compact ? 'h-8 w-8' : 'h-9 w-9'} />
-      <div className="min-w-0">
-        <ProjectWordmark
-          variant="dark"
-          className={compact ? 'h-6 max-w-[8.5rem]' : 'h-7 max-w-[10rem]'}
-        />
-        <p className="mt-0 truncate text-[11px] leading-none text-secondary-500">
-          主播服务中台
-        </p>
-      </div>
+      <ProjectWordmark
+        variant="dark"
+        className={compact ? 'h-6 max-w-[8.5rem]' : 'h-7 max-w-[10rem]'}
+      />
     </div>
   )
 }
