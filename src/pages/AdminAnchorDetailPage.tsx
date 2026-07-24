@@ -1200,7 +1200,7 @@ function ReviewsTab({
       <DailyReviewPanel
         anchorId={anchorId}
         items={data.reviews.items ?? []}
-        canWrite={false}
+        canWrite
         canLeaderNote
         queryKeyToInvalidate={['admin-anchor-detail', anchorId]}
       />
