@@ -2,7 +2,11 @@ import { LoaderCircle, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { BrandLockup, CompanyLogo, ProjectWordmark } from '../components/BrandMark'
+import {
+  BrandLockup,
+  CompanyLogoLight,
+  ProjectWordmark,
+} from '../components/BrandMark'
 import { apiJson } from '../lib/api'
 import { isWecomEnvironment } from '../lib/browserEnv'
 import { getRoleHomePath, type StoredSession } from '../lib/auth'
@@ -110,10 +114,10 @@ export function LoginPage() {
             />
 
             <div className="relative z-10">
-              {/* 纯白 logo，无阴影；与字标间距收紧 */}
-              <CompanyLogo className="h-16 w-16" />
-              <div className="mt-4">
-                <ProjectWordmark variant="light" className="h-12 max-w-[16rem]" />
+              {/* 登录框左侧：纯白图形标 + 更大字标，间距更紧 */}
+              <CompanyLogoLight className="h-16 w-16" />
+              <div className="mt-2.5">
+                <ProjectWordmark variant="light" className="h-14 max-w-[18rem]" />
               </div>
               <p className="mt-2 text-base font-medium text-accent-100">主播服务中台</p>
             </div>

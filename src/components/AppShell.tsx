@@ -58,9 +58,7 @@ export function AppShell() {
               <BrandLockup compact />
             </div>
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 p-1">
-              <CompanyLogo className="h-full w-full" />
-            </div>
+            <CompanyLogo className="h-8 w-8" />
           )}
           <button
             type="button"
