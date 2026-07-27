@@ -1,12 +1,12 @@
-# YOYO 主播端小程序 Figma Implementation Plan
+# YOYO 主播端小程序 Pixso Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 创建一份覆盖主播端全部 10 个业务路由、关键状态和可复用组件的 YOYO 品牌 Figma UI 文件。
+**Goal:** 创建一份覆盖主播端全部 10 个业务路由、关键状态和可复用组件的 YOYO 品牌 Pixso UI 文件。
 
-**Architecture:** 先创建独立 Figma 文件与 9 个页面，再建立颜色变量、文字样式、效果样式和组件库。业务界面按登录入驻、活动提报、记录、培训岗前、个人中心五组逐步制作，每完成一组即截图校验，最后补齐状态矩阵、业务流程图和全文件视觉一致性检查。
+**Architecture:** 在当前 Pixso 空白文件中建立 9 个页面，再通过 Pixso MCP 创建颜色变量、文字样式、效果样式和组件库。业务界面按登录入驻、活动提报、记录、培训岗前、个人中心五组逐步制作，每完成一组即截图校验，最后补齐状态矩阵、业务流程图和全文件视觉一致性检查。
 
-**Tech Stack:** Figma Plugin API、Figma Variables、Auto Layout、Components/Variants、375 px 移动端画板、PingFang SC、YOYO IP 位图素材。
+**Tech Stack:** Pixso MCP、Pixso Variables、Auto Layout、Components/Variants、375 px 移动端画板、PingFang SC、YOYO IP 位图素材。
 
 ## Global Constraints
 
@@ -22,24 +22,24 @@
 
 ---
 
-### Task 1: 创建 Figma 文件与页面骨架
+### Task 1: 创建 Pixso 文件与页面骨架
 
 **Artifacts:**
-- Create Figma file: `YOYO 主播中心 · 全页面 UI`
+- Use active Pixso file: `YOYO 主播中心 · 全页面 UI`
 - Create pages: `00 Cover & Flow`, `01 Foundations`, `02 Components`, `03 Login & Activation`, `04 Activities & Submission`, `05 Records`, `06 Training & Onboarding`, `07 Mine`, `08 States & Edge Cases`
-- Record locally: Figma `fileKey`, page node IDs, top-level frame node IDs
+- Record locally: Pixso document context、page node IDs、top-level frame node IDs
 
 **Interfaces:**
 - Consumes: 已确认设计规格 `docs/superpowers/specs/2026-07-27-anchor-miniapp-yoyo-ui-design.md`
-- Produces: 后续任务使用的 Figma `fileKey` 与 9 个 page node ID
+- Produces: 后续任务使用的 Pixso document context 与 9 个 page node ID
 
-- [ ] **Step 1: 创建新 Figma 文件**
+- [ ] **Step 1: 连接当前 Pixso 文件**
 
-使用 Figma `create_new_file` 创建 `YOYO 主播中心 · 全页面 UI`，保存返回的 `fileKey` 和文件 URL。
+使用 Pixso MCP `fetch_context` 连接当前打开的空白文件，确认具有编辑权限并记录 document context。
 
 - [ ] **Step 2: 建立 9 个页面**
 
-使用 Figma Plugin API 创建并命名 9 个页面，顺序必须与 Artifacts 列表一致。
+使用 Pixso MCP 创建并命名 9 个页面，顺序必须与 Artifacts 列表一致。
 
 - [ ] **Step 3: 在每个页面建立说明区**
 
@@ -56,7 +56,7 @@
 ### Task 2: 建立 Foundations 设计基础
 
 **Artifacts:**
-- Figma page: `01 Foundations`
+- Pixso page: `01 Foundations`
 - Create variable collection: `YOYO Core`
 - Create text styles: `Display/32`, `Title/28`, `Heading/20`, `Card/17`, `Body/15`, `Label/13`, `Caption/12`
 - Create effect styles: `Shadow/Card`, `Shadow/Floating`, `Glow/Blue`, `Glow/Pink`
@@ -79,7 +79,7 @@
 
 - [ ] **Step 4: 创建文字样式**
 
-确认 Figma 中可用的 PingFang SC 字体样式，加载对应字体后创建 7 个文字样式；正文行高为 1.45–1.6，标题行高为 1.1–1.25。
+确认 Pixso 中可用的 PingFang SC 字体样式，加载对应字体后创建 7 个文字样式；正文行高为 1.45–1.6，标题行高为 1.1–1.25。
 
 - [ ] **Step 5: 创建阴影与柔光样式**
 
@@ -96,7 +96,7 @@
 ### Task 3: 建立可复用组件库
 
 **Artifacts:**
-- Figma page: `02 Components`
+- Pixso page: `02 Components`
 - Components: `Button`, `Status Tag`, `Filter Pill`, `Tab Bar`, `Top Bar`, `YOYO Guide Card`, `Activity Card`, `Course Card`, `Record Card`, `Form Field`, `Upload Tile`, `Reward Preview`, `State Block`, `Bottom Sheet`
 
 **Interfaces:**
@@ -142,7 +142,7 @@
 ### Task 4: 设计登录、资料完善与等待确认
 
 **Artifacts:**
-- Figma page: `03 Login & Activation`
+- Pixso page: `03 Login & Activation`
 - Frames: `Login/Welcome`, `Login/Loading`, `Login/Error`, `Activation/New`, `Activation/Legacy`, `Activation/Uploading`, `Activation/Pending Confirmation`
 
 **Interfaces:**
@@ -180,7 +180,7 @@
 ### Task 5: 设计活动首页与单活动记录
 
 **Artifacts:**
-- Figma page: `04 Activities & Submission`
+- Pixso page: `04 Activities & Submission`
 - Frames: `Activities/Ongoing`, `Activities/Pending Operator`, `Activities/Upcoming`, `Activities/Ended`, `Activities/Empty`, `Activities/Error`, `Activity Records/List`, `Activity Records/Empty`, `Activity Records/Error`
 
 **Interfaces:**
@@ -218,7 +218,7 @@
 ### Task 6: 设计活动提报与修改流程
 
 **Artifacts:**
-- Figma page: `04 Activities & Submission`
+- Pixso page: `04 Activities & Submission`
 - Frames: `Submit/Gift Step 1`, `Submit/Gift Step 2`, `Submit/Gift Step 3`, `Submit/PK`, `Submit/Reward Hit`, `Submit/No Reward`, `Submit/Uploading`, `Submit/Edit Rejected`, `Submit/Locked`, `Submit/Error`
 
 **Interfaces:**
@@ -260,7 +260,7 @@
 ### Task 7: 设计全部记录与记录详情
 
 **Artifacts:**
-- Figma page: `05 Records`
+- Pixso page: `05 Records`
 - Frames: `Records/All`, `Records/Pending`, `Records/Approved`, `Records/Rejected`, `Records/Empty`, `Records/Error`, `Record Detail/Pending`, `Record Detail/Approved`, `Record Detail/Rejected`, `Record Detail/Granted`
 
 **Interfaces:**
@@ -298,7 +298,7 @@
 ### Task 8: 设计培训中心与岗前确认
 
 **Artifacts:**
-- Figma page: `06 Training & Onboarding`
+- Pixso page: `06 Training & Onboarding`
 - Frames: `Training/Sessions`, `Training/Registered`, `Training/Waitlist`, `Training/Progress`, `Training/Recommendations`, `Training/Empty`, `Training/Error`, `Onboarding/Pending`, `Onboarding/All Nodes`, `Onboarding/Confirm Sheet`, `Onboarding/Reject Sheet`, `Onboarding/Empty`, `Onboarding/Error`
 
 **Interfaces:**
@@ -344,7 +344,7 @@
 ### Task 9: 设计个人中心与跨页面边界状态
 
 **Artifacts:**
-- Figma pages: `07 Mine`, `08 States & Edge Cases`
+- Pixso pages: `07 Mine`, `08 States & Edge Cases`
 - Frames: `Mine/Todos`, `Mine/No Todos`, `Mine/Preview`, `Mine/Missing Profile`, `Mine/Login Lost`, `Mine/Error`, `State/Loading`, `State/Empty`, `State/Error`, `State/Success`, `State/Toast`, `State/Modal`, `State/Long Text`
 
 **Interfaces:**
@@ -378,13 +378,13 @@
 ### Task 10: 创建封面、业务流程与最终 QA
 
 **Artifacts:**
-- Figma page: `00 Cover & Flow`
+- Pixso page: `00 Cover & Flow`
 - Frames: `Cover`, `User Journey`, `Page Inventory`, `Handoff Notes`
-- Final delivery: Figma URL and QA summary
+- Final delivery: Pixso file URL and QA summary
 
 **Interfaces:**
 - Consumes: Task 1–9 的全部页面和 node ID
-- Produces: 可导航、可审阅、可交付的最终 Figma 文件
+- Produces: 可导航、可审阅、可交付的最终 Pixso 文件
 
 - [ ] **Step 1: 创建封面**
 
@@ -396,7 +396,7 @@
 
 - [ ] **Step 3: 创建页面清单**
 
-列出 10 个路由、对应 Figma 页面、主画板名称和状态画板数量。
+列出 10 个路由、对应 Pixso 页面、主画板名称和状态画板数量。
 
 - [ ] **Step 4: 建立原型连线**
 
@@ -404,7 +404,7 @@
 
 - [ ] **Step 5: 执行逐页截图 QA**
 
-对 9 个 Figma 页面和至少 10 个主业务画板生成截图，检查文字裁切、重叠、滚动内容、状态一致性、组件脱离和底部安全区。
+对 9 个 Pixso 页面和至少 10 个主业务画板生成截图，检查文字裁切、重叠、滚动内容、状态一致性、组件脱离和底部安全区。
 
 - [ ] **Step 6: 修正 QA 问题**
 
@@ -416,4 +416,4 @@
 
 - [ ] **Step 8: 交付**
 
-返回 Figma 文件 URL、页面数量、主画板数量、关键组件数量和 QA 结果摘要。
+返回 Pixso 文件 URL、页面数量、主画板数量、关键组件数量和 QA 结果摘要。
