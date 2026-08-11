@@ -1,30 +1,283 @@
 // ============================================
-// 主题配色变量（第二阶段模型可修改此文件）
+// 悦总统 · 小程序色板 Token
+// 对齐：仓库根 小程序UI规范.md（唯一正本 · 项目规范.docx / iOS HIG · 正文 15pt）
+//
+// 1) 品牌主色 Brand  #7EA3E0 — 导航 / 顶渐变 / 氛围
+// 2) 操作主色 Ink    #1C1C1E — 主按钮 / 选中胶囊（$color-primary）
+// 3) 功能辅色 Gold   #C9923E — 警示 / 待确认 / 只读
+// 4) 系统成功 / 失败  #34C759 / #FF3B30
+//
+// TabBar 图标套色（源：xxxxx/tabbar/1 · 像素采样提炼）
+// - 选中主色 / 中调蓝  #3A8CE8  → $color-tabbar-active
+// - 选中描边深蓝      #0239A9  → $color-tabbar-active-deep
+// - 选中高光软填      #C1E7FE  → $color-tabbar-active-soft
+// - 选中亮面          #78C8F8  → $color-tabbar-active-mid
+// - 未选描边藏青      #1E3C5A  → $color-tabbar-inactive
+// - 未选浅填          #B9D2E6  → $color-tabbar-inactive-soft
 // ============================================
 
-// 品牌主题色：根据产品品牌定位修改
-$color-primary: #3a8e52;
-$color-primary-light: #59b574;
-$color-primary-dark: #2e7041;
+// ——— TabBar 图标品牌色（与 PNG 一致 · xxxxx/tabbar/1） ———
+$color-tabbar-active: #3a8ce8;
+$color-tabbar-active-deep: #0239a9;
+$color-tabbar-active-mid: #78c8f8;
+$color-tabbar-active-soft: #c1e7fe;
+$color-tabbar-inactive: #1e3c5a;
+$color-tabbar-inactive-soft: #b9d2e6;
 
-// 功能色
-$color-success: #00b42a;
-$color-warning: #ff7d00;
-$color-error: #f53f3f;
-$color-info: #3a8e52;
+// ——— 社区化视觉 v2（提报页样板 · 见 小程序UI规范 §九） ———
+$color-v2-bg: #eef1f6;
+$color-v2-card: #ffffff;
+$color-v2-ink: #1e293b;
+$color-v2-muted: #6b7c8f;
+$color-v2-accent: $color-tabbar-active;
+$color-v2-accent-deep: $color-tabbar-active-deep;
+$color-v2-accent-mid: $color-tabbar-active-mid;
+$color-v2-accent-soft: $color-tabbar-active-soft;
+$color-v2-navy: $color-tabbar-inactive;
+$color-v2-success: #22c55e;
+$color-v2-success-soft: rgba(34, 197, 94, 0.12);
+$color-v2-line: rgba(30, 60, 90, 0.1);
+$color-v2-warm: #f97316; // 点缀，不大面积铺色
+$shadow-v2-soft: 0 4rpx 16rpx rgba(30, 60, 90, 0.06),
+  0 1rpx 0 rgba(255, 255, 255, 0.8) inset;
 
-// 背景色
-$color-bg-page: #f4f8f3;
+/** v2 页顶冰蓝氛围主渐变（记录页样板 · 禁止业务页再抄写色值） */
+$color-v2-hero-deep: #0b4f9c;
+$gradient-v2-page-hero: linear-gradient(
+  165deg,
+  $color-v2-hero-deep 0%,
+  $color-v2-accent-deep 22%,
+  $color-v2-accent 48%,
+  $color-v2-accent-mid 68%,
+  rgba(193, 231, 254, 0.55) 82%,
+  rgba(238, 241, 246, 0) 100%
+);
+
+// ——— 1. 品牌主色 Brand ———
+$color-brand: #7ea3e0;
+$color-brand-deep: #6a90d4;
+$color-brand-soft: rgba(126, 163, 224, 0.16);
+$color-brand-muted: rgba(126, 163, 224, 0.1);
+$color-brand-border: rgba(126, 163, 224, 0.35);
+
+$color-mist-start: #a7c1f2;
+$color-mist-mid: #c5d4f0;
+$color-mist-end: #dae6f4;
+$color-mist-deep: $color-brand;
+$color-mist-soft: rgba(167, 193, 242, 0.16);
+$color-mist-muted: rgba(167, 193, 242, 0.1);
+$color-mist-cream: #e8f0fa;
+/** 雾蓝偏冷中段 / 尾段（口号条、活动名卡） */
+$color-mist-cool-mid: #8fafdf;
+$color-mist-cool-end: #b8c8e8;
+$color-mist-live-end: #eef4fb;
+
+$gradient-mist: linear-gradient(
+  165deg,
+  $color-mist-start 0%,
+  $color-mist-mid 48%,
+  $color-mist-end 100%
+);
+$gradient-mist-soft: linear-gradient(
+  165deg,
+  rgba(167, 193, 242, 0.2) 0%,
+  rgba(218, 230, 244, 0.45) 100%
+);
+/** 页顶氛围洗（活动/提报/详情等） */
+$gradient-page-wash: linear-gradient(
+  165deg,
+  rgba(126, 163, 224, 0.26) 0%,
+  rgba(167, 193, 242, 0.14) 40%,
+  rgba(244, 249, 253, 0) 100%
+);
+$gradient-page-wash-strong: linear-gradient(
+  165deg,
+  rgba(126, 163, 224, 0.28) 0%,
+  rgba(167, 193, 242, 0.18) 32%,
+  rgba(218, 230, 244, 0.12) 58%,
+  rgba(244, 249, 253, 0) 100%
+);
+/** 学习/活动口号条 */
+$gradient-slogan: linear-gradient(
+  100deg,
+  $color-brand 0%,
+  $color-mist-start 42%,
+  $color-mist-mid 78%,
+  $color-mist-cool-end 100%
+);
+/** 活动名卡 / 提报头 / 详情头 */
+$gradient-brand-hero: linear-gradient(
+  115deg,
+  $color-brand-deep 0%,
+  $color-brand 30%,
+  $color-mist-cool-mid 55%,
+  $color-mist-start 78%,
+  $color-mist-cool-end 100%
+);
+/** 正在上课海报头 */
+$gradient-live-hero: linear-gradient(
+  155deg,
+  $color-mist-start 0%,
+  $color-mist-mid 40%,
+  $color-mist-end 72%,
+  $color-mist-live-end 100%
+);
+$gradient-brand-nav: linear-gradient(
+  180deg,
+  $color-brand 0%,
+  $color-mist-start 28%,
+  $color-mist-mid 55%,
+  $color-mist-cream 78%,
+  #f7f8fa 100%
+);
+/** 进度条：品牌 → 墨（字色定义在后方，此处用字面主文字色） */
+$gradient-progress-ink: linear-gradient(
+  90deg,
+  $color-brand 0%,
+  #1c2433 100%
+);
+
+// 兼容旧 dusk 名
+$color-dusk-start: $color-mist-start;
+$color-dusk-end: $color-mist-end;
+$color-dusk-mid: $color-mist-mid;
+$color-dusk-cream: $color-mist-cream;
+$color-dusk-soft: $color-mist-soft;
+$color-dusk-muted: $color-mist-muted;
+$gradient-dusk: $gradient-mist;
+$gradient-dusk-soft: $gradient-mist-soft;
+
+// ——— 2. 功能辅色 · 暖金 Gold ———
+$color-live: #e8b86d;
+$color-live-end: #f5d9a0;
+$color-live-deep: #c9923e;
+$color-live-soft: rgba(232, 184, 109, 0.16);
+$color-live-muted: rgba(232, 184, 109, 0.08);
+$gradient-live: linear-gradient(135deg, #e8b86d 0%, #f5d9a0 100%);
+$gradient-live-soft: linear-gradient(
+  135deg,
+  rgba(232, 184, 109, 0.18) 0%,
+  rgba(245, 217, 160, 0.2) 100%
+);
+
+// ——— 3. 点缀 · 软粉 ———
+$color-blush: #e8b8c8;
+$color-blush-soft: rgba(232, 184, 200, 0.16);
+
+// ——— 4. 操作主色 · 墨黑 Ink ———
+$color-primary: #1c1c1e;
+$color-primary-light: #3a3a3c;
+$color-primary-dark: #0a0a0a;
+$color-primary-press: #2c2c2e; // 主按钮按下
+$color-primary-soft: rgba(28, 28, 30, 0.08);
+$color-primary-muted: rgba(28, 28, 30, 0.05);
+$color-secondary: #2c2c2e;
+$color-secondary-soft: rgba(28, 28, 30, 0.06);
+$color-selected-bg: rgba(232, 240, 250, 0.92);
+$color-nav-tint: $color-brand;
+$color-cta: $color-primary;
+$color-cta-soft: $color-primary-soft;
+
+// ——— 5. 文本 / 背景 / 边框 ———
+// 层级：主文字 / 辅助文字 / 禁用（无单独「次级正文」）
+$color-text-primary: #1c2433; // 主文本 ≈ 黑 85% 可读层级
+$color-text-tertiary: #94a3b8; // 次要 ≈ 黑 55%
+$color-text-secondary: $color-text-tertiary; // 兼容旧名 → 辅助字
+$color-text-disabled: #b8c2cc; // 占位/禁用 ≈ 黑 30%
+$color-text-white: #f5f6f8;
+// iOS 系统蓝（链接 / 可操作文字）；主按钮仍用 $color-primary Ink
+$color-system-blue: #007aff;
+$color-system-orange: #ff9500;
+$color-text-link: $color-system-blue;
+$color-text-muted: $color-text-tertiary;
+$color-text-placeholder: $color-text-tertiary;
+/**
+ * 社区链接：朋友圈蓝（比系统蓝更沉，不刺眼）
+ * 仅用于昵称 / 话题 / 「更多」/ 评论人名；全站其它链接仍用 $color-text-link
+ */
+$color-moments-link: #576b95;
+$color-moments-link-soft: rgba(87, 107, 149, 0.12);
+$color-moments-meta: $color-text-tertiary; // 时间/弱 meta
+
+$color-bg-page: #f7f8fa;
 $color-bg-card: #ffffff;
-$color-bg-hover: #edf5ee;
+$color-bg-elevated: #ffffff;
+$color-bg-hover: rgba(28, 36, 51, 0.03);
+$color-bg-muted: #f2f4f7;
+$color-bg-muted-press: #e8eaed; // 次按钮按下
+$color-bg-grouped: #f7f8fa;
+$color-bg-secondary: #ffffff;
+$color-bg-input: #f2f4f7;
+$color-moments-panel: $color-bg-muted; // 赞评区底
+$color-bg-soft-blue: $gradient-mist-soft;
+/** 半透明白（浮层 / 标签底） */
+$color-white-92: rgba(255, 255, 255, 0.92);
+$color-white-88: rgba(255, 255, 255, 0.88);
+$color-white-78: rgba(255, 255, 255, 0.78);
+$color-white-55: rgba(255, 255, 255, 0.55);
+$color-white-22: rgba(255, 255, 255, 0.22);
+$color-white-16: rgba(255, 255, 255, 0.16);
+/** 墨黑半透明（分割 / 压暗字） */
+$color-ink-06: rgba(28, 36, 51, 0.06);
+$color-ink-08: rgba(28, 36, 51, 0.08);
+$color-ink-12: rgba(28, 36, 51, 0.12);
+$color-ink-58: rgba(28, 36, 51, 0.58);
 
-// 文本色
-$color-text-primary: #1d2129;
-$color-text-secondary: #4e5969;
-$color-text-tertiary: #86909c;
-$color-text-disabled: #c9cdd4;
-$color-text-white: #ffffff;
+$color-border: #e2e8f0;
+$color-divider: #eef2f6;
+$color-border-brand: rgba(167, 193, 242, 0.45);
+$color-border-live: rgba(232, 184, 109, 0.35);
+$color-separator: #eef2f6;
 
-// 边框色
-$color-border: #e5e6eb;
-$color-divider: #edf1ee;
+// ——— 6. 状态色（系统绿 / 系统红）———
+$color-success: #34c759;
+$color-success-soft: rgba(52, 199, 89, 0.12);
+$color-success-border: rgba(52, 199, 89, 0.28);
+$color-warning: $color-live-deep; // #c9923e
+$color-warning-soft: $color-live-soft;
+$color-warning-border: rgba(201, 146, 62, 0.28);
+$color-error: #ff3b30;
+$color-error-soft: rgba(255, 59, 48, 0.1);
+$color-error-border: rgba(255, 59, 48, 0.28);
+$color-info: $color-brand;
+$color-info-soft: $color-brand-soft;
+$color-info-border: $color-brand-border;
+$color-violet: #9aa3d0;
+$color-violet-soft: rgba(154, 163, 208, 0.14);
+
+// ——— 7. 提示条 tip（Success / Warning / Error；待确认走 Warning）———
+$color-tip-warning-bg: $color-warning-soft;
+$color-tip-warning-border: $color-warning-border;
+$color-tip-warning-title: $color-warning;
+$color-tip-warning-text: $color-warning;
+$color-tip-warning-action: $color-warning;
+// info 保留兼容，语义上「待确认」请用 warning
+$color-tip-info-bg: $color-mist-soft;
+$color-tip-info-border: $color-border-brand;
+$color-tip-info-title: $color-brand;
+$color-tip-info-text: $color-text-tertiary;
+$color-tip-info-action: $color-brand;
+$color-tip-success-bg: $color-success-soft;
+$color-tip-success-border: $color-success-border;
+$color-tip-success-title: $color-success;
+$color-tip-success-text: $color-success;
+$color-tip-success-action: $color-success;
+$color-tip-error-bg: $color-error-soft;
+$color-tip-error-border: $color-error-border;
+$color-tip-error-title: $color-error;
+$color-tip-error-text: $color-error;
+$color-tip-error-action: $color-error;
+
+// ——— 8. 点缀 / 数据条 ———
+$color-fashion-ink: #1c2433;
+$color-fashion-champagne: #e8b86d;
+$color-fashion-blush: #e8b8c8;
+$gradient-blue-soft: $gradient-mist-soft;
+$gradient-peach-soft: linear-gradient(
+  135deg,
+  $color-bg-page 0%,
+  $color-mist-cream 100%
+);
+$gradient-hero-soft: $gradient-mist-soft;
+$color-stat-bar: #d0e2f5;
+$color-stat-bar-end: #e4ebf4;

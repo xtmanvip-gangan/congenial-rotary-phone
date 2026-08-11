@@ -1,12 +1,20 @@
 @use '@/styles/compat.scss';
 @use '@/styles/variables.scss' as *;
 
+// ============================================
+// 全局基底 · 对齐 小程序UI规范定稿
+// 页底 $color-bg-page · 墨黑主按钮 · 胶囊输入
+// ============================================
+
 page {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue',
+    'Segoe UI', Roboto, Arial, sans-serif;
   font-size: $font-size-md;
-  line-height: $line-height-normal;
-  color: #1d1d1f;
-  background: #f5f5f7; /* iOS 经典的浅灰背景 */
+  // 规范正文行高 1.4
+  line-height: $line-height-body;
+  color: $color-text-primary;
+  background: $color-bg-page;
+  -webkit-font-smoothing: antialiased;
 }
 
 view,
@@ -19,157 +27,220 @@ scroll-view {
   box-sizing: border-box;
 }
 
-.pageShell {
-  min-height: 100vh;
-  padding: 32rpx $page-padding 48rpx;
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* 彻底抛弃渐变，改为 Apple 风格的极简毛玻璃或纯净白卡 */
+@keyframes softPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* 页面壳：左右 10pt；底安全区 */
+.pageShell {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+  padding: 0 $page-padding $page-bottom-safe;
+  background: $color-bg-page;
+}
+
+@media (min-width: 600px) {
+  .pageShell {
+    max-width: 480px;
+  }
+}
+
+@media (min-width: 960px) {
+  .pageShell {
+    max-width: 560px;
+  }
+}
+
+.pageBody {
+  position: relative;
+  z-index: 1;
+  padding-top: $spacing-xs;
+}
+
+.sectionStack {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: $page-spacing;
+  animation: fadeSlideUp 0.28s ease both;
+}
+
 .heroCard {
-  padding: 40rpx 32rpx;
-  border-radius: 40rpx;
-  background: #ffffff;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.03); /* 极度轻微的 iOS 阴影 */
-  margin-bottom: 32rpx;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  padding: $spacing-lg;
+  border-radius: $radius-card;
+  background: $color-bg-card;
+  border: none;
+  box-shadow: $shadow-card;
+  margin: 0;
 }
 
 .heroEyebrow {
-  font-size: 26rpx;
-  font-weight: 500;
-  color: #86868b; /* iOS 次级文字灰 */
-  text-transform: uppercase;
-  letter-spacing: 2rpx;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $color-brand;
 }
 
 .heroTitle {
   display: block;
-  margin-top: 16rpx;
-  font-size: 48rpx;
-  font-weight: 700;
-  letter-spacing: -1rpx;
-  color: #1d1d1f; /* iOS 主文字黑 */
+  margin-top: $card-title-gap;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
 }
 
 .heroDesc {
   display: block;
-  margin-top: 16rpx;
-  font-size: 28rpx;
-  line-height: 1.5;
-  color: #86868b;
+  margin-top: $spacing-xs;
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
 }
 
-.sectionStack {
-  display: flex;
-  flex-direction: column;
-  gap: 32rpx; /* 增加呼吸感 */
+.heroDesc:first-child {
+  margin-top: 0;
 }
 
-/* 取消所有外阴影，改用大圆角纯白卡片，这是 Apple UI 的精髓 */
 .panelCard {
-  padding: 32rpx;
-  border-radius: 40rpx;
-  background: #ffffff;
-  box-shadow: none; /* 去除俗气的投影 */
+  position: relative;
+  z-index: 1;
+  @include fashion-card;
+  padding: $spacing-lg;
+  margin: 0;
 }
 
 .panelTitle {
   display: block;
   font-size: $font-size-lg;
-  font-weight: $font-weight-semibold;
+  font-weight: $font-weight-medium;
   color: $color-text-primary;
+  margin-bottom: $card-title-gap;
 }
 
 .panelDesc {
   display: block;
-  margin-top: 12rpx;
+  margin-top: $spacing-xs;
   font-size: $font-size-sm;
-  line-height: $line-height-loose;
-  color: $color-text-secondary;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
 }
 
-.primaryButton,
-.secondaryButton,
-.dangerButton {
-  @include button-reset;
-  height: 96rpx; /* Apple 按钮足够大，容易点击 */
-  padding: 0 40rpx;
-  border-radius: 48rpx;
-  font-size: 32rpx;
-  font-weight: 600;
-  transition: all $transition-base;
-
-  &:active {
-    opacity: 0.8;
-    transform: scale(0.97);
-  }
-}
-
+/* 主 / 次 / 危险按钮 */
 .primaryButton {
-  border: none;
-  background: #000000; /* iOS 经典的极简纯黑主按钮 */
-  color: #ffffff;
+  @include cta-button;
+  width: 100%;
+  padding: 0 $spacing-xl;
 }
 
 .secondaryButton {
-  border: none;
-  background: #f5f5f7; /* iOS 次级按钮浅灰 */
-  color: #1d1d1f;
+  @include secondary-button;
+  width: 100%;
+  padding: 0 $spacing-xl;
 }
 
 .dangerButton {
+  @include button-reset;
+  height: $button-height-md;
+  min-height: $button-height-md;
+  width: 100%;
+  padding: 0 $spacing-xl;
+  border-radius: $radius-pill;
   border: none;
-  background: #fef0f0;
-  color: #ff3b30; /* iOS 经典红 */
+  background: $color-error-soft;
+  color: $color-error;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  @include pressable;
+
+  &[disabled] {
+    opacity: 0.4;
+  }
+}
+
+.listButton {
+  @include button-reset;
+  height: $button-height-list;
+  padding: 0 $spacing-md;
+  border-radius: $radius-pill;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  background: $color-primary;
+  color: $color-text-white;
+  border: none;
+
+  &:active {
+    background: $color-primary-press;
+    transform: scale(0.98);
+  }
 }
 
 .tinyButton {
   @include button-reset;
-  min-width: 120rpx;
-  height: 64rpx;
-  padding: 0 24rpx;
+  min-width: 112rpx;
+  height: $button-height-sm;
+  padding: 0 $spacing-md;
   border: none;
-  border-radius: 32rpx;
-  background: #f5f5f7;
-  color: #1d1d1f;
-  font-size: 26rpx;
-  font-weight: 500;
-  transition: all $transition-fast;
+  border-radius: $radius-pill;
+  background: $color-bg-input;
+  color: $color-text-primary;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
 
   &:active {
-    opacity: 0.8;
-    background: #e5e5ea;
+    background: $color-bg-muted;
+    transform: scale(0.98);
   }
 }
 
+/* 表单 */
 .fieldBlock {
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
+  gap: $spacing-xs;
+  margin-bottom: $form-item-gap;
 }
 
 .fieldLabel {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #1d1d1f;
-  margin-left: 8rpx;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-text-tertiary;
 }
 
 .fieldValue,
 .fieldInput {
-  width: 100%;
-  min-height: 100rpx;
-  padding: 0 32rpx;
-  border: none;
-  border-radius: 24rpx;
-  background: #f5f5f7;
-  font-size: 30rpx;
-  color: #1d1d1f;
-  transition: all 0.2s ease;
+  @include field-input;
 }
 
 .fieldInput:focus {
-  background: #ffffff;
-  box-shadow: 0 0 0 4rpx rgba(0, 0, 0, 0.05);
+  background: $color-bg-card;
+  border-color: $color-border;
+  box-shadow: 0 0 0 4rpx $color-primary-soft;
 }
 
 .fieldValue {
@@ -178,35 +249,50 @@ scroll-view {
 }
 
 .fieldHint {
-  font-size: 24rpx;
-  color: #86868b;
-  margin-left: 8rpx;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
 }
 
 .chipList {
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
+  gap: $spacing-xs;
 }
 
 .chip {
-  padding: 12rpx 24rpx;
-  border-radius: 32rpx;
-  background: #f5f5f7;
-  font-size: 24rpx;
-  font-weight: 500;
-  color: #1d1d1f;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: $color-mist-soft;
+  border: none;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $color-mist-deep;
+}
+
+/* 直播热度标签 */
+.chipLive {
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: $color-live-soft;
+  border: none;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $color-live-deep;
 }
 
 .dividerLine {
-  height: 1px;
-  background: rgba(0, 0, 0, 0.05);
+  height: 1rpx;
+  background: $color-divider;
 }
 
 .errorText {
-  color: #ff3b30;
+  color: $color-error;
 }
 
 .successText {
-  color: #34c759;
+  color: $color-success;
+}
+
+.loadingPulse {
+  animation: softPulse 1.2s ease-in-out infinite;
 }

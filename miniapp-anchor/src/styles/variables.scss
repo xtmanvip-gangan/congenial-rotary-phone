@@ -3,77 +3,196 @@
 @use './theme.scss' as *;
 
 // ============================================
-// 全局 SCSS 变量（建议直接复用，如有特殊设计需求可按需修改）
+// 尺寸 / 混入 · 对齐 小程序UI规范.md（项目规范.docx · iOS HIG）
+// 基准：375pt / 750rpx · 1pt = 2rpx · 左右 16pt · 主按钮 44pt
+//
+// Apple HIG 间距原则（本产品落地）：
+// 1) 以 4pt / 8pt 网格为主（rpx 为偶数，优先 8/16/24/32/40/48）
+// 2) 相关元素近、分组远：组内 4–8pt，组间 12–16pt，大段 24pt
+// 3) 页边 16pt；卡片内边距 16pt；列表可点 ≥44pt
+// 4) 禁止 5/7/9/10/11pt 等半档魔法数；用下方语义 token
 // ============================================
 
-// 屏幕适配（设计稿基准 750rpx）
 $screen-width: 750rpx;
-$page-padding: 32rpx; // 页面左右安全边距
+// 页面左右安全边距 16pt（HIG standard margin）
+$page-padding: 32rpx;
+// 模块默认垂直间距 16pt
 $page-spacing: 32rpx;
-$max-content-width: 686rpx; // 750 - 32*2，内容最大宽度
+$max-content-width: 686rpx; // 750 - 32*2
+// 表单项默认垂直间距 12pt
+$form-item-gap: 24rpx;
+// 卡片内：标题→内容 12pt
+$card-title-gap: 24rpx;
+// 卡片内多项
+$card-content-gap: 24rpx;
+// 卡片与卡片 12pt
+$card-stack-gap: 24rpx;
+// 间距阶梯（HIG 4/8/12/16/20/24 pt → 8/16/24/32/40/48 rpx）
+$spacing-xs: 8rpx; // 4pt 极紧（图标间隙、行内点缀）
+$spacing-sm: 16rpx; // 8pt 段落 / 控件内小间距
+$spacing-md: 24rpx; // 12pt 卡片间距、表单项
+$spacing-lg: 32rpx; // 16pt 模块间距、页边、最常用
+$spacing-xl: 40rpx; // 20pt 中大分隔
+$spacing-xxl: 48rpx; // 24pt 大区块 / 空态上下
 
-// 间距（8px 网格系统）
-$spacing-xs: 8rpx;
-$spacing-sm: 16rpx;
-$spacing-md: 24rpx;
-$spacing-lg: 32rpx;
-$spacing-xl: 48rpx;
+// 语义布局（基于上表，禁止业务页再写半档魔法数）
+// 卡片规范内边距 16pt（HIG content inset）
+$card-padding: $spacing-lg;
+// 紧凑卡内边距 12pt（次级信息块）
+$card-padding-sm: $spacing-md;
+// 列表行垂直内边距 12pt（配合 min-height 44pt）
+$list-row-padding-y: $spacing-md;
+// 页底：内容距 Home Indicator 上沿 ≥24pt + 系统 inset
+$page-bottom-safe: calc(#{$spacing-xxl} + env(safe-area-inset-bottom));
+// 触控间距（HIG：水平 ≥8pt，垂直 ≥12pt）
+$touch-gap-h: $spacing-sm;
+$touch-gap-v: $spacing-md;
 
-// 圆角（语义化）
-$radius-xs: 4rpx; // 小元素：标签、徽章
-$radius-sm: 8rpx; // 卡片内小元素
-$radius-md: 12rpx; // 常规卡片
-$radius-lg: 16rpx; // 大卡片
-$radius-xl: 20rpx; // 特大卡片
-$radius-button: 48rpx; // 按钮专用（全圆角，符合主流小程序）
-$radius-round: 999rpx; // 完全圆形
+// 圆角
+$radius-xs: 8rpx;
+$radius-sm: 12rpx;
+$radius-md: 16rpx; // 8pt 图/输入
+$radius-lg: 20rpx; // 10pt 主按钮规范圆角
+$radius-xl: 32rpx;
+$radius-card: 32rpx;
+$radius-button: 20rpx; // 规范 10pt；胶囊场景用 $radius-pill
+$radius-pill: 999rpx;
+$radius-round: 999rpx;
 
-// 按钮高度（新增）
-$button-height-sm: 64rpx; // 小按钮（次要操作）
-$button-height-md: 80rpx; // 常规按钮（主流标准）
-$button-height-lg: 96rpx; // 大按钮（主要操作、底部固定）
+// 按钮 / 输入高度（HIG 触控底线 44pt）
+$button-height-xs: 52rpx; // 26pt · 仅视觉小控件，热区须扩到 $touch-min
+$button-height-sm: 56rpx; // 28pt · 同上
+$button-height-list: 88rpx; // 44pt 列表可点最小高
+$button-height-md: 88rpx; // 44pt 主/次按钮
+$button-height-lg: 88rpx;
+$input-height: 88rpx;
+/** HIG 独立可点最小边 · 44pt */
+$touch-min: 88rpx;
 
-// 阴影（语义化）
-$shadow-card: 0 2rpx 12rpx rgba(0, 0, 0, 0.08); // 卡片阴影
-$shadow-card-hover: 0 4rpx 20rpx rgba(0, 0, 0, 0.12); // 卡片悬浮
-$shadow-float: 0 4rpx 16rpx rgba(0, 0, 0, 0.1); // 浮层阴影（如筛选栏、底部操作栏）
-$shadow-popup: 0 8rpx 32rpx rgba(0, 0, 0, 0.15); // 弹窗阴影
+// 阴影：极轻中性（非雾蓝）
+$shadow-card: 0 4rpx 24rpx rgba(15, 23, 42, 0.06);
+$shadow-card-hover: 0 6rpx 28rpx rgba(15, 23, 42, 0.08);
+$shadow-button: 0 6rpx 16rpx rgba(28, 28, 30, 0.12);
+$shadow-button-press: 0 2rpx 8rpx rgba(28, 28, 30, 0.08);
+$shadow-float: 0 8rpx 28rpx rgba(15, 23, 42, 0.08);
+$shadow-popup: 0 16rpx 48rpx rgba(15, 23, 42, 0.12);
+$shadow-soft: 0 2rpx 8rpx rgba(15, 23, 42, 0.04);
 
-// 字体大小
-$font-size-xs: 22rpx;
-$font-size-sm: 24rpx;
-$font-size-md: 28rpx;
-$font-size-lg: 32rpx;
-$font-size-xl: 36rpx;
-$font-size-xxl: 40rpx;
+// 字号阶梯（项目规范 · 1pt=2rpx）
+// 11pt 最小 → 13pt 辅助/评论 → 15pt 正文 → 17pt 导航标题 → …
+$font-size-xs: 22rpx; // 11pt 角标、最小可读
+$font-size-sm: 26rpx; // 13pt 辅助、时间
+$font-size-comment: 26rpx; // 13pt 业务侧轻量评论（非朋友圈）
+$font-size-md: 30rpx; // 15pt **正文默认**
+$font-size-lg: 34rpx; // 17pt 导航/卡片标题
+$font-size-xl: 40rpx; // 20pt 页内大标题
+$font-size-xxl: 48rpx; // 24pt
+$font-size-display: 56rpx; // 28pt 展示数字
 
-// 行高
-$line-height-tight: 1.3;
+/**
+ * 社区 / 朋友圈文字体系（仅 community 模块）
+ * - 正文/昵称/话题：17pt
+ * - 评论/赞区人名：15pt
+ * - 时间/弱说明：13pt
+ * - 角标：11pt
+ */
+$font-size-moments-body: 34rpx; // 17pt 正文 / 昵称 / 话题 /「全文」
+$font-size-moments-comment: 30rpx; // 15pt 评论 / 赞区人名
+$font-size-moments-meta: 26rpx; // 13pt 时间 / 弱说明（= sm，语义别名）
+$font-size-moments-tag: 22rpx; // 11pt 角标（= xs）
+
+/**
+ * 社区语义间距（HIG 4/8pt 网格 + 朋友圈密度）
+ * 仅 community 模块使用；禁止业务页半档魔法数
+ */
+$moments-tag-pad-y: 2rpx; // 角标微垂直（允许 1pt）
+$moments-tag-pad-x: $spacing-xs; // 4pt
+$moments-panel-pad: $spacing-sm; // 8pt 赞评区内边距
+$moments-panel-radius: $radius-md; // 8pt 赞评区圆角
+$moments-comment-gap: $spacing-sm; // 8pt 赞/评图标→正文
+$moments-comment-row-pad-y: $spacing-sm; // 8pt 评论行上下
+$moments-menu-item-pad-x: $spacing-xl; // 20pt ·· 菜单项水平
+$moments-menu-divider-inset: $spacing-sm; // 8pt 菜单分割线上下
+// 流页 FAB：96 胶囊；底偏移 ≈ 24+24+12pt；列表预留胶囊+24pt
+$community-fab-size: 96rpx;
+$community-fab-bottom: calc(
+  #{$spacing-xxl} + #{$spacing-xxl} + #{$spacing-md} + env(safe-area-inset-bottom)
+); // 120rpx + safe
+$community-feed-bottom: calc(
+  #{$community-fab-size} + #{$spacing-xxl} + env(safe-area-inset-bottom)
+); // 列表不被 FAB 挡住
+
+// 行高（规范：正文 1.4 倍字号）
+$line-height-tight: 1.25;
+$line-height-body: 1.4;
 $line-height-normal: 1.5;
-$line-height-loose: 1.8;
+$line-height-loose: 1.55;
 
-// 字重
+// 字重：Regular / Medium / Semibold（原则只用三档）
 $font-weight-normal: 400;
 $font-weight-medium: 500;
 $font-weight-semibold: 600;
-$font-weight-bold: 700;
+$font-weight-bold: 700; // 慎用
 
-// 过渡动画
-$transition-fast: 0.15s ease;
+/**
+ * 统一正文：15pt / 30rpx · 400 · 主文字 · 行高 1.4
+ */
+@mixin text-body {
+  font-size: $font-size-md;
+  font-weight: $font-weight-normal;
+  color: $color-text-primary;
+  line-height: $line-height-body;
+  word-break: break-word;
+}
+
+/** 社区正文行高（略紧于全站 1.4，更接近朋友圈） */
+$line-height-moments-body: 1.35;
+/** 社区评论/赞区行高（更紧） */
+$line-height-moments-comment: 1.28;
+/** 社区赞评区分割线（极淡） */
+$color-moments-divider: rgba(28, 36, 51, 0.04);
+
+/**
+ * 社区动态正文：17pt · 400 · 主文字
+ */
+@mixin text-moments-body {
+  font-size: $font-size-moments-body;
+  font-weight: $font-weight-normal;
+  color: $color-text-primary;
+  line-height: $line-height-moments-body;
+  word-break: break-word;
+}
+
+/**
+ * 社区评论/赞区：15pt · 400（嵌套 Text 仍须各自写字号）
+ */
+@mixin text-moments-comment {
+  font-size: $font-size-moments-comment;
+  font-weight: $font-weight-normal;
+  color: $color-text-primary;
+  line-height: $line-height-moments-comment;
+  word-break: break-word;
+}
+
+/** 社区时间/弱文：13pt · 400 · 次要色 */
+@mixin text-moments-meta {
+  font-size: $font-size-moments-meta;
+  font-weight: $font-weight-normal;
+  color: $color-moments-meta;
+  line-height: $line-height-moments-comment;
+}
+
+// 转场规范约 0.35s；UI 反馈更快
+$transition-fast: 0.18s ease;
 $transition-base: 0.25s ease;
-$transition-slow: 0.35s ease;
+$transition-slow: 0.35s ease-in-out;
 
-// ============================================
-// 常用 Mixin
-// ============================================
-// 单行文本省略
 @mixin text-ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-// 多行文本省略
 @mixin text-ellipsis-multi($lines: 2) {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -82,7 +201,6 @@ $transition-slow: 0.35s ease;
   text-overflow: ellipsis;
 }
 
-// 清除浮动
 @mixin clearfix {
   &::after {
     content: '';
@@ -91,40 +209,303 @@ $transition-slow: 0.35s ease;
   }
 }
 
-// 水平垂直居中
 @mixin flex-center {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-// 横向滚动容器（微信小程序兼容）
+/**
+ * v2 页顶氛围带：.pageGradient + 光晕/光弧/底部羽化
+ * 业务页只需 `@include v2-page-atmosphere;`，勿再复制硬编码色
+ * 对应 TSX：
+ *   <View className={styles.pageGradient}>
+ *     <View className={styles.gradOrbA} /> ...
+ */
+@mixin v2-page-atmosphere {
+  .pageGradient {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 32vh;
+    min-height: 400rpx;
+    max-height: 520rpx;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    background: $gradient-v2-page-hero;
+  }
+
+  .gradOrbA {
+    position: absolute;
+    right: -80rpx;
+    top: -40rpx;
+    width: 320rpx;
+    height: 320rpx;
+    border-radius: $radius-round;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.28) 0%,
+      rgba(193, 231, 254, 0.2) 38%,
+      transparent 70%
+    );
+  }
+
+  .gradOrbB {
+    position: absolute;
+    left: -100rpx;
+    top: 28%;
+    width: 280rpx;
+    height: 280rpx;
+    border-radius: $radius-round;
+    background: radial-gradient(
+      circle,
+      rgba(2, 57, 169, 0.35) 0%,
+      transparent 68%
+    );
+  }
+
+  .gradArc {
+    position: absolute;
+    left: 18%;
+    right: -10%;
+    top: 42%;
+    height: 180rpx;
+    border-radius: 50%;
+    background: linear-gradient(
+      100deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.12) 42%,
+      transparent 78%
+    );
+    transform: rotate(-8deg);
+    filter: blur(2px);
+  }
+
+  .gradFade {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 42%;
+    background: linear-gradient(
+      180deg,
+      rgba(238, 241, 246, 0) 0%,
+      rgba(238, 241, 246, 0.55) 55%,
+      $color-v2-bg 100%
+    );
+  }
+}
+
 @mixin scroll-x-container {
   white-space: nowrap;
 }
 
-// 横向滚动子项（微信小程序兼容，必须配合 scroll-x-container 使用）
 @mixin scroll-x-item($width) {
   display: inline-block;
   width: $width;
   vertical-align: top;
-  white-space: normal; // 恢复子项内部换行
+  white-space: normal;
 }
 
-// Button 样式重置与保护
-// 使用方法：@include button-reset;
+// 基础白卡：无边框 + 32 圆角 + 极轻阴影
+@mixin fashion-card {
+  background: $color-bg-card;
+  border-radius: $radius-card;
+  border: none;
+  box-shadow: $shadow-card;
+}
+
+/** 可点触感：轻压 scale（列表行 / 卡片 / 工具格统一） */
+@mixin pressable {
+  &:active {
+    opacity: 0.92;
+    transform: scale(0.985);
+  }
+}
+
+/** 可点白卡 */
+@mixin pressable-card {
+  @include fashion-card;
+  @include pressable;
+}
+
+@mixin grouped-block {
+  background: $color-bg-card;
+  border-radius: $radius-card;
+  overflow: hidden;
+  box-shadow: $shadow-card;
+}
+
 @mixin button-reset {
   padding: 0;
   margin: 0;
   line-height: normal;
-  text-align: inherit;
-  white-space: nowrap; // 强制不换行
+  text-align: center;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-sizing: border-box; // 关键：确保 padding 和 border 不会撑大尺寸
+  box-sizing: border-box;
 
   &::after {
     border: none;
   }
+}
+
+// 主按钮：Ink 胶囊 · 44pt 高 · 17pt Medium 反白
+@mixin cta-button {
+  @include button-reset;
+  height: $button-height-md;
+  min-height: $button-height-md;
+  border-radius: $radius-pill;
+  background: $color-primary;
+  color: $color-text-white;
+  font-size: $font-size-lg; // 17pt
+  font-weight: $font-weight-medium;
+  border: none;
+  box-shadow: $shadow-button;
+  transition:
+    background $transition-fast,
+    box-shadow $transition-fast,
+    transform $transition-fast,
+    opacity $transition-fast;
+
+  &:active {
+    background: $color-primary-press;
+    box-shadow: $shadow-button-press;
+    opacity: 0.94;
+    transform: scale(0.98);
+  }
+
+  &[disabled] {
+    background: $color-ink-08;
+    color: $color-text-tertiary;
+    box-shadow: none;
+    opacity: 1;
+  }
+
+  &[loading] {
+    color: transparent;
+  }
+}
+
+// 次按钮：浅灰胶囊
+@mixin secondary-button {
+  @include button-reset;
+  height: $button-height-md;
+  min-height: $button-height-md;
+  border-radius: $radius-pill;
+  background: $color-bg-input;
+  color: $color-text-primary;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  border: none;
+  box-shadow: none;
+  transition: background $transition-fast;
+
+  &:active {
+    background: $color-bg-muted-press;
+    transform: scale(0.98);
+  }
+
+  &[disabled] {
+    opacity: 0.4;
+  }
+}
+
+// 选中胶囊：墨黑 + 微灰白字
+@mixin capsule-active {
+  background: $color-primary;
+  color: $color-text-white;
+  font-weight: $font-weight-medium;
+  font-size: $font-size-md;
+}
+
+// 胶囊输入框
+@mixin field-input {
+  width: 100%;
+  height: $input-height;
+  min-height: $input-height;
+  padding: 0 $spacing-xl; // 20pt 水平内边距（HIG 输入舒适区）
+  border: 1rpx solid transparent;
+  border-radius: $radius-pill;
+  background: $color-bg-input;
+  font-size: $font-size-md;
+  font-weight: $font-weight-normal;
+  color: $color-text-primary;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: $color-text-placeholder;
+  }
+}
+
+@mixin live-soft-surface {
+  background: $gradient-live-soft;
+  border: 1rpx solid $color-border-live;
+}
+
+@mixin dusk-soft-surface {
+  background: $gradient-mist-soft;
+}
+
+@mixin mist-soft-surface {
+  background: $gradient-mist-soft;
+}
+
+// ——— 提示条 ———
+@mixin tip-banner-base {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-sm;
+  padding: $spacing-md $card-padding-sm;
+  border-radius: $radius-lg;
+  box-sizing: border-box;
+}
+
+@mixin tip-banner-warning {
+  @include tip-banner-base;
+  background: $color-tip-warning-bg;
+  border: 1rpx solid $color-tip-warning-border;
+}
+
+// 兼容旧名：info 场景若表示「待确认」请改用 warning
+@mixin tip-banner-info {
+  @include tip-banner-warning;
+}
+
+@mixin tip-banner-success {
+  @include tip-banner-base;
+  background: $color-tip-success-bg;
+  border: 1rpx solid $color-tip-success-border;
+}
+
+@mixin tip-banner-error {
+  @include tip-banner-base;
+  background: $color-tip-error-bg;
+  border: 1rpx solid $color-tip-error-border;
+}
+
+@mixin tip-banner-title-warning {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-tip-warning-title;
+  line-height: 1.5;
+}
+
+@mixin tip-banner-text-warning {
+  font-size: $font-size-sm;
+  line-height: 1.5;
+  font-weight: $font-weight-medium;
+  color: $color-tip-warning-text;
+}
+
+@mixin tip-banner-action-warning {
+  flex-shrink: 0;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-tip-warning-action;
 }
