@@ -1,0 +1,33 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: $color-bg-page;
+}
+
+.banner {
+  position: relative;
+  z-index: 2;
+  margin: $spacing-sm $spacing-md 0;
+  padding: $spacing-sm $spacing-md;
+  border-radius: 16rpx;
+  background: $color-tip-warning-bg;
+  border: 1rpx solid $color-tip-warning-border;
+}
+
+.bannerText {
+  display: block;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+  color: $color-warning;
+  font-weight: $font-weight-medium;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  padding-bottom: $page-bottom-safe;
+  box-sizing: border-box;
+}

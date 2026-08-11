@@ -1,0 +1,196 @@
+@use '@/styles/variables.scss' as *;
+
+/* ── capsule：未选中无底仅字；选中墨黑胶囊 ── */
+.bar {
+  display: flex;
+  gap: $spacing-xs;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.barHug {
+  width: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.item {
+  flex: 1;
+  height: $button-height-list;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-xs;
+  border-radius: $radius-pill;
+  background: transparent;
+  @include pressable;
+}
+
+.itemHug {
+  flex: 0 0 auto;
+  min-width: 112rpx;
+  min-height: $touch-min; // HIG ≥44pt 触控
+  height: $touch-min;
+  padding: 0 $spacing-md;
+  box-sizing: border-box;
+}
+
+.itemActive {
+  @include capsule-active;
+  box-shadow: none;
+
+  &:active {
+    opacity: 0.92;
+    transform: scale(0.98);
+  }
+}
+
+.label {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-tertiary;
+}
+
+.itemHug .label {
+  font-size: $font-size-sm;
+  line-height: 1.2;
+}
+
+.itemActive .label {
+  color: $color-text-white;
+  font-weight: $font-weight-medium;
+}
+
+/* ── slide：白底轨道 + 主色滑动指示块 ── */
+.slideBar {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  padding: $spacing-xs;
+  background: $color-bg-card;
+  border-radius: $radius-md;
+  box-shadow: $shadow-card;
+  border: none;
+  overflow: hidden;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.slideBarHug {
+  /* 两列 + 内边距，顶栏与「全部已读」并排 */
+  width: auto;
+  min-width: 280rpx;
+  max-width: 420rpx;
+  flex: 0 1 auto;
+  padding: $spacing-xs;
+  border-radius: $radius-pill;
+  background: $color-white-78;
+  box-shadow: $shadow-soft;
+}
+
+.slidePill {
+  position: absolute;
+  top: $spacing-xs;
+  bottom: $spacing-xs;
+  left: $spacing-xs;
+  border-radius: $radius-md;
+  /* v2 冰蓝强调，不用墨黑 primary */
+  background: linear-gradient(
+    135deg,
+    $color-v2-accent-deep 0%,
+    $color-v2-accent 100%
+  );
+  box-shadow: none;
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.slideBarHug .slidePill {
+  border-radius: $radius-pill;
+  box-shadow: $shadow-soft;
+}
+
+.slideItem {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-xs;
+  /* 轨道内：总高约 44pt（含 4pt 上下内边距） */
+  min-height: calc(#{$touch-min} - #{$spacing-sm});
+  padding: $spacing-xs $spacing-xs;
+  box-sizing: border-box;
+
+  &:active {
+    opacity: 0.92;
+  }
+}
+
+/* 均分栏宽，保证滑动指示块与两列对齐；角标挤在列内 */
+.slideItemHug {
+  flex: 1 1 0;
+  min-width: 120rpx;
+  min-height: calc(#{$touch-min} - #{$spacing-sm});
+  height: calc(#{$touch-min} - #{$spacing-sm});
+  padding: 0 $spacing-sm;
+  box-sizing: border-box;
+}
+
+.slideLabel {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
+  transition: color 0.2s ease;
+}
+
+.slideItemHug .slideLabel {
+  font-size: $font-size-sm;
+  line-height: 1.2;
+}
+
+.slideLabelActive {
+  color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}
+
+/* ── 角标（未读数等） ── */
+.badge {
+  min-width: 28rpx;
+  height: 28rpx;
+  padding: 0 8rpx;
+  border-radius: $radius-pill;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.badgeOnActive {
+  background: $color-white-22;
+}
+
+.badgeOnIdle {
+  background: rgba(58, 140, 232, 0.16);
+}
+
+.badgeText {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1;
+}
+
+.badgeOnActive .badgeText {
+  color: $color-text-white;
+}
+
+.badgeOnIdle .badgeText {
+  color: $color-brand;
+}

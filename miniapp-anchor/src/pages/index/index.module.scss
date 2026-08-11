@@ -1,68 +1,189 @@
 @use '@/styles/variables.scss' as *;
 
-.container {
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: $color-bg-page;
+}
+
+.page::before {
+  content: '';
+  position: absolute;
+  top: -180rpx;
+  left: -120rpx;
+  width: 520rpx;
+  height: 520rpx;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(64, 170, 255, 0.26) 0%,
+    rgba(120, 210, 255, 0.16) 38%,
+    rgba(255, 255, 255, 0) 72%
+  );
+}
+
+.main {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 0 $spacing-lg;
-  background: linear-gradient(180deg, #f0f5ff 0%, $color-bg-page 100%);
+  justify-content: space-between;
+  padding: calc(88rpx + env(safe-area-inset-top)) 48rpx
+    calc(40rpx + env(safe-area-inset-bottom));
 }
 
-.card {
-  width: 100%;
-  max-width: 600rpx;
-  background: $color-bg-card;
-  border-radius: $radius-lg;
-  padding: 64rpx 32rpx;
-  box-shadow: $shadow-card;
+.logoSection {
+  flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding: 80rpx 0 $spacing-xxl;
+}
+
+.logoWrap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .logo {
-  font-size: 88rpx;
-  margin-bottom: 32rpx;
-  filter: drop-shadow(0 4rpx 8rpx rgba(0, 0, 0, 0.1));
+  width: 278rpx;
+  height: 300rpx;
 }
 
-.welcome {
-  font-size: $font-size-xxl;
-  font-weight: $font-weight-bold;
+.logoFallback {
+  font-size: $font-size-display;
+  font-weight: $font-weight-semibold;
   color: $color-text-primary;
-  margin-bottom: 16rpx;
-  line-height: $line-height-tight;
-  text-align: center;
 }
 
-.desc {
-  font-size: $font-size-sm;
-  color: $color-text-tertiary;
-  line-height: $line-height-loose;
-  text-align: center;
-  margin-bottom: 48rpx;
+.bottomArea {
+  padding: 0 $spacing-xs calc(#{$spacing-sm} + env(safe-area-inset-bottom));
 }
 
-.button {
+.enterBtn {
+  @include cta-button;
   width: 100%;
-  height: 96rpx;
-  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  height: $button-height-md;
   border-radius: $radius-button;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all $transition-base;
+  background: $color-primary;
+  box-shadow: none;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
 
-  &:active {
-    opacity: 0.9;
-    transform: scale(0.98);
+  &::after {
+    border: none;
   }
 }
 
-.buttonText {
-  font-size: $font-size-lg;
-  font-weight: $font-weight-medium;
+.agreementRow {
+  margin-top: $spacing-md;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-xs;
+  padding: $spacing-xs 0 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.checkbox {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  border: 2rpx solid rgba(29, 29, 31, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $color-bg-page;
+  flex-shrink: 0;
+}
+
+.checkboxHover {
+  opacity: 0.85;
+}
+
+.checkboxChecked {
+  border-color: $color-primary;
+  background: $color-primary;
+}
+
+.checkboxMark {
+  font-size: $font-size-xs;
+  line-height: 1;
   color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}
+
+/* 不占满整行，整组相对屏幕水平居中 */
+.agreementText {
+  flex: 0 1 auto;
+  max-width: calc(100% - 52rpx);
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  font-size: $font-size-xs;
+  line-height: 1.7;
+  color: $color-text-tertiary;
+}
+
+.agreementPlain {
+  font-size: $font-size-xs;
+  line-height: 1.7;
+  color: $color-text-tertiary;
+}
+
+/* 扩大协议链接点击热区（小程序 Text 嵌套点不中） */
+.linkHit {
+  display: inline-flex;
+  align-items: center;
+  padding: $spacing-xs 2rpx;
+  flex-shrink: 0;
+}
+
+.linkHitHover {
+  opacity: 0.7;
+}
+
+.linkText {
+  font-size: $font-size-xs;
+  line-height: 1.7;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+}
+
+.statusWrap {
+  margin-top: $spacing-md;
+  min-height: 54rpx;
+  text-align: center;
+}
+
+.status {
+  display: block;
+  min-height: 36rpx;
+  font-size: $font-size-xs;
+  line-height: 1.5;
+  color: $color-text-tertiary;
+}
+
+.statusError {
+  color: $color-error;
+}
+
+.statusOk {
+  color: $color-primary;
+}
+
+.hintName {
+  display: block;
+  margin-top: $spacing-xs;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+  color: $color-text-tertiary;
 }

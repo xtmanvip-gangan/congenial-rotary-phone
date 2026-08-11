@@ -18,6 +18,7 @@ const availableActivities: AvailableActivityItem[] = [
     startAt: '2026-07-16T08:00:00.000Z',
     endAt: '2026-07-25T15:59:00.000Z',
     description: '主播按当天礼物累计数量参与结算，系统自动命中同礼物最高奖励档位。',
+    coverUrl: null,
     ruleCount: 5,
     entryCount: 3,
     entrySummary: '鲜花、掌声、气球',
@@ -34,6 +35,7 @@ const availableActivities: AvailableActivityItem[] = [
     startAt: '2026-07-18T02:00:00.000Z',
     endAt: '2026-07-30T15:00:00.000Z',
     description: '按单场 PK 值结算奖励，适合做高爆发场次冲刺。',
+    coverUrl: null,
     ruleCount: 3,
     entryCount: 1,
     entrySummary: 'PK 值',
@@ -53,6 +55,7 @@ const activityDetailMap: Record<string, ActivityDetailItem> = {
     startAt: '2026-07-16T08:00:00.000Z',
     endAt: '2026-07-25T15:59:00.000Z',
     description: '鲜花、掌声、气球可以分别累计，系统自动计算本次预计奖励。',
+    coverUrl: null,
     type: {
       typeCode: 'gift_collection',
       typeName: '礼物收集',
@@ -108,6 +111,7 @@ const activityDetailMap: Record<string, ActivityDetailItem> = {
     startAt: '2026-07-18T02:00:00.000Z',
     endAt: '2026-07-30T15:00:00.000Z',
     description: '填写本场 PK 值即可预估奖励，适用于一场一提报。',
+    coverUrl: null,
     type: {
       typeCode: 'pk_score',
       typeName: 'PK 挑战',

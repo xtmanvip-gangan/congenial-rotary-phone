@@ -1,0 +1,1145 @@
+@use '@/styles/variables.scss' as *;
+
+/* 学习列表壳 · 社区化 v2 冰蓝 Soft UI（顶区问候由 DIY hero 负责） */
+$ice-page: $color-v2-bg;
+$ice-card: $color-v2-card;
+$ice-ink: $color-v2-ink;
+$ice-navy: $color-v2-navy;
+$ice-muted: $color-v2-muted;
+$ice-active: $color-v2-accent;
+$ice-deep: $color-v2-accent-deep;
+$ice-mid: $color-v2-accent-mid;
+$ice-soft: $color-v2-accent-soft;
+$ice-success: $color-v2-success;
+$ice-success-soft: $color-v2-success-soft;
+$ice-line: $color-v2-line;
+$ice-warm: $color-v2-warm;
+$ice-shadow: $shadow-v2-soft;
+$ice-shadow-press: 0 2rpx 8rpx rgba(30, 60, 90, 0.08);
+
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: $ice-page;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  padding-bottom: $page-bottom-safe;
+}
+
+/* 头图：与活动广场同结构 */
+.heroSection {
+  position: relative;
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+.heroBgImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+  pointer-events: none;
+}
+
+.heroInner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+/**
+ * 结构纪律（对齐 ActivityListShell / §9.4）：
+ * - sectionBlock / mainPanel / list 容器：透明布局层，无 bg/shadow/radius，无自带外边距
+ * - 外边距一律由 DIY 外层 boxStyle（后台属性）控制
+ * - 业务卡（liveCard / ocCard / core*）：唯一 Soft 表面 = 白底 + 圆角 + $shadow-v2-soft
+ * - 禁止 DIY 外层再套白卡（registry 已 shadow:none + transparent）
+ */
+.sectionBlock {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  box-sizing: border-box;
+  width: 100%;
+  /* 必须 visible：否则页边会裁业务卡左右/底阴影 */
+  overflow: visible;
+}
+
+.mainPanel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* 运营确认中：全站 warning tip */
+.readonlyBanner {
+  @include tip-banner-warning;
+  margin-bottom: 0;
+}
+
+.readonlyBannerText {
+  flex: 1;
+  @include tip-banner-text-warning;
+}
+
+/* 冰蓝 slide 分段（与活动列表一致） */
+.segBar {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  padding: $spacing-xs;
+  background: $ice-card;
+  border-radius: $radius-md;
+  box-shadow: $ice-shadow;
+  border: 1rpx solid $ice-line;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.segPill {
+  position: absolute;
+  top: $spacing-xs;
+  bottom: $spacing-xs;
+  left: $spacing-xs;
+  border-radius: $radius-md;
+  background: linear-gradient(135deg, $ice-deep 0%, $ice-active 100%);
+  box-shadow: $ice-shadow-press;
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.segItem {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(#{$touch-min} - #{$spacing-sm});
+  padding: $spacing-xs $spacing-xs;
+  box-sizing: border-box;
+
+  &:active {
+    opacity: 0.92;
+  }
+}
+
+.segLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+  text-align: center;
+}
+
+.segLabelActive {
+  color: #ffffff;
+  font-weight: $font-weight-medium;
+}
+
+/* 与活动中心 contentStack 一致：透明堆叠，overflow 不裁阴影 */
+.contentStack {
+  display: flex;
+  flex-direction: column;
+  gap: $card-stack-gap;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+/* ========== 开放课堂 ==========
+ * 布局：ocList → ocDay → ocDayCards → ocCard（唯一 Soft 表面）
+ */
+.ocList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ocDay {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ocDayLabel {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0 $spacing-xs;
+  box-sizing: border-box;
+}
+
+.ocDayLabelText {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+  letter-spacing: 0.5rpx;
+}
+
+.ocDayLabelToday {
+  min-height: 44rpx;
+  padding: 0 $spacing-sm;
+  border-radius: $radius-pill;
+  background: $ice-soft;
+}
+
+.ocDayLabelTextToday {
+  color: $ice-deep;
+  font-weight: $font-weight-medium;
+}
+
+.ocDayLabelTomorrow {
+  min-height: 44rpx;
+  padding: 0 $spacing-sm;
+  border-radius: $radius-pill;
+  background: rgba(249, 115, 22, 0.12);
+}
+
+.ocDayLabelTextTomorrow {
+  color: $ice-warm;
+  font-weight: $font-weight-medium;
+}
+
+.ocDayCards {
+  display: flex;
+  flex-direction: column;
+  gap: $card-stack-gap;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* 开放课堂单卡 · 同 featureCard */
+.ocCard {
+  padding: $card-padding;
+  border-radius: $radius-card;
+  background: $ice-card;
+  border: 1rpx solid rgba(255, 255, 255, 0.95);
+  box-shadow: $ice-shadow;
+  box-sizing: border-box;
+}
+
+.ocCardJoined {
+  border: 1rpx solid rgba(58, 140, 232, 0.28);
+}
+
+.ocCardFocus {
+  border: 1rpx solid rgba(58, 140, 232, 0.45);
+}
+
+.ocHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.ocTimeBlock {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  min-width: 0;
+}
+
+.ocTime {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+  color: $ice-ink;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5rpx;
+}
+
+.ocDurationChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36rpx;
+  padding: 0 $spacing-sm;
+  border-radius: $radius-pill;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1;
+  color: $ice-deep;
+  background: $ice-soft;
+}
+
+.ocTitle {
+  display: block;
+  margin-top: $spacing-md;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+  color: $ice-ink;
+  @include text-ellipsis-multi(2);
+}
+
+.ocChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-top: $spacing-md;
+}
+
+.ocChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40rpx;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: 1.2;
+  color: $ice-deep;
+  background: $ice-soft;
+  box-sizing: border-box;
+}
+
+/* 授课老师：navy 胶囊，与冰蓝名额/类型芯片区分 */
+.ocChipTeacher {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40rpx;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: 1.2;
+  color: $ice-navy;
+  background: rgba(30, 60, 90, 0.1);
+  box-sizing: border-box;
+}
+
+.ocChipTeacherMuted {
+  color: $ice-muted;
+  background: rgba(238, 241, 246, 0.95);
+}
+
+.ocChipMuted {
+  color: $ice-muted;
+  background: rgba(238, 241, 246, 0.95);
+}
+
+.ocChipMutedInline {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: 1.2;
+  color: $ice-muted;
+}
+
+.ocFoot {
+  margin-top: $spacing-md;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 40rpx;
+}
+
+.ocBtn {
+  width: 100% !important;
+  margin: 0 !important;
+  height: $button-height-md !important;
+  line-height: $button-height-md !important;
+  min-height: $button-height-md !important;
+  border-radius: $radius-pill !important;
+  font-size: $font-size-md !important;
+  font-weight: $font-weight-medium !important;
+  background: linear-gradient(135deg, $ice-deep 0%, $ice-active 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: $ice-shadow-press !important;
+}
+
+.ocLink {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+  padding: $spacing-xs 0;
+}
+
+.ocLinkMuted {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+  padding: $spacing-xs 0;
+}
+
+.ocFootHint {
+  flex: 1;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+  text-align: left;
+}
+
+/* ========== 正在上课 ==========
+ * 单层 Soft 卡（同 featureCard）：外层表面 + 内部分区，无第二层卡
+ * liveCover / liveBody 只是区块，不设 shadow / 独立白卡边框
+ */
+.liveCard {
+  border-radius: $radius-card;
+  background: $ice-card;
+  box-shadow: $ice-shadow;
+  border: 1rpx solid rgba(255, 255, 255, 0.95);
+  overflow: hidden;
+}
+
+.liveCover {
+  position: relative;
+  padding: $spacing-lg $card-padding $spacing-xl;
+  box-sizing: border-box;
+  background: linear-gradient(
+    135deg,
+    $ice-deep 0%,
+    $ice-active 52%,
+    $ice-mid 100%
+  );
+  overflow: hidden;
+}
+
+.liveCoverDecor {
+  position: absolute;
+  right: -40rpx;
+  top: -48rpx;
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.28) 0%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  pointer-events: none;
+}
+
+.liveCoverBadges {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+}
+
+.livePhasePill {
+  display: inline-flex;
+  align-items: center;
+  height: 40rpx;
+  padding: 0 $spacing-sm;
+  border-radius: $radius-pill;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: $ice-shadow-press;
+}
+
+.livePhaseDot {
+  width: 10rpx;
+  height: 10rpx;
+  margin-right: $spacing-xs;
+  border-radius: 50%;
+  background: $ice-success;
+  box-shadow: 0 0 0 4rpx rgba(34, 197, 94, 0.28);
+  animation: livePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.88);
+    opacity: 0.72;
+  }
+}
+
+/* 进行中：v2 success 绿字 */
+.livePhaseText {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1;
+  color: $ice-success;
+}
+
+.liveLatePill {
+  display: inline-flex;
+  align-items: center;
+  height: 40rpx;
+  padding: 0 $spacing-sm;
+  border-radius: $radius-pill;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.liveLateText {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1;
+  color: $ice-navy;
+}
+
+.liveCoverTitle {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: $spacing-lg;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+  color: #ffffff;
+  letter-spacing: -0.3rpx;
+  @include text-ellipsis-multi(2);
+}
+
+.liveCoverTime {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: rgba(255, 255, 255, 0.88);
+  font-variant-numeric: tabular-nums;
+}
+
+.liveTimeline {
+  position: relative;
+  z-index: 1;
+  margin-top: $spacing-md;
+}
+
+.liveTimelineTrack {
+  position: relative;
+  height: 8rpx;
+  border-radius: $radius-pill;
+  background: rgba(255, 255, 255, 0.28);
+  overflow: visible;
+}
+
+.liveTimelineFill {
+  height: 100%;
+  border-radius: $radius-pill;
+  background: rgba(255, 255, 255, 0.92);
+  min-width: 0;
+}
+
+.liveTimelineDot {
+  position: absolute;
+  top: 50%;
+  width: 16rpx;
+  height: 16rpx;
+  margin-left: -8rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3rpx solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 2rpx 6rpx rgba(2, 57, 169, 0.25);
+  transform: translateY(-50%);
+}
+
+.liveTimelineHint {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-normal;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.liveBody {
+  padding: $card-padding;
+  padding-top: $spacing-md;
+  background: transparent;
+}
+
+.liveChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.liveChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40rpx;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: 1.2;
+  color: $ice-deep;
+  background: $ice-soft;
+  box-sizing: border-box;
+}
+
+.liveStatusHint {
+  display: block;
+  margin-top: $spacing-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+}
+
+.liveActionRow {
+  margin-top: $spacing-md;
+}
+
+.liveJoinBtn {
+  width: 100% !important;
+  margin: 0 !important;
+  height: $button-height-md !important;
+  line-height: $button-height-md !important;
+  border-radius: $radius-pill !important;
+  background: linear-gradient(135deg, $ice-deep 0%, $ice-active 100%) !important;
+  color: #ffffff !important;
+  font-weight: $font-weight-medium !important;
+  font-size: $font-size-md !important;
+  border: none !important;
+  box-shadow: $ice-shadow-press !important;
+}
+
+.liveDisabledBar {
+  @include flex-center;
+  height: $button-height-md;
+  border-radius: $radius-pill;
+  background: rgba(238, 241, 246, 0.95);
+  border: none;
+}
+
+.liveDisabledText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $ice-muted;
+}
+
+/* ========== 必修进度 ==========
+ * coreProgressPanel 透明布局
+ * coreSummary / coreList 各自一层 Soft 表面
+ */
+.coreProgressPanel {
+  display: flex;
+  flex-direction: column;
+  gap: $card-stack-gap;
+  background: transparent;
+  box-shadow: none;
+}
+
+.coreSummary {
+  padding: $card-padding;
+  border-radius: $radius-card;
+  background: linear-gradient(
+    145deg,
+    rgba(193, 231, 254, 0.55) 0%,
+    #ffffff 62%
+  );
+  border: 1rpx solid rgba(255, 255, 255, 0.95);
+  box-shadow: $ice-shadow;
+}
+
+.coreSummaryTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-md;
+}
+
+.coreSummaryCopy {
+  min-width: 0;
+  flex: 1;
+}
+
+.coreSummaryEyebrow {
+  display: block;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1.2;
+  color: $ice-deep;
+  letter-spacing: 1rpx;
+}
+
+.coreSummaryTitle {
+  display: block;
+  margin-top: $spacing-xs;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+  color: $ice-ink;
+}
+
+.coreSummaryMetric {
+  display: flex;
+  align-items: baseline;
+  flex-shrink: 0;
+  gap: 2rpx;
+}
+
+.coreSummaryCount {
+  font-size: $font-size-display;
+  font-weight: $font-weight-semibold;
+  line-height: 1;
+  color: $ice-deep;
+  font-variant-numeric: tabular-nums;
+}
+
+.coreSummaryTotal {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  line-height: 1;
+  color: $ice-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+.coreBarTrack {
+  margin-top: $spacing-md;
+  height: 10rpx;
+  border-radius: $radius-pill;
+  background: rgba(30, 60, 90, 0.08);
+  overflow: hidden;
+}
+
+.coreBarFill {
+  height: 100%;
+  border-radius: $radius-pill;
+  background: linear-gradient(90deg, $ice-mid 0%, $ice-active 100%);
+  min-width: 0;
+  transition: width 0.28s ease;
+}
+
+.coreSummaryHint {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+}
+
+.coreList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: $spacing-sm 0;
+  border-radius: $radius-card;
+  background: $ice-card;
+  border: 1rpx solid rgba(255, 255, 255, 0.95);
+  box-shadow: $ice-shadow;
+  overflow: hidden;
+}
+
+/* 路径行：列表内行，不是独立卡 */
+.coreRow {
+  display: flex;
+  align-items: stretch;
+  gap: $spacing-sm;
+  padding: $spacing-sm $card-padding;
+  box-sizing: border-box;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.coreRowDone {
+  opacity: 0.88;
+}
+
+.coreRowActive {
+  background: rgba(193, 231, 254, 0.22);
+}
+
+.coreRowWarn {
+  background: rgba(255, 159, 10, 0.06);
+}
+
+.coreRail {
+  position: relative;
+  flex-shrink: 0;
+  width: 52rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.coreSeq {
+  flex-shrink: 0;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  @include flex-center;
+  z-index: 1;
+}
+
+.coreSeqDone {
+  background: $ice-success-soft;
+}
+
+.coreSeqActive {
+  background: $ice-soft;
+  box-shadow: 0 0 0 4rpx rgba(58, 140, 232, 0.12);
+}
+
+.coreSeqWarn {
+  background: $color-warning-soft;
+}
+
+.coreSeqIdle {
+  background: rgba(238, 241, 246, 0.95);
+}
+
+.coreSeqText {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1;
+  color: $ice-muted;
+}
+
+.coreSeqDone .coreSeqText {
+  color: $ice-success;
+  font-size: $font-size-sm;
+}
+
+.coreSeqActive .coreSeqText {
+  color: $ice-deep;
+}
+
+.coreSeqWarn .coreSeqText {
+  color: $color-warning;
+}
+
+.coreRailLine {
+  flex: 1;
+  width: 4rpx;
+  min-height: 24rpx;
+  margin-top: $spacing-xs;
+  border-radius: $radius-pill;
+  background: rgba(30, 60, 90, 0.1);
+}
+
+.coreRailLineDone {
+  background: rgba(34, 197, 94, 0.35);
+}
+
+.coreRowMain {
+  flex: 1;
+  min-width: 0;
+  padding: $spacing-xs 0 $spacing-md;
+  box-sizing: border-box;
+}
+
+.coreRowTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.coreRowTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $ice-ink;
+  @include text-ellipsis-multi(2);
+}
+
+.coreRowDone .coreRowTitle {
+  color: $ice-muted;
+}
+
+.coreRowSub {
+  display: block;
+  margin-top: $spacing-xs;
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+  @include text-ellipsis-multi(2);
+}
+
+.coreState {
+  flex-shrink: 0;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: 1.2;
+  padding-top: 2rpx;
+}
+
+.coreStateDone {
+  color: $ice-success;
+}
+
+.coreStateActive {
+  color: $ice-deep;
+}
+
+.coreStateWarn {
+  color: $color-warning;
+}
+
+.coreStateIdle {
+  color: $ice-muted;
+}
+
+/* 推荐定位：蓝 + 运营橙 + 腮红粉 流动光边 */
+.highlightWrap {
+  position: relative;
+  border-radius: $radius-lg;
+  padding: $spacing-xs;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.highlightSpin {
+  position: absolute;
+  left: -55%;
+  top: -55%;
+  width: 210%;
+  height: 210%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(28, 28, 30, 0) 0deg,
+    $ice-active 80deg,
+    $ice-mid 160deg,
+    $ice-active 240deg,
+    rgba(28, 28, 30, 0) 320deg
+  );
+  animation: highlightSpin 1.25s linear infinite;
+  pointer-events: none;
+}
+
+.highlightInner {
+  position: relative;
+  z-index: 1;
+  margin: 0 !important;
+  background: $ice-card !important;
+}
+
+@keyframes highlightSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 运营推荐消息条 */
+.recNotice {
+  position: relative;
+  z-index: 1;
+  padding: $spacing-md $spacing-md;
+  border-radius: $radius-xl;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 247, 237, 0.9) 0%,
+    #ffffff 55%,
+    rgba(239, 246, 255, 0.95) 100%
+  );
+  border: 1rpx solid rgba(249, 115, 22, 0.18);
+  box-shadow: $ice-shadow;
+}
+
+.recNoticeTitle {
+  display: block;
+  margin-bottom: $spacing-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $ice-active;
+  letter-spacing: 0;
+}
+
+.recNoticeRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm 0;
+}
+
+.recNoticeRow + .recNoticeRow {
+  border-top: 1px solid rgba(255, 159, 10, 0.15);
+}
+
+.recNoticeDot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: $color-warning;
+}
+
+.recNoticeBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.recNoticeCourse {
+  display: block;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $ice-ink;
+  @include text-ellipsis;
+}
+
+.recNoticeReason {
+  display: block;
+  margin-top: $spacing-xs;
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+  @include text-ellipsis;
+}
+
+.recNoticeGo {
+  flex-shrink: 0;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-warning;
+}
+
+.progressHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-md;
+}
+
+.tagStack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: $spacing-xs;
+  flex-shrink: 0;
+}
+
+.title {
+  display: block;
+  margin-top: $spacing-xs;
+  color: $ice-ink;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  letter-spacing: -0.3rpx;
+}
+
+.summary {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+  color: $ice-muted;
+  @include text-ellipsis-multi(2);
+}
+
+/* 进行中提示：不用 disabled 按钮（灰底白字看不清） */
+.liveHint {
+  @include flex-center;
+  height: $button-height-md;
+  border-radius: $radius-button;
+  background: $ice-success-soft;
+  border: none;
+}
+
+.liveHintText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $ice-success;
+}
+
+/* 开课超 20 分钟：不可入会 */
+.lateHint {
+  @include flex-center;
+  height: $button-height-md;
+  border-radius: $radius-button;
+  background: $color-warning-soft;
+  border: none;
+  pointer-events: none;
+}
+
+.lateHintText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-warning;
+}
+
+/* 后台未点「开始上课」 */
+.waitHint {
+  @include flex-center;
+  height: $button-height-md;
+  border-radius: $radius-button;
+  background: $ice-soft;
+  border: none;
+  pointer-events: none;
+}
+
+.waitHintText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $ice-deep;
+}
+
+.progressList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.progressStatus {
+  flex-shrink: 0;
+  border-radius: 999rpx;
+  padding: $spacing-xs $spacing-sm;
+  background: $ice-soft;
+  color: $ice-deep;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+}
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  margin-top: $spacing-sm;
+}
+
+.task {
+  color: $ice-muted;
+  font-size: $font-size-sm;
+  line-height: $line-height-loose;
+}
+
+.materialButton {
+  margin: $spacing-sm 0 0;
+}

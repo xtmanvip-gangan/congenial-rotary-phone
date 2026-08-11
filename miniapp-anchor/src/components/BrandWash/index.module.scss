@@ -1,0 +1,21 @@
+@use '@/styles/variables.scss' as *;
+
+/* 品牌顶渐变：$color-brand → 页底 $color-bg-page，无弧形 */
+.wash {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 50vh;
+  min-height: 480rpx;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    $color-mist-deep 0%,
+    $color-mist-start 22%,
+    $color-mist-mid 48%,
+    $color-mist-cream 72%,
+    $color-bg-page 100%
+  );
+}

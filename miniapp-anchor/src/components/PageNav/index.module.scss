@@ -1,0 +1,101 @@
+@use '@/styles/variables.scss' as *;
+
+/**
+ * 自定义导航（简化）
+ * - 固定顶栏，内容行与胶囊垂直居中
+ * - 标题默认居左流式布局
+ * - 无毛玻璃、无底部分割线
+ */
+
+.navBarFixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  /* 默认兜底色；真实色/渐变由内联 style 覆盖 */
+  background-color: $color-bg-page;
+  border-bottom-width: 0;
+  overflow: hidden;
+}
+
+.navPlaceholder {
+  width: 100%;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.navContent {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.navInner {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.backBtn {
+  @include flex-center;
+  flex-shrink: 0;
+  /* 触控区 ≥ 44pt */
+  min-width: 44px;
+  min-height: 44px;
+  margin-right: 0;
+  margin-left: -8px;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+/* 圆形底（活动记录等渐变顶栏） */
+.backBtnCircle {
+  border: 1rpx solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 2rpx 8rpx rgba(2, 57, 169, 0.12);
+}
+
+.backBtnHover {
+  opacity: 0.88;
+}
+
+.backIcon {
+  width: 10px;
+  height: 10px;
+  border-left: 2px solid var(--nav-back-icon-color, #{$color-text-primary});
+  border-bottom: 2px solid var(--nav-back-icon-color, #{$color-text-primary});
+  transform: rotate(45deg);
+  margin-left: 3px;
+  box-sizing: border-box;
+}
+
+.navTitle {
+  flex: 1;
+  min-width: 0;
+  color: var(--nav-title-color, #{$color-text-primary});
+  letter-spacing: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  // 规范：导航标题 17pt Medium
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+}
+
+.navRight {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  margin-left: 8px;
+}

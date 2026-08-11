@@ -37,6 +37,7 @@ let mockSubmissionItems: SubmissionDetailResponse['item'][] = [
     pkValue: null,
     rewardSummaryText: '已命中 2 项奖励：鲜花达 10 个，奖励 20 元；掌声达 15 个，奖励精选礼包',
     activity: getMockActivityDetail('activity-gift-1').item,
+    createdAt: '2026-07-18T20:05:00.000Z',
   },
   {
     id: 'record-1002',
@@ -59,6 +60,30 @@ let mockSubmissionItems: SubmissionDetailResponse['item'][] = [
     pkValue: null,
     rewardSummaryText: '本次暂未命中奖励',
     activity: getMockActivityDetail('activity-gift-1').item,
+    createdAt: '2026-07-17T21:40:00.000Z',
+  },
+  {
+    id: 'record-1003',
+    anchorName: '预览主播小雨',
+    operatorId: 'operator-1',
+    operatorName: '运营老师-安安',
+    operatorAssignmentStatus: 'confirmed',
+    liveDate: '2026-07-19',
+    liveStartTime: '20:00',
+    reviewStatus: 'approved',
+    grantStatus: 'pending',
+    rejectReason: null,
+    attachments: [
+      {
+        id: 'attachment-1003',
+        fileUrl: 'https://picsum.photos/id/301/600/400',
+      },
+    ],
+    items: [{ itemName: 'PK值', quantity: 7200 }],
+    pkValue: 7200,
+    rewardSummaryText: '命中档位 6000–9999',
+    activity: getMockActivityDetail('activity-pk-1').item,
+    createdAt: '2026-07-19T20:25:00.000Z',
   },
 ]
 
@@ -72,6 +97,7 @@ export function getMockSubmissions(): MySubmissionsResponse {
         activity: {
           id: item.activity.id,
           name: item.activity.name,
+          typeCode: item.activity.type.typeCode,
           typeName: item.activity.type.typeName,
         },
         anchorName: item.anchorName,
@@ -86,6 +112,7 @@ export function getMockSubmissions(): MySubmissionsResponse {
         items: item.items.map((entry) => ({ ...entry })),
         attachmentUrls: item.attachments.map((attachment) => attachment.fileUrl),
         rewardSummaryText: item.rewardSummaryText,
+        pkValue: item.pkValue,
       })),
   }
 }

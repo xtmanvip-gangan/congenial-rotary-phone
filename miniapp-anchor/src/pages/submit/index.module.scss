@@ -1,117 +1,826 @@
 @use '@/styles/variables.scss' as *;
 
+/**
+ * 活动提报 · Soft UI Evolution + Micro-interactions
+ * 灵感：design-master/references/ui-ux-data
+ *  - products: Social + Membership/Community + Productivity
+ *  - colors: Sky trust (#0EA5E9 系) → 落地 $color-tabbar-active #3A8CE8
+ *  - styles: Soft UI Evolution / Micro-interactions / Glass 仅底栏
+ *  - ux: labels、错误贴字段、44pt 触控、loading/success 反馈
+ * 字号/间距：仅用项目 token（小程序UI规范）
+ */
+
+// ——— 色：规范 §九 社区化 v2 token ———
+$ice-page: $color-v2-bg;
+$ice-card: $color-v2-card;
+$ice-ink: $color-v2-ink;
+$ice-navy: $color-v2-navy;
+$ice-muted: $color-v2-muted;
+$ice-active: $color-v2-accent;
+$ice-deep: $color-v2-accent-deep;
+$ice-mid: $color-v2-accent-mid;
+$ice-soft: $color-v2-accent-soft;
+$ice-success: $color-v2-success;
+$ice-success-soft: $color-v2-success-soft;
+$ice-line: $color-v2-line;
+$ice-shadow: $shadow-v2-soft;
+$ice-shadow-press: 0 2rpx 8rpx rgba(30, 60, 90, 0.08);
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: $ice-page;
+}
+
+
+/* v2 页顶氛围：token mixin，禁止再写死色值 */
+@include v2-page-atmosphere;
+
+
+.content {
+  position: relative;
+  z-index: 1;
+  padding: 0 $page-padding;
+  padding-bottom: calc(
+    #{$button-height-md} + #{$spacing-lg} + #{$spacing-md} + env(safe-area-inset-bottom)
+  );
+  box-sizing: border-box;
+}
+
+/**
+ * 结构：渐变头（标题 + 图标）+ 双层弧面台
+ * - head：左文案 / 右图标
+ * - sheetBase：底层弧（雾蓝浅色纯色）
+ * - formSheet：上层白弧（主表单，无投影）
+ */
+.headZone {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+  min-height: 160rpx;
+  padding: $spacing-sm 0 $spacing-md;
+  box-sizing: border-box;
+}
+
+.headCopy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.headIconWrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 168rpx;
+  height: 168rpx;
+  @include flex-center;
+}
+
+.heroEyebrow {
+  align-self: flex-start;
+  min-height: 40rpx;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: rgba(255, 255, 255, 0.22);
+  border: 1rpx solid rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  letter-spacing: 1rpx;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+.heroTitle {
+  display: block;
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+  letter-spacing: 0.5rpx;
+  color: #ffffff;
+  text-shadow: 0 4rpx 20rpx rgba(2, 57, 169, 0.25);
+  @include text-ellipsis-multi(2);
+}
+
+.heroPeriod {
+  display: block;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: $line-height-normal;
+}
+
+.formStage {
+  position: relative;
+  z-index: 2;
+  margin: 0 (-$page-padding);
+  /* 露出底层弧的唇边 */
+  padding-top: 20rpx;
+  box-sizing: border-box;
+}
+
+/* 底层弧：雾蓝浅纯色，与顶渐变/白表单更搭（非芥末金） */
+.sheetBase {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 88rpx;
+  z-index: 1;
+  border-radius: 48rpx 48rpx 0 0;
+  /* 介于 accent-soft 与 mid 之间的静谧雾蓝 */
+  background: #b8dcf8;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+/* 上层弧：白半圆，无投影 */
+.formSheet {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: $card-stack-gap;
+  margin-top: 16rpx;
+  padding: $card-padding $page-padding $spacing-lg;
+  border-radius: 40rpx 40rpx 0 0;
+  background: $ice-card;
+  box-shadow: none;
+  box-sizing: border-box;
+  min-height: 58vh;
+}
+
+.heroIconGlow {
+  position: absolute;
+  width: 168rpx;
+  height: 168rpx;
+  border-radius: $radius-round;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(193, 231, 254, 0.22) 42%,
+    transparent 72%
+  );
+  pointer-events: none;
+}
+
+.heroIcon {
+  position: relative;
+  z-index: 1;
+  width: 156rpx;
+  height: 156rpx;
+  display: block;
+  filter: drop-shadow(0 8rpx 20rpx rgba(2, 57, 169, 0.2));
+}
+
+/* 奖励预览：表单板内横条，命中时变绿 */
+.resultStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $card-padding-sm $card-padding;
+  border-radius: $radius-xl;
+  background: $ice-card;
+  border: 1rpx solid $ice-line;
+  box-shadow: $ice-shadow;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.resultStripHit {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: linear-gradient(
+    145deg,
+    $ice-success-soft 0%,
+    #ffffff 55%,
+    rgba(193, 231, 254, 0.22) 100%
+  );
+}
+
+.resultMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.resultKicker {
+  display: block;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  letter-spacing: 2rpx;
+  color: $ice-active;
+}
+
+.resultStripHit .resultKicker {
+  color: $ice-success;
+}
+
+.resultTitle {
+  display: block;
+  margin-top: $spacing-xs;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $ice-ink;
+  line-height: $line-height-tight;
+}
+
+.resultSide {
+  flex-shrink: 0;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $ice-muted;
+  line-height: $line-height-normal;
+  max-width: 200rpx;
+  text-align: right;
+}
+
+.resultStripHit .resultSide {
+  color: $ice-success;
+}
+
+.resultList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  width: 100%;
+  margin-top: $spacing-xs;
+}
+
+.resultHitRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-sm;
+  padding: $spacing-sm;
+  border-radius: $radius-md;
+  background: $ice-success-soft;
+  box-sizing: border-box;
+}
+
+.resultHitName {
+  flex-shrink: 0;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: $ice-success;
+  color: #fff;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+}
+
+.resultHitFormula {
+  flex: 1;
+  min-width: 0;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $ice-navy;
+  @include text-ellipsis;
+}
+
+.resultHitQty {
+  flex-shrink: 0;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $ice-success;
+  font-variant-numeric: tabular-nums;
+}
+
+/* —— 面板 Soft UI —— */
+.panel {
+  padding: $card-padding;
+  border-radius: $radius-xl;
+  background: $ice-card;
+  border: 1rpx solid $ice-line;
+  box-shadow: $ice-shadow;
+  box-sizing: border-box;
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+}
+
+.stepBadge {
+  @include flex-center;
+  flex-shrink: 0;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: $radius-round;
+  background: linear-gradient(135deg, $ice-deep 0%, $ice-active 100%);
+  box-shadow: $ice-shadow-press;
+}
+
+.stepNum {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.panelTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $ice-ink;
+  letter-spacing: 0;
+  line-height: $line-height-tight;
+}
+
+.panelMeta {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $ice-muted;
+}
+
+.panelHint {
+  display: block;
+  margin-top: -$spacing-sm;
+  margin-bottom: $spacing-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  color: $ice-muted;
+  line-height: $line-height-normal;
+}
+
+.identityRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+}
+
+.identityChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48rpx;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: rgba(58, 140, 232, 0.1);
+  color: $ice-navy;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  box-sizing: border-box;
+}
+
+.identityChipWarn {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
 .section {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
-  margin-top: 16rpx;
+  gap: $form-item-gap;
 }
 
 .grid {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
-  margin-top: 16rpx;
+  gap: $form-item-gap;
 }
 
+.gridAfterChips {
+  margin-top: $spacing-md;
+}
+
+.fieldBlock {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs; // 标签→输入 4pt
+}
+
+.fieldLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium; // 标签 Medium
+  color: $ice-navy;
+  letter-spacing: 0;
+  line-height: $line-height-normal;
+}
+
+.fieldValue,
+.fieldInput {
+  width: 100%;
+  min-height: $touch-min;
+  padding: 0 $spacing-md;
+  border-radius: $radius-lg;
+  background: $ice-page;
+  border: 1rpx solid $ice-line;
+  font-size: $font-size-md;
+  font-weight: $font-weight-normal;
+  color: $ice-ink;
+  line-height: $line-height-body;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.fieldValueMuted {
+  color: $ice-muted;
+  font-weight: $font-weight-normal;
+}
+
+.fieldValueError {
+  border-color: rgba(224, 84, 74, 0.55) !important;
+  background: rgba(224, 84, 74, 0.06);
+}
+
+.fieldHint {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+}
+
+.fieldHintAccent {
+  color: $ice-active;
+  font-weight: $font-weight-medium;
+}
+
+.fieldError {
+  display: block;
+  margin-top: $spacing-xs;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: #e0544a;
+}
+
+/* —— 截图网格 —— */
+.shotGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.shotCell {
+  position: relative;
+  width: calc((100% - #{$spacing-sm} * 2) / 3);
+  padding-bottom: calc((100% - #{$spacing-sm} * 2) / 3);
+  border-radius: $radius-md;
+  overflow: hidden;
+  background: $ice-page;
+}
+
+.shotImg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.shotBadge {
+  position: absolute;
+  left: $spacing-xs;
+  bottom: $spacing-xs;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: rgba(26, 36, 51, 0.72);
+  color: #fff;
+  font-size: $font-size-xs; // ≥11pt
+  font-weight: $font-weight-medium;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+.shotDel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: $button-height-sm;
+  min-height: $button-height-sm;
+  width: $button-height-sm;
+  height: $button-height-sm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(58, 140, 232, 0.92);
+  color: #fff;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  line-height: 1;
+  border-radius: 0 0 0 $radius-md;
+
+  &:active {
+    opacity: 0.88;
+  }
+}
+
+.uploadBtn {
+  @include button-reset;
+  margin-top: $spacing-sm;
+  width: 100%;
+  min-height: $touch-min;
+  border-radius: $radius-lg;
+  border: 1rpx dashed rgba(58, 140, 232, 0.45);
+  background: rgba(58, 140, 232, 0.06);
+  color: $ice-deep;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  transition: background 0.15s ease, opacity 0.15s ease;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    background: rgba(58, 140, 232, 0.12);
+  }
+
+  &[disabled] {
+    opacity: 0.45;
+  }
+}
+
+/* —— 礼物卡 —— */
 .rowCard {
-  padding: 24rpx;
-  border-radius: 20rpx;
-  background: #f8faf8;
+  position: relative;
+  padding: $card-padding-sm;
+  border-radius: $radius-lg;
+  background: $ice-page;
+  border: 1rpx solid $ice-line;
+  box-sizing: border-box;
 }
 
 .rowTop {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16rpx;
+  margin-bottom: $spacing-sm;
 }
 
-.rowTitle {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #0f172a;
+.rowIndex {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  letter-spacing: 1rpx;
+  color: $ice-active;
 }
 
-.attachmentList {
+.rowRemove {
+  @include button-reset;
+  min-height: $button-height-sm;
+  padding: 0 $spacing-md;
+  border-radius: $radius-pill;
+  background: rgba(58, 140, 232, 0.1);
+  color: $ice-deep;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.giftChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+}
+
+.giftChip {
+  @include button-reset;
+  min-height: 64rpx;
+  padding: 0 $spacing-md;
+  border-radius: $radius-pill;
+  background: $ice-card;
+  border: 1rpx solid $ice-line;
+  color: $ice-navy;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    transform 0.12s ease, box-shadow 0.15s ease;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.giftChipActive {
+  background: $ice-active;
+  border-color: $ice-active;
+  color: #fff;
+  font-weight: $font-weight-medium;
+  box-shadow: 0 4rpx 12rpx rgba(58, 140, 232, 0.28);
+}
+
+.qtyRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-height: $touch-min;
+  border-radius: $radius-lg;
+  background: $ice-card;
+  border: 1rpx solid $ice-line;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.stepBtn {
+  @include button-reset;
+  width: $touch-min;
+  height: $touch-min;
+  color: $ice-navy;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-medium;
+  background: transparent;
+  transition: background 0.12s ease;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    background: rgba(58, 140, 232, 0.1);
+  }
+}
+
+.qtyInput {
+  flex: 1;
+  min-width: 0;
+  height: $touch-min;
+  text-align: center;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $ice-ink;
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+  border: none;
+}
+
+.qtyUnit {
+  flex-shrink: 0;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $ice-muted;
+  padding-right: $spacing-sm;
+}
+
+.addGiftBtn {
+  @include button-reset;
+  width: 100%;
+  min-height: $touch-min;
+  border-radius: $radius-lg;
+  background: rgba(58, 140, 232, 0.06);
+  border: 1rpx dashed rgba(58, 140, 232, 0.35);
+  color: $ice-deep;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  transition: background 0.15s ease;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    background: rgba(58, 140, 232, 0.12);
+  }
+}
+
+/* —— PK —— */
+.pkInput {
+  width: 100%;
+  min-height: 120rpx;
+  padding: 0 $spacing-md;
+  border-radius: $radius-xl;
+  background: $ice-page;
+  border: 1rpx solid $ice-line;
+  font-size: $font-size-display; // 28pt
+  font-weight: $font-weight-semibold;
+  letter-spacing: -1rpx;
+  color: $ice-active;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+}
+
+.tierList {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
-  margin-top: 16rpx;
-  margin-bottom: 24rpx;
+  gap: $spacing-xs;
+  margin-top: $spacing-sm;
 }
 
-.attachmentItem {
+.tierHint {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $ice-navy;
+  margin-bottom: $spacing-xs;
+}
+
+.tierRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16rpx;
-  padding: 16rpx 24rpx;
-  border-radius: 20rpx;
-  background: #f8faf8;
+  gap: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  border-radius: $radius-md;
+  background: $ice-page;
+  border: 1rpx solid $ice-line;
 }
 
-.attachmentName {
+.tierLabel {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $ice-navy;
+}
+
+.tierReward {
   flex: 1;
-  font-size: 24rpx;
-  color: #64748b;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: right;
+  font-size: $font-size-md;
+  color: $ice-active;
+  font-weight: $font-weight-medium;
+  @include text-ellipsis;
 }
 
-.rewardBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-  margin-top: 16rpx;
-  padding: 24rpx;
-  border-radius: 20rpx;
-  background: #f0fdf4;
+.rewardEmpty {
+  font-size: $font-size-md;
+  font-weight: $font-weight-normal;
+  color: $ice-muted;
+  line-height: $line-height-body;
 }
 
-.rewardText {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #15803d;
-}
-
-.rewardList {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-  margin-top: 8rpx;
-}
-
-.rewardItem {
-  display: flex;
-  flex-direction: column;
-  gap: 4rpx;
-  padding: 16rpx 20rpx;
-  border-radius: 16rpx;
-  background: #ffffff;
-}
-
-.rewardTitle {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #15803d;
-}
-
-.rewardMeta {
-  font-size: 24rpx;
-  color: #16a34a;
-}
-
+/* —— 底栏 · 轻玻璃 —— */
 .bottomBar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 -4rpx 24rpx rgba(0, 0, 0, 0.04);
   z-index: 100;
+  padding: $spacing-md $page-padding
+    calc(#{$spacing-md} + env(safe-area-inset-bottom));
+  background: rgba(238, 241, 246, 0.88);
+  backdrop-filter: blur(20px);
+  border-top: 1rpx solid $ice-line;
+  box-shadow: 0 -4rpx 20rpx rgba(30, 60, 90, 0.05);
+  box-sizing: border-box;
+}
+
+.submitBtn {
+  @include button-reset;
+  width: 100%;
+  height: $button-height-md;
+  min-height: $button-height-md;
+  border-radius: $radius-pill;
+  // 冰蓝主 CTA；极轻暖感用阴影而非整钮换橙
+  background: linear-gradient(135deg, $ice-active 0%, #2b7fd4 100%);
+  color: #fff;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  box-shadow: 0 8rpx 20rpx rgba(58, 140, 232, 0.3);
+  transition: transform 0.12s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    transform: scale(0.98);
+    box-shadow: $ice-shadow-press;
+    opacity: 0.94;
+  }
+
+  &[disabled] {
+    opacity: 0.5;
+  }
+}
+
+@media (min-width: 600px) {
+  .bottomBar {
+    left: 50%;
+    right: auto;
+    width: 100%;
+    max-width: 480px;
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-width: 960px) {
+  .bottomBar {
+    max-width: 560px;
+  }
 }

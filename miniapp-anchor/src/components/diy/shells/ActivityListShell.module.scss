@@ -1,0 +1,564 @@
+@use '@/styles/variables.scss' as *;
+
+/**
+ * 活动列表壳 · 社区化视觉 v2
+ * 仅列表区；页顶问候 / DIY hero 由其它块负责，本文件不碰
+ */
+
+$ice-page: $color-v2-bg;
+$ice-card: $color-v2-card;
+$ice-ink: $color-v2-ink;
+$ice-navy: $color-v2-navy;
+$ice-muted: $color-v2-muted;
+$ice-active: $color-v2-accent;
+$ice-deep: $color-v2-accent-deep;
+$ice-mid: $color-v2-accent-mid;
+$ice-soft: $color-v2-accent-soft;
+$ice-success: $color-v2-success;
+$ice-line: $color-v2-line;
+$ice-warm: $color-v2-warm;
+$ice-shadow: $shadow-v2-soft;
+$ice-shadow-press: 0 2rpx 8rpx rgba(30, 60, 90, 0.08);
+
+/**
+ * 业务壳：透明布局层，无自带外边距/页边 padding。
+ * 左右与上下外边距一律由 DIY 外层 boxStyle（后台属性）控制。
+ */
+.sectionBlock {
+  position: relative;
+  z-index: 1;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: visible;
+}
+
+.filterPanel {
+  padding: 0 0 $spacing-md;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+/* 筛选：与活动记录页一致 · 冰蓝 slide */
+.segBar {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  padding: $spacing-xs;
+  background: $ice-card;
+  border-radius: $radius-md;
+  box-shadow: $ice-shadow;
+  border: 1rpx solid $ice-line;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.segPill {
+  position: absolute;
+  top: $spacing-xs;
+  bottom: $spacing-xs;
+  left: $spacing-xs;
+  border-radius: $radius-md;
+  background: linear-gradient(135deg, $ice-deep 0%, $ice-active 100%);
+  box-shadow: $ice-shadow-press;
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.segItem {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(#{$touch-min} - #{$spacing-sm});
+  padding: $spacing-xs;
+  box-sizing: border-box;
+
+  &:active {
+    opacity: 0.92;
+  }
+}
+
+.segLabel {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+}
+
+.segLabelActive {
+  color: #ffffff;
+  font-weight: $font-weight-medium;
+}
+
+.listInCard {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.contentStack {
+  display: flex;
+  flex-direction: column;
+  gap: $card-stack-gap;
+}
+
+.fullList,
+.moreList {
+  display: flex;
+  flex-direction: column;
+  gap: $card-stack-gap;
+}
+
+.moreListAfterFull {
+  margin-top: $spacing-xs;
+}
+
+/* —— 进行中主卡 —— */
+.featureCard {
+  border-radius: $radius-card;
+  background: $ice-card;
+  box-shadow: $ice-shadow;
+  border: 1rpx solid rgba(255, 255, 255, 0.95);
+  overflow: hidden;
+}
+
+.featureCardBody {
+  overflow: hidden;
+  border-radius: $radius-card;
+  background: $ice-card;
+}
+
+.featureCover {
+  position: relative;
+  width: 100%;
+  height: 280rpx;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    $ice-deep 0%,
+    $ice-active 52%,
+    $ice-mid 100%
+  );
+}
+
+.featureCoverImage {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.featureCoverPlaceholder {
+  @include flex-center;
+  width: 100%;
+  height: 100%;
+}
+
+.featureCoverText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  letter-spacing: 2rpx;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.featureCoverFade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100rpx;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.98) 100%
+  );
+  pointer-events: none;
+}
+
+.featureCoverBadges {
+  position: absolute;
+  left: $spacing-md;
+  top: $spacing-md;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+  z-index: 2;
+}
+
+/* 封面上状态胶囊：白底 + 字色跟 v2 语义 */
+.phasePill {
+  display: inline-flex;
+  align-items: center;
+  height: 40rpx;
+  padding: 0 $spacing-sm;
+  border-radius: $radius-pill;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.96);
+  color: $ice-deep;
+  box-shadow: $ice-shadow-press;
+}
+
+.phaseOngoing {
+  color: $ice-deep;
+}
+
+.phaseOngoing::before {
+  content: '';
+  width: 10rpx;
+  height: 10rpx;
+  margin-right: $spacing-xs;
+  border-radius: 50%;
+  background: $ice-active;
+  box-shadow: 0 0 0 4rpx rgba(58, 140, 232, 0.22);
+}
+
+.phaseEnded {
+  color: $ice-muted;
+}
+
+.featureBody {
+  padding: $card-padding;
+  padding-top: $spacing-md;
+}
+
+.featureTitle {
+  display: block;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0;
+  line-height: $line-height-tight;
+  color: $ice-ink;
+}
+
+/* 时间进度 */
+.timeline {
+  margin-top: $spacing-md;
+  padding: $spacing-md;
+  border-radius: $radius-md;
+  background: rgba(238, 241, 246, 0.72);
+  border: 1rpx solid $ice-line;
+  box-sizing: border-box;
+}
+
+.timelineLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+}
+
+.timelineTime {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-normal;
+  color: $ice-muted;
+  line-height: 1.3;
+}
+
+.timelineTrack {
+  position: relative;
+  height: 8rpx;
+  border-radius: $radius-pill;
+  background: rgba(58, 140, 232, 0.12);
+  overflow: visible;
+}
+
+.timelineFill {
+  height: 100%;
+  border-radius: $radius-pill;
+  background: linear-gradient(90deg, $ice-mid 0%, $ice-active 100%);
+  min-width: 0;
+}
+
+.timelineDot {
+  position: absolute;
+  top: 50%;
+  width: 18rpx;
+  height: 18rpx;
+  margin-left: -9rpx;
+  border-radius: 50%;
+  background: $ice-card;
+  border: 4rpx solid $ice-active;
+  box-shadow: $ice-shadow-press;
+  transform: translateY(-50%);
+}
+
+.timelineMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: $spacing-sm;
+}
+
+.timelineHint {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-normal;
+  color: $ice-muted;
+}
+
+.timelineRemain {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $ice-active;
+}
+
+.countdown {
+  display: inline-flex;
+  margin-top: $spacing-sm;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $ice-deep;
+  background: $ice-soft; // $color-v2-accent-soft
+  line-height: 1;
+}
+
+.descBlock {
+  margin-top: $spacing-md;
+}
+
+.descText {
+  display: block;
+  font-size: $font-size-md;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $ice-ink;
+  @include text-ellipsis-multi(3);
+}
+
+.descTextOpen {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.descToggle {
+  display: inline-block;
+  margin-top: $spacing-xs;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $ice-active;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  margin-top: $spacing-md;
+}
+
+/* 类型 / 规则芯片 · v2：accent-soft 底 + accent-deep 字 */
+.infoChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40rpx;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $ice-deep;
+  background: $ice-soft;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+/* 操作区上方虚线（票根感，无半圆） */
+.ticketTear {
+  display: flex;
+  align-items: center;
+  height: 24rpx;
+  margin: $spacing-xs $card-padding 0;
+  box-sizing: border-box;
+}
+
+.ticketDash {
+  flex: 1;
+  height: 0;
+  border-top: 2rpx dashed rgba(30, 60, 90, 0.18);
+}
+
+.featureActions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm $card-padding $card-padding;
+  border-top: none;
+}
+
+.actionSecondary {
+  @include button-reset;
+  flex: 1;
+  height: $button-height-md;
+  min-height: $touch-min;
+  border-radius: $radius-pill;
+  background: transparent;
+  border: 1rpx solid $ice-line;
+  color: $ice-navy;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  box-sizing: border-box;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.actionPrimary {
+  @include button-reset;
+  flex: 1.35;
+  height: $button-height-md;
+  min-height: $touch-min;
+  border-radius: $radius-pill;
+  background: linear-gradient(135deg, $ice-deep 0%, $ice-active 100%);
+  color: #ffffff;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  border: none;
+  box-shadow: $ice-shadow-press;
+  box-sizing: border-box;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    opacity: 0.88;
+  }
+
+  &[disabled] {
+    opacity: 0.45;
+  }
+}
+
+/**
+ * 已结束轻卡
+ * 不可提报：标签标记 + 整卡进本场记录，无提交按钮
+ */
+.endedCard {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $card-padding;
+  border-radius: $radius-card;
+  background: $ice-card;
+  border: 1rpx solid $ice-line;
+  box-shadow: $ice-shadow;
+  box-sizing: border-box;
+  min-height: $touch-min;
+
+  &:active {
+    background: rgba(238, 241, 246, 0.72);
+  }
+}
+
+.endedMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.endedTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+/* 已结束：中性灰底 + muted 字（§九 非强调标签） */
+.endedTag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36rpx;
+  padding: 0 $spacing-sm;
+  border-radius: $radius-pill;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1.2;
+  color: $ice-muted;
+  background: $ice-page; // #EEF1F6
+  box-sizing: border-box;
+}
+
+/* 类型 / 方式：与进行中 infoChip 同系 accent-soft */
+.endedType,
+.endedMode {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36rpx;
+  padding: 0 $spacing-sm;
+  border-radius: $radius-pill;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1.2;
+  color: $ice-deep;
+  background: $ice-soft;
+  box-sizing: border-box;
+}
+
+.endedName {
+  display: block;
+  margin-top: $spacing-xs;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+  color: $ice-ink;
+}
+
+.endedTime {
+  display: block;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+}
+
+.endedHint {
+  display: block;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+}
+
+/* 右侧仅 ›，整卡可点进本场 */
+.endedArrow {
+  flex-shrink: 0;
+  width: 40rpx;
+  text-align: center;
+  font-size: $font-size-xl;
+  font-weight: 300;
+  color: $ice-active;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.readonlyBanner {
+  @include tip-banner-warning;
+  margin-bottom: 0;
+}
+
+.readonlyBannerText {
+  flex: 1;
+  @include tip-banner-text-warning;
+}

@@ -1,0 +1,261 @@
+@use '@/styles/variables.scss' as *;
+
+/**
+ * 消息中心 · 原布局 + v2 色板统一
+ * 不改信息结构：顶栏筛选 + 分组列表；仅页底 / 主色 / 未读底对齐 Soft UI
+ */
+
+$ice-page: $color-v2-bg;
+$ice-card: $color-v2-card;
+$ice-ink: $color-v2-ink;
+$ice-navy: $color-v2-navy;
+$ice-muted: $color-v2-muted;
+$ice-active: $color-v2-accent;
+$ice-deep: $color-v2-accent-deep;
+$ice-soft: $color-v2-accent-soft;
+$ice-line: $color-v2-line;
+$ice-shadow: $shadow-v2-soft;
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: $ice-page;
+}
+
+
+/* v2 页顶氛围：token mixin，禁止再写死色值 */
+@include v2-page-atmosphere;
+
+
+.content {
+  position: relative;
+  z-index: 1;
+  padding: $spacing-sm $page-padding 0;
+  padding-bottom: $page-bottom-safe;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+/* —— 顶栏：SegmentTabs + 全部已读 / 清空（无外层卡片嵌套） —— */
+.controlBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-md;
+  min-height: $touch-min;
+}
+
+.actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.actionLink {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  /* 叠在顶部渐变上 */
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.2;
+  padding: $spacing-md $spacing-xs;
+  text-shadow: 0 2rpx 8rpx rgba(2, 57, 169, 0.28);
+
+  &:active {
+    opacity: 0.65;
+  }
+}
+
+.actionLinkDisabled {
+  color: rgba(255, 255, 255, 0.45);
+  text-shadow: none;
+  pointer-events: none;
+}
+
+/* —— 类型轨：直接铺在渐变上，无卡片 —— */
+.filterRail {
+  display: flex;
+  align-items: stretch;
+  gap: $spacing-xs;
+  padding: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.filterItem {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: $touch-min;
+  min-height: $touch-min;
+  flex-shrink: 0;
+  padding: $spacing-xs $spacing-sm $spacing-sm;
+  box-sizing: border-box;
+}
+
+.filterItemHover {
+  opacity: 0.75;
+}
+
+/* 分类轨落在渐变淡出区：深色字 + 冰蓝选中，避免白字发灰难读 */
+.filterLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  color: $ice-muted;
+  line-height: 1.3;
+}
+
+.filterLabelActive {
+  font-weight: $font-weight-semibold;
+  color: $ice-deep;
+}
+
+.filterUnderline {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 32rpx;
+  height: 4rpx;
+  margin-left: -16rpx;
+  border-radius: $radius-xs;
+  background: linear-gradient(90deg, $ice-active 0%, $ice-deep 100%);
+}
+
+/* —— 分组列表 —— */
+.listCard {
+  display: flex;
+  flex-direction: column;
+  background: $ice-card;
+  border-radius: $radius-card;
+  box-shadow: $ice-shadow;
+  border: 1rpx solid $ice-line;
+  overflow: hidden;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $list-row-padding-y $card-padding;
+  min-height: $button-height-list;
+  box-sizing: border-box;
+  border-bottom: 1rpx solid $ice-line;
+}
+
+.rowWithPreview {
+  align-items: flex-start;
+}
+
+.rowHover {
+  opacity: 0.9;
+  transform: scale(0.995);
+}
+
+.rowLast {
+  border-bottom: none;
+}
+
+/* 未读：淡冰蓝底；已读：白卡 */
+.rowUnread {
+  background: rgba(58, 140, 232, 0.08);
+}
+
+.rowRead {
+  background: $ice-card;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.title {
+  display: block;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $ice-ink;
+  line-height: $line-height-normal;
+  @include text-ellipsis;
+}
+
+.titleRead {
+  font-weight: $font-weight-normal;
+  color: $ice-navy;
+}
+
+.preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  color: $ice-muted;
+  line-height: $line-height-normal;
+  word-break: break-word;
+}
+
+.previewReject {
+  color: #c45c26;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  min-width: 0;
+}
+
+.rowWithPreview .action {
+  margin-top: $spacing-xs;
+}
+
+.metaText {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  color: $ice-muted;
+  line-height: $line-height-normal;
+  @include text-ellipsis;
+}
+
+.metaDot {
+  font-size: $font-size-sm;
+  color: rgba(107, 124, 143, 0.55);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: $spacing-xs;
+  padding-left: $spacing-xs;
+  min-width: $spacing-lg;
+}
+
+.chevron {
+  font-size: $font-size-xl;
+  font-weight: 300;
+  color: rgba(107, 124, 143, 0.55);
+  line-height: 1;
+}
+
+.emptyWrap {
+  padding-top: $spacing-xxl;
+}

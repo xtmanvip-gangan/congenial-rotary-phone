@@ -1,0 +1,102 @@
+@use '@/styles/variables.scss' as *;
+
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-xxl $page-padding;
+}
+
+.mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.dialog {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 630rpx; // ~315pt
+  background: $color-bg-card;
+  border-radius: $radius-card;
+  overflow: hidden;
+  box-shadow: $shadow-popup;
+}
+
+.title {
+  display: block;
+  padding: $spacing-xl $spacing-xl 0;
+  font-size: $font-size-lg; // 17pt 导航级标题
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
+  text-align: center;
+}
+
+.content {
+  display: block;
+  padding: $spacing-sm $spacing-xl $spacing-lg;
+  font-size: $font-size-md; // 15pt 正文
+  line-height: $line-height-body;
+  color: $color-text-tertiary;
+  text-align: center;
+}
+
+.body {
+  padding: 0 $spacing-xl $spacing-md;
+}
+
+.footerDual {
+  display: flex;
+  align-items: stretch;
+  border-top: 1rpx solid $color-divider;
+  min-height: $button-height-md; // 44pt
+}
+
+.footerSingle {
+  border-top: 1rpx solid $color-divider;
+  min-height: $button-height-md;
+}
+
+.footerDivider {
+  width: 1rpx;
+  background: $color-divider;
+  flex-shrink: 0;
+}
+
+.btn {
+  @include button-reset;
+  flex: 1;
+  height: $button-height-md;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  font-size: $font-size-lg; // 17pt Medium 操作字
+  font-weight: $font-weight-medium;
+  background: transparent;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    background: $color-bg-muted;
+    opacity: 0.92;
+  }
+}
+
+.btnGhost {
+  color: $color-text-tertiary;
+}
+
+.btnPrimary {
+  color: $color-primary;
+}
+
+.btnDanger {
+  color: $color-error;
+}

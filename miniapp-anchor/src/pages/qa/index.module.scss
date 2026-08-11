@@ -1,0 +1,484 @@
+@use '@/styles/variables.scss' as *;
+
+/**
+ * 答疑记录 · 社区化 v2
+ * 对齐 feedback / reviews：冰蓝顶区 + 图标压数据卡 + Soft 列表
+ */
+
+$ice-page: $color-v2-bg;
+$ice-card: $color-v2-card;
+$ice-ink: $color-v2-ink;
+$ice-navy: $color-v2-navy;
+$ice-muted: $color-v2-muted;
+$ice-active: $color-v2-accent;
+$ice-deep: $color-v2-accent-deep;
+$ice-mid: $color-v2-accent-mid;
+$ice-soft: $color-v2-accent-soft;
+$ice-success: $color-v2-success;
+$ice-success-soft: $color-v2-success-soft;
+$ice-line: $color-v2-line;
+$ice-warm: $color-v2-warm;
+$ice-shadow: $shadow-v2-soft;
+$ice-shadow-press: 0 2rpx 8rpx rgba(30, 60, 90, 0.08);
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: $ice-page;
+}
+
+
+/* v2 页顶氛围：token mixin，禁止再写死色值 */
+@include v2-page-atmosphere;
+
+
+.content {
+  position: relative;
+  z-index: 1;
+  padding: 0 $page-padding;
+  padding-bottom: $page-bottom-safe;
+  box-sizing: border-box;
+}
+
+.contentInner {
+  display: flex;
+  flex-direction: column;
+  gap: $card-stack-gap;
+}
+
+.heroStack {
+  position: relative;
+  z-index: 1;
+  padding-top: $spacing-sm;
+}
+
+.heroCopy {
+  position: relative;
+  z-index: 1;
+  padding-right: 220rpx;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  margin-bottom: $spacing-xs;
+  box-sizing: border-box;
+}
+
+.heroEyebrow {
+  align-self: flex-start;
+  min-height: 40rpx;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: rgba(255, 255, 255, 0.22);
+  border: 1rpx solid rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  letter-spacing: 1rpx;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+.heroTitle {
+  display: block;
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+  letter-spacing: 1rpx;
+  color: #ffffff;
+  text-shadow: 0 4rpx 20rpx rgba(2, 57, 169, 0.25);
+}
+
+.heroSub {
+  display: block;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.overviewWrap {
+  position: relative;
+  z-index: 2;
+}
+
+.heroVisual {
+  position: absolute;
+  right: $spacing-xs;
+  top: -110rpx;
+  width: 220rpx;
+  height: 220rpx;
+  z-index: 4;
+  @include flex-center;
+  pointer-events: none;
+}
+
+.heroIconGlow {
+  position: absolute;
+  width: 220rpx;
+  height: 220rpx;
+  border-radius: $radius-round;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(193, 231, 254, 0.2) 42%,
+    transparent 72%
+  );
+  pointer-events: none;
+}
+
+.heroIcon {
+  position: relative;
+  z-index: 1;
+  width: 208rpx;
+  height: 208rpx;
+  display: block;
+  filter: drop-shadow(0 10rpx 22rpx rgba(2, 57, 169, 0.22));
+}
+
+.overviewCard {
+  position: relative;
+  z-index: 2;
+  padding: $spacing-md $card-padding;
+  padding-right: 220rpx;
+  min-height: 128rpx;
+  border-radius: $radius-card;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1rpx solid rgba(255, 255, 255, 0.85);
+  box-shadow: $ice-shadow;
+  box-sizing: border-box;
+  @include flex-center;
+}
+
+.overviewCardTodo {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 247, 237, 0.96) 0%,
+    rgba(255, 255, 255, 0.96) 52%,
+    rgba(239, 246, 255, 0.96) 100%
+  );
+}
+
+.overviewCardOk {
+  background: linear-gradient(
+    145deg,
+    rgba(240, 253, 244, 0.94) 0%,
+    rgba(255, 255, 255, 0.96) 52%,
+    rgba(239, 246, 255, 0.96) 100%
+  );
+}
+
+.overviewCardPlaceholder {
+  min-height: 128rpx;
+  border-radius: $radius-card;
+  background: transparent;
+}
+
+.overviewStats {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.overviewStat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-xs;
+  min-width: 0;
+}
+
+.overviewStatValue {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $ice-ink;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.overviewStatWarn {
+  color: $ice-warm;
+}
+
+.overviewStatOk {
+  color: $ice-success;
+}
+
+.overviewStatLabel {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $ice-muted;
+  line-height: $line-height-normal;
+}
+
+.overviewStatDivider {
+  flex-shrink: 0;
+  width: 1rpx;
+  align-self: stretch;
+  margin: $spacing-xs 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(30, 60, 90, 0.14) 50%,
+    transparent 100%
+  );
+}
+
+.overviewSingle {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-sm;
+  width: 100%;
+  min-width: 0;
+}
+
+.overviewSingleLabel {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $ice-muted;
+  line-height: $line-height-normal;
+}
+
+.overviewSingleValue {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-semibold;
+  color: $ice-deep;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* —— 时间筛选（主播只读，与复盘一致） —— */
+.filterPanel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  padding: 0;
+  margin: 0;
+}
+
+.segBar {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  padding: $spacing-xs;
+  background: $ice-card;
+  border-radius: $radius-md;
+  box-shadow: $ice-shadow;
+  border: 1rpx solid $ice-line;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.segPill {
+  position: absolute;
+  top: $spacing-xs;
+  bottom: $spacing-xs;
+  left: $spacing-xs;
+  border-radius: $radius-md;
+  background: linear-gradient(135deg, $ice-deep 0%, $ice-active 100%);
+  box-shadow: $ice-shadow-press;
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.segItem {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(#{$touch-min} - #{$spacing-sm});
+  padding: $spacing-xs;
+  box-sizing: border-box;
+
+  &:active {
+    opacity: 0.92;
+  }
+}
+
+.segLabel {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+}
+
+.segLabelActive {
+  color: #ffffff;
+  font-weight: $font-weight-medium;
+}
+
+.groupList {
+  display: flex;
+  flex-direction: column;
+  gap: $card-stack-gap;
+}
+
+.card {
+  position: relative;
+  border-radius: $radius-card;
+  background: $ice-card;
+  border: 1rpx solid rgba(255, 255, 255, 0.95);
+  box-shadow: $ice-shadow;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  left: $spacing-lg;
+  right: $spacing-lg;
+  top: 0;
+  height: 1rpx;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.95) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+.cardAccent {
+  position: absolute;
+  left: 0;
+  top: $spacing-lg;
+  bottom: $spacing-lg;
+  width: 6rpx;
+  border-radius: 0 $radius-pill $radius-pill 0;
+  background: linear-gradient(180deg, $ice-mid 0%, $ice-active 100%);
+  z-index: 1;
+}
+
+.cardAccentWarn {
+  background: linear-gradient(180deg, #fdba74 0%, $ice-warm 100%);
+}
+
+.cardAccentError {
+  background: linear-gradient(180deg, #fca5a5 0%, $color-error 100%);
+}
+
+.cardAccentOk {
+  background: linear-gradient(180deg, #86efac 0%, $ice-success 100%);
+}
+
+.cardMain {
+  padding: $card-padding;
+  padding-left: calc(#{$card-padding} + #{$spacing-sm});
+  box-sizing: border-box;
+}
+
+.cardTopRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.typeChip {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: $ice-soft;
+  color: $ice-deep;
+}
+
+.statusPillOk {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: $ice-success-soft;
+  color: $ice-success;
+}
+
+.statusPillWarn {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: rgba(249, 115, 22, 0.12);
+  color: $ice-warm;
+}
+
+.statusPillError {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: rgba(255, 59, 48, 0.1);
+  color: $color-error;
+}
+
+.cardTitle {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+  color: $ice-ink;
+}
+
+.cardMeta {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  padding: 0 $card-padding $card-padding;
+  padding-left: calc(#{$card-padding} + #{$spacing-sm});
+  box-sizing: border-box;
+}
+
+.field {
+  padding: $spacing-sm $spacing-md;
+  border-radius: $radius-md;
+  background: rgba(238, 241, 246, 0.9);
+  border: 1rpx solid $ice-line;
+  box-sizing: border-box;
+}
+
+.fieldQ {
+  background: rgba(239, 246, 255, 0.95);
+  border-color: rgba(58, 140, 232, 0.16);
+}
+
+.label {
+  display: block;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $ice-muted;
+  margin-bottom: $spacing-xs;
+  line-height: 1.3;
+}
+
+.value {
+  display: block;
+  font-size: $font-size-md;
+  font-weight: $font-weight-normal;
+  color: $ice-ink;
+  line-height: $line-height-normal;
+  word-break: break-word;
+}
+
+.valueMuted {
+  color: $ice-muted;
+}

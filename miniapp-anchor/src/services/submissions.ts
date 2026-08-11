@@ -8,6 +8,7 @@ import {
   saveMockSubmission,
 } from '@/data/mock-submissions'
 import { getApiBaseUrl, requestJson } from '@/services/request'
+import { normalizeUploadUrl, uploadWithFallback } from '@/services/upload'
 import { useSessionStore } from '@/store/session'
 import type { RewardRuleReference } from '@/types/activity'
 import type {
@@ -23,7 +24,7 @@ import type {
 
 export async function getMySubmissions(activityId?: string) {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') {
+  if (session?.mode === 'mock') {
     const response = getMockSubmissions()
     if (!activityId) {
       return response
@@ -40,7 +41,7 @@ export async function getMySubmissions(activityId?: string) {
 
 export async function getSubmissionDetail(recordId: string) {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') {
+  if (session?.mode === 'mock') {
     return getMockSubmissionDetail(recordId)
   }
 
@@ -49,7 +50,7 @@ export async function getSubmissionDetail(recordId: string) {
 
 export async function previewSubmission(payload: PreviewSubmissionPayload) {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') {
+  if (session?.mode === 'mock') {
     return buildMockPreview(payload)
   }
 
@@ -61,7 +62,7 @@ export async function previewSubmission(payload: PreviewSubmissionPayload) {
 
 export async function createSubmission(payload: CreateOrUpdateSubmissionPayload) {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') {
+  if (session?.mode === 'mock') {
     return saveMockSubmission(payload)
   }
 
@@ -73,7 +74,7 @@ export async function createSubmission(payload: CreateOrUpdateSubmissionPayload)
 
 export async function updateSubmission(recordId: string, payload: CreateOrUpdateSubmissionPayload) {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') {
+  if (session?.mode === 'mock') {
     return saveMockSubmission(payload, { recordId })
   }
 
@@ -85,7 +86,7 @@ export async function updateSubmission(recordId: string, payload: CreateOrUpdate
 
 export async function removeSubmissionAttachment(recordId: string, attachmentId: string) {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') {
+  if (session?.mode === 'mock') {
     return deleteMockAttachment(recordId, attachmentId)
   }
 
@@ -94,30 +95,85 @@ export async function removeSubmissionAttachment(recordId: string, attachmentId:
   })
 }
 
+/**
+ * 提报截图 / 作业图片上传。
+ * 优先 COS 直传（storage）；仅对失败项 / COS 不可用时回退服务端。
+ * 半成功时保留 COS 结果，只补传 failedPaths，避免重复上传与孤儿对象。
+ */
 export async function uploadImages(files: LocalImageFile[]) {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') {
+  if (session?.mode === 'mock') {
     return buildMockUploadItems(files.map((file) => file.path))
   }
 
-  const uploadResults = await Promise.all(files.map((file) => uploadSingleImage(file.path)))
+  const paths = files.map((f) => f.path).filter((p) => Boolean(p?.trim()))
+  if (!paths.length) {
+    return { items: [] } satisfies UploadImagesResponse
+  }
 
-  return {
-    items: uploadResults.reduce<Array<{ fileName: string; fileUrl: string }>>((items, result) => {
-      return [...items, ...result.items]
-    }, []),
-  } satisfies UploadImagesResponse
+  const { ordered: items, failedCount } = await uploadWithFallback({
+    category: 'submission-proofs',
+    kind: 'image',
+    filePaths: paths,
+    concurrency: 2,
+    mapDirectItem: (item) => ({
+      fileName:
+        item.objectKey.split('/').pop() ||
+        item.publicUrl.split('/').pop() ||
+        'image',
+      fileUrl: normalizeUploadUrl(item.publicUrl),
+    }),
+    uploadServerFile: async (filePath) => {
+      const uploaded = await uploadSingleImage(filePath)
+      const item = uploaded.items[0]
+      if (!item) {
+        throw new Error('上传成功但未返回文件地址')
+      }
+      return item
+    },
+  })
+
+  if (items.length === 0) {
+    throw new Error('图片上传失败，请重试')
+  }
+  if (failedCount > 0) {
+    throw new Error(`有 ${failedCount} 张图片上传失败，请重试`)
+  }
+
+  return { items } satisfies UploadImagesResponse
 }
 
-function uploadSingleImage(filePath: string) {
+/**
+ * 直传原图，不做客户端有损压缩。
+ * COS 侧已开数据万象/压缩，避免双重压缩导致画质下降。
+ */
+async function uploadSingleImage(
+  filePath: string,
+  options?: { endpoint?: string },
+) {
   const session = useSessionStore.getState().session
 
+  if (!session?.token || session.mode !== 'real') {
+    return Promise.reject(new Error('请先登录后再上传图片'))
+  }
+
+  if (!filePath?.trim()) {
+    return Promise.reject(new Error('无效的图片路径'))
+  }
+
+  const endpoint = options?.endpoint || '/submissions/upload-images'
+
   return new Promise<UploadImagesResponse>((resolve, reject) => {
-    Taro.uploadFile({
-      url: `${getApiBaseUrl()}/submissions/upload-images`,
+    const task = Taro.uploadFile({
+      url: `${getApiBaseUrl()}${endpoint}`,
       filePath,
       name: 'files',
-      header: session?.mode === 'real' ? { Authorization: `Bearer ${session.token}` } : undefined,
+      // 部分安卓机对无 Content-Type 的 multipart 更稳；由运行时自动带 boundary
+      header: {
+        Authorization: `Bearer ${session.token}`,
+      },
+      // 原图体积更大，放宽超时
+      timeout: 120_000,
       success: (result: { data: string; statusCode: number }) => {
         try {
           const payload = JSON.parse(result.data) as UploadImagesResponse & {
@@ -127,27 +183,99 @@ function uploadSingleImage(filePath: string) {
 
           if (result.statusCode === 401) {
             useSessionStore.getState().clearSession()
-          }
-
-          if (result.statusCode < 200 || result.statusCode >= 300) {
-            reject(new Error(payload.message || payload.error || '截图上传失败'))
+            reject(new Error('登录已过期，请重新登录'))
             return
           }
 
-          resolve({
-            items: payload.items ?? [],
-          })
+          if (result.statusCode < 200 || result.statusCode >= 300) {
+            reject(
+              new Error(
+                payload.message ||
+                  payload.error ||
+                  `上传失败(${result.statusCode})`,
+              ),
+            )
+            return
+          }
+
+          // 保留相对路径 /api/uploads/... 供 create/update 提交
+          const items = (payload.items ?? []).map((item) => ({
+            fileName: item.fileName,
+            fileUrl: item.fileUrl,
+          }))
+
+          if (items.length === 0) {
+            reject(new Error('上传成功但未返回文件地址'))
+            return
+          }
+
+          resolve({ items })
         } catch (error) {
-          console.error('[Upload] 解析上传响应失败', error)
-          reject(new Error('截图上传失败'))
+          console.error('[Upload] 解析上传响应失败', error, result.data)
+          reject(new Error('上传响应异常，请重试'))
         }
       },
       fail: (error: unknown) => {
         console.error('[Upload] 上传失败', error)
-        reject(new Error('截图上传失败'))
+        const msg =
+          error && typeof error === 'object' && 'errMsg' in error
+            ? String((error as { errMsg?: string }).errMsg || '')
+            : ''
+        reject(
+          new Error(
+            msg.includes('timeout')
+              ? '上传超时，请检查网络后重试'
+              : msg.includes('fail')
+                ? '网络异常，上传失败'
+                : '图片上传失败，请重试',
+          ),
+        )
       },
     })
+    void task
   })
+}
+
+/** 头像专用：优先 COS profile-avatars，失败回退 /anchors/me/upload-avatar */
+export async function uploadAvatar(file: LocalImageFile) {
+  const session = useSessionStore.getState().session
+  if (session?.mode === 'mock') {
+    return buildMockUploadItems([file.path])
+  }
+  const path = file.path?.trim()
+  if (!path) {
+    throw new Error('无效的图片路径')
+  }
+
+  const { ordered, failedCount } = await uploadWithFallback({
+    category: 'profile-avatars',
+    kind: 'image',
+    filePaths: [path],
+    concurrency: 1,
+    mapDirectItem: (item) => ({
+      fileName:
+        item.objectKey.split('/').pop() ||
+        item.publicUrl.split('/').pop() ||
+        'avatar',
+      fileUrl: normalizeUploadUrl(item.publicUrl),
+    }),
+    uploadServerFile: async (filePath) => {
+      const uploaded = await uploadSingleImage(filePath, {
+        endpoint: '/anchors/me/upload-avatar',
+      })
+      const item = uploaded.items[0]
+      if (!item) {
+        throw new Error('上传成功但未返回头像地址')
+      }
+      return item
+    },
+  })
+
+  if (!ordered.length || failedCount > 0) {
+    throw new Error('头像上传失败，请重试')
+  }
+
+  return { items: [ordered[0]] } satisfies UploadImagesResponse
 }
 
 function buildMockPreview(payload: PreviewSubmissionPayload): PreviewResponse {
@@ -155,10 +283,12 @@ function buildMockPreview(payload: PreviewSubmissionPayload): PreviewResponse {
 
   if (activityDetail.formConfig.mode === 'pk_score') {
     const pkValue = Number(payload.pkValue ?? 0)
-    const matchedRewards = activityDetail.formConfig.rewardRules
-      .filter((rule) => pkValue >= rule.threshold)
-      .sort((left, right) => right.threshold - left.threshold)
-      .slice(0, 1)
+    // 互斥区间：命中唯一档 [min, max]，无 max 时按最高 ≥ 门槛
+    const matched = matchPkExclusiveRule(
+      activityDetail.formConfig.rewardRules,
+      pkValue,
+    )
+    const matchedRewards = matched ? [matched] : []
 
     return {
       mode: 'pk_score',
@@ -166,7 +296,11 @@ function buildMockPreview(payload: PreviewSubmissionPayload): PreviewResponse {
       matchedRewards,
       rewardSummaryText:
         matchedRewards.length > 0
-          ? `本次预计命中：${matchedRewards[0].rewardLabel}`
+          ? `本次预计命中：${matchedRewards[0].rewardLabel}${
+              matchedRewards[0].rangeLabel
+                ? `（${matchedRewards[0].rangeLabel}）`
+                : ''
+            }`
           : '当前 PK 值还未达到奖励门槛',
     }
   }
@@ -204,6 +338,34 @@ function normalizeItems(items: SubmissionEntryItem[]) {
     itemName,
     quantity,
   }))
+}
+
+/** PK 互斥档：落在 [min,max] 唯一命中；无 max 时取最高 ≥min */
+function matchPkExclusiveRule(
+  rewardRules: RewardRuleReference[],
+  pkValue: number,
+): RewardRuleReference | null {
+  if (!Number.isFinite(pkValue)) return null
+  const candidates = rewardRules.filter((rule) => {
+    const min = Number(rule.threshold)
+    if (!Number.isFinite(min) || pkValue < min) return false
+    const max =
+      rule.maxThreshold === undefined || rule.maxThreshold === null
+        ? null
+        : Number(rule.maxThreshold)
+    if (max != null && Number.isFinite(max) && pkValue > max) return false
+    return true
+  })
+  if (candidates.length === 0) return null
+  candidates.sort((a, b) => {
+    const aHasMax =
+      a.maxThreshold != null && Number.isFinite(Number(a.maxThreshold))
+    const bHasMax =
+      b.maxThreshold != null && Number.isFinite(Number(b.maxThreshold))
+    if (aHasMax !== bHasMax) return aHasMax ? -1 : 1
+    return Number(b.threshold) - Number(a.threshold)
+  })
+  return candidates[0] ?? null
 }
 
 function matchGiftRewards(rewardRules: RewardRuleReference[], items: SubmissionEntryItem[]) {

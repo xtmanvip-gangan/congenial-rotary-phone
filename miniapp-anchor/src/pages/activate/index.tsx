@@ -20,7 +20,11 @@ import {
   refreshWecomQySession,
   updateClientWecomProfile,
 } from '@/services/auth'
-import { resolveAssetUrl, toUploadPath } from '@/services/request'
+import {
+  getErrorMessage,
+  resolveAssetUrl,
+  toUploadPath,
+} from '@/services/request'
 import { uploadAvatar } from '@/services/submissions'
 import { useSessionStore } from '@/store/session'
 import type {
@@ -111,7 +115,7 @@ async function pickImageFromDevice(): Promise<string | null> {
       count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      sizeType: ['compressed'],
+      sizeType: ['original'],
     })
     return media.tempFiles?.[0]?.tempFilePath?.trim() || null
   } catch (error) {
@@ -123,7 +127,7 @@ async function pickImageFromDevice(): Promise<string | null> {
     try {
       const choose = await Taro.chooseImage({
         count: 1,
-        sizeType: ['compressed'],
+        sizeType: ['original'],
         sourceType: ['album', 'camera'],
       })
       return choose.tempFilePaths?.[0]?.trim() || null
@@ -145,13 +149,6 @@ function logoutAndRestart() {
 
 function normalizeMobile(raw: string) {
   return raw.replace(/[^\d+]/g, '').slice(0, 15)
-}
-
-function humanizeError(error: unknown, fallback: string) {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message.trim()
-  }
-  return fallback
 }
 
 async function tryFillWecomAvatar() {
@@ -211,7 +208,12 @@ export default function ProfileSetupPage() {
   const isAwaitingOperatorConfirm =
     activationFlow === 'awaiting_operator_confirm'
   const isCancelledTask = activationFlow === 'cancelled'
-  const isActivatedOrphan = activationFlow === 'activated'
+  /**
+   * 开通任务已 activated，但 getMyAnchorProfile 仍无档案 → 数据异常。
+   * 正常已激活主播（有档案、从「我的」改资料）不算 orphan，勿展示吓人文案。
+   */
+  const isActivatedOrphan =
+    activationFlow === 'activated' && !profile?.id
   const selectedOperatorName =
     operators.find((o) => o.id === selectedOperatorId)?.displayName || ''
   const operatorDisplayName =
@@ -331,7 +333,7 @@ export default function ProfileSetupPage() {
       setAvatar(nextAvatar ? resolveAssetUrl(nextAvatar) : '')
       setMobile(profileItem?.mobile?.trim() || '')
     } catch (nextError) {
-      setError(humanizeError(nextError, '加载失败'))
+      setError(getErrorMessage(nextError, '加载失败'))
     } finally {
       setLoading(false)
     }
@@ -362,7 +364,7 @@ export default function ProfileSetupPage() {
       await updateClientWecomProfile({ avatar: url })
       return null
     } catch (nextError) {
-      return humanizeError(
+      return getErrorMessage(
         nextError,
         '头像已更新，提交资料时会再次保存。',
       )
@@ -417,7 +419,7 @@ export default function ProfileSetupPage() {
     } catch (nextError) {
       console.error('[Activate] 头像上传失败', nextError)
       Taro.showToast({
-        title: humanizeError(nextError, '上传头像失败'),
+        title: getErrorMessage(nextError, '上传头像失败'),
         icon: 'none',
         duration: 2800,
       })
@@ -455,7 +457,7 @@ export default function ProfileSetupPage() {
           await applyRemoteAvatar(url)
         } catch (e) {
           Taro.showToast({
-            title: humanizeError(e, '获取企微头像失败'),
+            title: getErrorMessage(e, '获取企微头像失败'),
             icon: 'none',
             duration: 2800,
           })
@@ -597,7 +599,7 @@ export default function ProfileSetupPage() {
         Taro.showToast({ title: '激活成功', icon: 'success', duration: 1500 })
       }
     } catch (nextError) {
-      const message = humanizeError(nextError, '提交失败')
+      const message = getErrorMessage(nextError, '提交失败')
       Taro.showToast({ title: message, icon: 'none', duration: 2800 })
     } finally {
       setSubmitting(false)
@@ -610,17 +612,31 @@ export default function ProfileSetupPage() {
     background: navBackground,
     titleColor: navTitleColor,
     backIconColor: navTitleColor,
-    showBorder: false,
-    blur: false as const,
     titleOpacity: 1,
+  }
+
+  function renderPageGradient() {
+    return (
+      <View className={styles.pageGradient} aria-hidden>
+        <View className={styles.gradOrbA} />
+        <View className={styles.gradOrbB} />
+        <View className={styles.gradArc} />
+        <View className={styles.gradFade} />
+      </View>
+    )
   }
 
   if (loading) {
     return (
-      <PageShell className={styles.page} backgroundColor="#f7f8fa">
+      <PageShell
+        className={styles.page}
+        backgroundColor="#EEF1F6"
+        backgroundTextStyle="dark"
+      >
+        {renderPageGradient()}
         <PageNav {...navProps} />
         <View className={styles.content} style={{ paddingTop: navHeight + 24 }}>
-          <StateBlock icon="loading" title="加载中" />
+          <StateBlock icon="loading" title="请稍等一下" />
         </View>
       </PageShell>
     )
@@ -628,15 +644,20 @@ export default function ProfileSetupPage() {
 
   if (error) {
     return (
-      <PageShell className={styles.page} backgroundColor="#f7f8fa">
+      <PageShell
+        className={styles.page}
+        backgroundColor="#EEF1F6"
+        backgroundTextStyle="dark"
+      >
+        {renderPageGradient()}
         <PageNav {...navProps} />
         <View className={styles.content} style={{ paddingTop: navHeight + 24 }}>
           <View className={styles.stateCard}>
             <StateBlock
               icon="error"
-              title="加载失败"
+              title="暂时打不开"
               description={error}
-              actionText="重试"
+              actionText="再试一次"
               onAction={() => void load()}
             />
             <Button
@@ -666,9 +687,13 @@ export default function ProfileSetupPage() {
   ) {
     const operatorName = profile.operator?.displayName || '运营老师'
     return (
-      <PageShell className={styles.page} backgroundColor="#f7f8fa">
+      <PageShell
+        className={styles.page}
+        backgroundColor="#EEF1F6"
+        backgroundTextStyle="dark"
+      >
+        {renderPageGradient()}
         <PageNav {...navProps} title="等待确认" showBack={false} />
-        <View className={styles.heroWash} />
         <View
           className={styles.content}
           style={{ paddingTop: `${navHeight + 16}px` }}
@@ -715,10 +740,13 @@ export default function ProfileSetupPage() {
   }
 
   return (
-    <PageShell className={styles.page} backgroundColor="#f7f8fa">
+    <PageShell
+      className={styles.page}
+      backgroundColor="#EEF1F6"
+      backgroundTextStyle="dark"
+    >
+      {renderPageGradient()}
       <PageNav {...navProps} />
-      {/* 顶部整块雾蓝渐变（无弧形，约半屏） */}
-      <View className={styles.heroWash} />
 
       <View
         className={styles.content}
@@ -866,27 +894,29 @@ export default function ProfileSetupPage() {
                     {operatorDisplayName}
                   </Text>
                 </View>
-                {isCancelledTask ? (
+                {/* 开通漏斗提示：仅新主播激活流程展示；从「我的」改资料不打扰 */}
+                {!isEditFromMine && isCancelledTask ? (
                   <Text className={styles.fieldHint}>
                     开通任务已作废，请联系审核老师重新开通
                   </Text>
                 ) : null}
-                {isActivatedOrphan ? (
+                {!isEditFromMine && isActivatedOrphan ? (
                   <Text className={styles.fieldHint}>
                     账号状态异常（任务已激活但档案缺失），请联系审核老师处理
                   </Text>
                 ) : null}
-                {isAwaitingDispatch ? (
+                {!isEditFromMine && isAwaitingDispatch ? (
                   <Text className={styles.fieldHint}>
                     审核已建档，等待分配运营确认后再激活
                   </Text>
                 ) : null}
-                {isAwaitingOperatorConfirm ? (
+                {!isEditFromMine && isAwaitingOperatorConfirm ? (
                   <Text className={styles.fieldHint}>
                     运营老师确认接收后即可提交激活
                   </Text>
                 ) : null}
-                {profile?.assignmentStatus === 'pending_confirmation' ? (
+                {!isEditFromMine &&
+                profile?.assignmentStatus === 'pending_confirmation' ? (
                   <Text className={styles.fieldHint}>
                     已提交，等待运营确认归属
                   </Text>

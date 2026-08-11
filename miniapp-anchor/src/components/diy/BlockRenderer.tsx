@@ -1,7 +1,6 @@
 import { Image, RichText, Swiper, SwiperItem, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import type { ReactNode } from 'react'
-import heroBgImageDefault from '@/assets/image/bg-1.jpg'
 import {
   diyTextStyle,
   openDiyLink,
@@ -43,7 +42,7 @@ export type BlockRuntimeContext = {
   onBrowseStatus?: () => void
   /** 父页下拉刷新计数，业务壳重拉数据 */
   refreshKey?: number
-  /** 无远程顶图时的本地兜底（活动/学习页） */
+  /** @deprecated 无图时用渐变占位，不再使用默认图 */
   defaultHeroImage?: string
   /** 我的页 */
   session?: StoredSession | null
@@ -66,10 +65,69 @@ function str(v: unknown, fallback = '') {
   return typeof v === 'string' ? v : fallback
 }
 
+/** 业务 L1：外层仅外边距，外观写死在壳内 */
+const DIY_BUSINESS_TYPES = new Set([
+  'hero',
+  'todo',
+  'activityList',
+  'trainingSessions',
+  'profileHeader',
+  'growthPerformance',
+  'onboardingProgress',
+  'growthTools',
+  'menuList',
+])
+
+const MARGIN_STYLE_KEYS = new Set([
+  'marginTopRpx',
+  'marginRightRpx',
+  'marginBottomRpx',
+  'marginLeftRpx',
+  'marginXRpx',
+  'marginYRpx',
+  'marginSplit',
+])
+
+/** 活动/学习列表壳：页边默认 32rpx（与 registry defaultStyle 一致） */
+const LIST_SHELL_TYPES = new Set(['activityList', 'trainingSessions'])
+const LIST_SHELL_DEFAULT_H_MARGIN = 32
+
+/**
+ * 业务 L1 外边距：全部走 DIY style（含左右）。
+ * 列表壳不再写死 $page-padding，避免与后台外边距双倍。
+ */
+function pickMarginStyle(
+  style: Record<string, unknown>,
+  opts?: { listShell?: boolean },
+) {
+  const out: Record<string, unknown> = {}
+  for (const k of MARGIN_STYLE_KEYS) {
+    if (style[k] !== undefined && style[k] !== null) out[k] = style[k]
+  }
+  // 旧配置可能没有左右 margin：补默认页边；已写明的（含 0）尊重配置
+  if (opts?.listShell) {
+    const hasH =
+      out.marginLeftRpx !== undefined ||
+      out.marginRightRpx !== undefined ||
+      out.marginXRpx !== undefined
+    if (!hasH) {
+      out.marginLeftRpx = LIST_SHELL_DEFAULT_H_MARGIN
+      out.marginRightRpx = LIST_SHELL_DEFAULT_H_MARGIN
+    }
+  }
+  return out
+}
+
 function effectiveStyle(block: DiyBlock, _prevType?: string): Record<string, unknown> {
   // 间距：只看 props.heightRpx，忽略样式字段
   if (block.type === 'spacer') return {}
   const style = { ...(block.style || {}) }
+  // 业务 L1（除 hero）：只应用外边距；hero 可配完整外层样式
+  if (DIY_BUSINESS_TYPES.has(block.type) && block.type !== 'hero') {
+    return pickMarginStyle(style, {
+      listShell: LIST_SHELL_TYPES.has(block.type),
+    })
+  }
   // 轮播 / 热区：圆角作用在图片层，不作用在外层留白盒子
   if (block.type === 'banner' || block.type === 'hotspot') {
     delete style.borderRadiusRpx
@@ -169,7 +227,7 @@ function SingleBlock({
     case 'activityList':
       return (
         <ActivityListShell
-          defaultFilter={str(block.props.defaultFilter, 'ongoing')}
+          defaultFilter={str(block.props.defaultFilter) || 'ongoing'}
           refreshKey={context?.refreshKey}
         />
       )
@@ -297,51 +355,61 @@ function SingleBlock({
         />
       )
     default:
-      if (block.type === 'video') {
-        return null
+      // 未知组件：正式包静默忽略；开发/体验版 console 提示便于排查
+      if (block.type !== 'video' && isDiyDevEnv()) {
+        console.warn('[DIY] 未知组件已忽略:', block.type, block.id)
       }
-      return (
-        <View className={styles.unknownBlock}>
-          组件 {block.type} 暂未支持
-        </View>
-      )
+      return null
   }
+}
+
+/** 开发工具 / 体验版才打未知组件日志 */
+function isDiyDevEnv() {
+  try {
+    const env = Taro.getAccountInfoSync?.()?.miniProgram?.envVersion
+    if (env === 'develop' || env === 'trial') return true
+  } catch {
+    // ignore
+  }
+  return process.env.NODE_ENV !== 'production'
 }
 
 function HeroBlock({
   block,
   navHeightPx = 0,
-  defaultHeroImage,
 }: {
   block: DiyBlock
   navHeightPx?: number
+  /** 已废弃：无图走渐变，忽略传入 */
   defaultHeroImage?: string
 }) {
   const p = block.props
   const imageUrl = resolveDiyAssetUrl(str(p.imageUrl))
-  const src = imageUrl || defaultHeroImage || heroBgImageDefault
   const eyebrowStyle = diyTextStyle(asTextStyle(block.style.eyebrow), {
-    fontSizeRpx: 20,
-    color: '#94a3b8',
+    fontSizeRpx: 22,
+    color: imageUrl ? '#94a3b8' : 'rgba(255,255,255,0.78)',
   })
   const titleStyle = diyTextStyle(asTextStyle(block.style.title), {
     fontSizeRpx: 48,
-    color: '#1c2433',
+    color: imageUrl ? '#1c2433' : '#ffffff',
   })
   const subtitleStyle = diyTextStyle(asTextStyle(block.style.subtitle), {
-    fontSizeRpx: 24,
-    color: '#94a3b8',
+    fontSizeRpx: 26,
+    color: imageUrl ? '#94a3b8' : 'rgba(255,255,255,0.82)',
   })
-  const eyebrow = str(p.eyebrow)
-  const titleLine1 = str(p.titleLine1)
-  const titleLine2 = str(p.titleLine2)
-  const subtitle = str(p.subtitle)
+  // 无默认文案 / 无默认图：装修未填则不显示文字，无图用高级渐变
+  const eyebrow = str(p.eyebrow).trim()
+  const titleLine1 = str(p.titleLine1).trim()
+  const titleLine2 = str(p.titleLine2).trim()
+  const subtitle = str(p.subtitle).trim()
 
-  // 首页 / 活动 / 学习统一：顶图 + 图上叠文案
-  // 沉浸时 navHeightPx>0，文案 paddingTop 避开导航
   return (
     <View className={styles.heroSection}>
-      <Image className={styles.heroBgImage} src={src} mode="widthFix" />
+      {imageUrl ? (
+        <Image className={styles.heroBgImage} src={imageUrl} mode="widthFix" />
+      ) : (
+        <View className={styles.heroGradientBg} />
+      )}
       <View
         className={styles.heroInner}
         style={{
@@ -379,20 +447,17 @@ function HeroBlock({
   )
 }
 
-function TodoBlock({
-  block,
-  todos,
-  browseOnly,
-  onBrowseStatus,
-}: {
+function TodoBlock(props: {
   block: DiyBlock
   todos: DiyTodoItem[]
   browseOnly: boolean
   onBrowseStatus?: () => void
 }) {
-  const sectionTitle = str(block.props.sectionTitle, '待办事项')
-  const emptyTitle = str(block.props.emptyTitle, '暂无待办')
-  const emptyDesc = str(block.props.emptyDesc)
+  const { todos, browseOnly, onBrowseStatus } = props
+  // 业务壳文案写死
+  const sectionTitle = '待办事项'
+  const emptyTitle = '暂无待办'
+  const emptyDesc = ''
 
   return (
     <View className={styles.sectionBlock}>

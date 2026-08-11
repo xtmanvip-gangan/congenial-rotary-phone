@@ -1,0 +1,161 @@
+@use '@/styles/variables.scss' as *;
+
+.wrap {
+  margin-top: $spacing-sm;
+  width: 100%;
+  line-height: 0;
+  font-size: 0;
+}
+
+.singleBox {
+  position: relative;
+  overflow: hidden;
+  background: $color-bg-muted;
+  max-width: 100%;
+  line-height: 0;
+  border-radius: 0;
+}
+
+.singleImg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: $color-bg-muted;
+  border-radius: 0;
+}
+
+.cellHover {
+  opacity: 0.8;
+}
+
+.grid {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  box-sizing: border-box;
+  line-height: 0;
+}
+
+.cell {
+  position: relative;
+  overflow: hidden;
+  background: $color-bg-muted;
+  box-sizing: border-box;
+  line-height: 0;
+  flex-shrink: 0;
+  border-radius: 0;
+}
+
+.cellImg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 0;
+}
+
+.moreMask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.moreText {
+  font-size: $font-size-moments-body;
+  font-weight: $font-weight-semibold;
+  color: $color-text-white;
+  line-height: 1;
+}
+
+/* ── 视频列表缩略（朋友圈：直角，无圆角） ── */
+.videoBox {
+  position: relative;
+  overflow: hidden;
+  background: #000000;
+  max-width: 100%;
+  line-height: 0;
+  border-radius: 0;
+}
+
+.videoCover {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #000000;
+  border-radius: 0;
+}
+
+.videoPlaceholder {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    160deg,
+    rgba(126, 163, 224, 0.45) 0%,
+    rgba(28, 28, 30, 0.9) 100%
+  );
+}
+
+.videoMask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.1);
+  pointer-events: none;
+}
+
+.playCircle {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: $radius-round;
+  background: rgba(0, 0, 0, 0.4);
+  border: 2rpx solid rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.playTriangle {
+  width: 0;
+  height: 0;
+  margin-left: $spacing-xs;
+  border-style: solid;
+  border-width: 12rpx 0 12rpx 20rpx;
+  border-color: transparent transparent transparent $color-bg-card;
+}
+
+.durationBadge {
+  position: absolute;
+  right: 12rpx;
+  bottom: 12rpx;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: 8rpx;
+  background: rgba(0, 0, 0, 0.55);
+  line-height: 1.2;
+}
+
+.durationText {
+  font-size: $font-size-moments-tag;
+  color: $color-text-white;
+  font-weight: $font-weight-medium;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}

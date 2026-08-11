@@ -1,0 +1,90 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  height: 100vh;
+  background: #000000;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden;
+}
+
+/* 明确像素尺寸由内联 style 控制；此处只做容器 */
+.stage {
+  position: relative;
+  flex-shrink: 0;
+  background: #000000;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.video {
+  display: block;
+  background: #000000;
+  border-radius: 0;
+}
+
+.loadingMask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.loadingText {
+  font-size: $font-size-moments-comment;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.empty {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-md;
+  padding: $spacing-lg;
+  box-sizing: border-box;
+}
+
+.emptyText {
+  font-size: $font-size-moments-comment;
+  color: rgba(255, 255, 255, 0.82);
+  text-align: center;
+  line-height: $line-height-normal;
+  max-width: 600rpx;
+}
+
+.hostText {
+  font-size: $font-size-moments-meta;
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+  word-break: break-all;
+  max-width: 620rpx;
+}
+
+.backBtn {
+  min-width: 180rpx;
+  height: 80rpx;
+  padding: 0 $page-padding;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backText {
+  font-size: $font-size-moments-comment;
+  font-weight: $font-weight-medium;
+  color: $color-text-white;
+}

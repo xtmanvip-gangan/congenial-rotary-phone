@@ -1,0 +1,202 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  background: $color-bg-card;
+}
+
+.content {
+  padding: $spacing-sm $page-padding;
+  padding-bottom: $page-bottom-safe;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 320rpx;
+  // 正文 17pt · 400 · 行高 1.4
+  font-size: $font-size-moments-body;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-moments-body;
+  color: $color-text-primary;
+  box-sizing: border-box;
+}
+
+.tools {
+  margin-top: $spacing-md;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.tool {
+  min-height: $touch-min;
+  height: $touch-min;
+  padding: 0 $spacing-md;
+  border-radius: $radius-pill;
+  background: $color-bg-muted;
+  font-size: $font-size-moments-comment; // 15pt
+  font-weight: $font-weight-medium;
+  line-height: $line-height-moments-body;
+  color: $color-text-secondary;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.toolOn {
+  background: $color-primary;
+  color: $color-text-white;
+  font-weight: $font-weight-medium;
+}
+
+.topics {
+  margin-top: $spacing-md;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.topic {
+  min-height: $touch-min;
+  height: $touch-min;
+  padding: 0 $spacing-md;
+  border-radius: $radius-pill;
+  background: $color-bg-page;
+  font-size: $font-size-moments-comment; // 15pt
+  font-weight: $font-weight-normal;
+  line-height: $line-height-moments-body;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  color: $color-text-secondary;
+  display: flex;
+  align-items: center;
+}
+
+.topicOn {
+  background: $color-brand-soft;
+  color: $color-brand-deep;
+  font-weight: $font-weight-medium;
+}
+
+.mediaRow {
+  margin-top: $spacing-md;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.thumbWrap {
+  position: relative;
+  width: 200rpx;
+  height: 200rpx;
+}
+
+.thumb {
+  width: 200rpx;
+  height: 200rpx;
+  background: $color-bg-muted;
+  border-radius: 0;
+}
+
+.thumbVideo {
+  position: relative;
+  width: 200rpx;
+  height: 200rpx;
+  overflow: hidden;
+  background: #000000;
+  border-radius: 0;
+}
+
+.thumbPlaceholder {
+  width: 200rpx;
+  height: 200rpx;
+  background: #000000;
+}
+
+.thumbVideoMask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.14);
+  pointer-events: none;
+}
+
+.thumbPlay {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumbPlayIcon {
+  color: $color-text-white;
+  font-size: $font-size-moments-comment;
+  line-height: 1;
+  margin-left: $spacing-xs;
+}
+
+.remove {
+  position: absolute;
+  top: -10rpx;
+  right: -10rpx;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: rgba(28, 28, 30, 0.75);
+  color: $color-text-white;
+  font-size: $font-size-moments-meta;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add {
+  width: 200rpx;
+  height: 200rpx;
+  border: 2rpx dashed rgba(148, 163, 184, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $color-text-tertiary;
+  box-sizing: border-box;
+}
+
+.addPlus {
+  font-size: $font-size-xxl;
+  line-height: 1;
+  font-weight: $font-weight-normal; // 规范仅 400/500/600
+  color: $color-text-tertiary;
+}
+
+.hint {
+  margin-top: $spacing-sm;
+  font-size: $font-size-moments-meta; // 13pt 辅助
+  color: $color-text-tertiary;
+  line-height: $line-height-normal;
+}
+
+.footer {
+  margin-top: $spacing-xl;
+}
+
+.submit {
+  height: $button-height-md; // 44pt
+  border-radius: $radius-pill;
+  background: $color-primary;
+  color: $color-text-white;
+  font-size: $font-size-moments-body; // 17pt 主操作
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.submitOff {
+  opacity: 0.4;
+}

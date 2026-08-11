@@ -1,0 +1,642 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  background: $color-bg-card;
+}
+
+.body {
+  padding: 0;
+  padding-bottom: $page-bottom-safe;
+}
+
+/* ── 顶部封面 ── */
+.coverWrap {
+  position: relative;
+  width: 100%;
+  height: 520rpx;
+  overflow: visible;
+  background: $color-brand;
+}
+
+.coverImg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #2c2c2c;
+}
+
+/* 无封面：品牌高级渐变 + 气泡装饰 */
+.coverBrand {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(
+    155deg,
+    $color-brand-deep 0%,
+    $color-brand 28%,
+    $color-mist-start 58%,
+    $color-mist-cool-end 100%
+  );
+}
+
+.coverBubble {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+.coverBubble1 {
+  width: 280rpx;
+  height: 280rpx;
+  left: -60rpx;
+  top: -40rpx;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.coverBubble2 {
+  width: 180rpx;
+  height: 180rpx;
+  right: 40rpx;
+  top: 80rpx;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.coverBubble3 {
+  width: 120rpx;
+  height: 120rpx;
+  left: 120rpx;
+  bottom: 100rpx;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.coverBubble4 {
+  width: 220rpx;
+  height: 220rpx;
+  right: -50rpx;
+  bottom: -30rpx;
+  background: rgba(106, 144, 212, 0.35);
+}
+
+/* 无封面时：正中提示「点击上传图片」 */
+.coverEmptyHint {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  z-index: 6;
+  padding: $spacing-sm $spacing-lg;
+  border-radius: 999rpx;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1rpx solid rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+
+.coverEmptyHintText {
+  font-size: $font-size-moments-comment;
+  font-weight: $font-weight-medium;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* 有封面时：整区可点换图，轻按反馈 */
+.coverTappable {
+  /* 由 coverWrap onClick 处理 */
+}
+
+.avatarFloat {
+  position: absolute;
+  right: 32rpx;
+  bottom: -48rpx;
+  z-index: 5;
+  width: 148rpx;
+  height: 148rpx;
+  border-radius: $moments-panel-radius;
+  overflow: hidden;
+  background: #d8d8d8;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.18);
+  border: 4rpx solid $color-bg-card;
+  box-sizing: border-box;
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.avatarLetter {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-display;
+  font-weight: $font-weight-semibold;
+  color: $color-brand-deep;
+  background: $color-brand-soft;
+}
+
+.nameOnCover {
+  position: absolute;
+  right: 200rpx;
+  bottom: 24rpx;
+  z-index: 4;
+  max-width: 420rpx;
+  text-align: right;
+}
+
+.nameText {
+  font-size: $font-size-moments-body;
+  font-weight: $font-weight-semibold;
+  color: $color-text-white;
+  line-height: $line-height-tight;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.4);
+}
+
+/* 签名区 · 右对齐 · 白底（与下方时间轴一体，无灰块） */
+.profileMeta {
+  padding: 64rpx $spacing-lg $spacing-md;
+  background: $color-bg-card;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: $spacing-xs;
+}
+
+.bioTap {
+  max-width: 100%;
+  padding: 0;
+  background: transparent;
+}
+
+.bioText {
+  font-size: $font-size-moments-meta;
+  color: $color-text-tertiary;
+  line-height: $line-height-normal;
+  text-align: right;
+  background: transparent;
+}
+
+.bioPlaceholder {
+  font-size: $font-size-moments-meta;
+  color: $color-text-tertiary;
+  line-height: $line-height-normal;
+  text-align: right;
+  background: transparent;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: $spacing-xs;
+  margin-top: $spacing-xs;
+}
+
+.tier {
+  font-size: $font-size-moments-tag;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}
+
+.role {
+  font-size: $font-size-moments-tag;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: $color-brand-soft;
+  color: $color-brand-deep;
+  font-weight: $font-weight-medium;
+}
+
+.followBtn {
+  margin-top: $spacing-sm;
+  min-width: 160rpx;
+  height: 64rpx;
+  padding: 0 $page-padding;
+  border-radius: $radius-pill;
+  background: $color-primary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-end;
+}
+
+.followBtnOn {
+  background: #e0e0e0;
+}
+
+.followBtnText {
+  font-size: $font-size-moments-comment;
+  font-weight: $font-weight-medium;
+  color: $color-text-white;
+}
+
+.followBtnOn .followBtnText {
+  color: $color-text-primary;
+}
+
+/* ── 时间轴 ── */
+.timeline {
+  background: $color-bg-card;
+  min-height: 40vh;
+}
+
+.dayBlock {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  padding: $spacing-md $spacing-lg $spacing-sm;
+  box-sizing: border-box;
+}
+
+.dayLeft {
+  width: 128rpx;
+  flex-shrink: 0;
+  padding-top: 0;
+}
+
+/* 日期：比正文更醒目（对齐朋友圈左侧时间） */
+.dayBig {
+  // 日期数字：展示级字号 · Semibold（规范慎用 Bold）
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  line-height: $line-height-tight;
+}
+
+.daySmall {
+  font-size: $font-size-moments-comment;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  margin-left: $spacing-xs;
+}
+
+.dayLabel {
+  font-size: $font-size-moments-body; // 17pt
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  line-height: $line-height-tight;
+}
+
+.dayRight {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+  padding-bottom: $spacing-sm;
+}
+
+/**
+ * 图左字右（对齐 xxxxx/my.jpg 实测）
+ * 截图 1216 宽时缩略图约 267×267 px → 750 稿约 165rpx
+ * （先前 260rpx 偏大）
+ * 总外框恒为 $box×$box：
+ *  1 整方 / 2 双竖 / 3 左竖+右上下 / 4 宫格
+ */
+.momentItem {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: $spacing-sm;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.momentMediaCol {
+  width: 165rpx;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+.momentTextCol {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  padding-top: 2rpx;
+}
+
+/* 动态正文：全站 text-body（15pt / 30rpx） */
+.momentBody {
+  @include text-moments-body;
+  white-space: pre-wrap;
+}
+
+.momentMeta {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-top: $spacing-xs;
+}
+
+.momentTime {
+  font-size: $font-size-moments-meta;
+  color: $color-moments-meta;
+}
+
+.momentDel {
+  font-size: $font-size-moments-meta;
+  color: $color-moments-link;
+  padding: $spacing-xs 0;
+}
+
+/* ── 固定总框 ≈165×165（my 图实测），子格 absolute 禁止撑破 ── */
+$box: 165rpx;
+$gap: 3rpx;
+$half: 81rpx; /* (165-3)/2 */
+
+.mediaBox {
+  position: relative;
+  width: $box;
+  height: $box;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: $color-bg-muted;
+  box-sizing: border-box;
+}
+
+.mediaCell {
+  position: absolute;
+  overflow: hidden;
+  background: $color-divider;
+  box-sizing: border-box;
+}
+
+.mediaImg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* 竖裁/方裁：居中填充 */
+}
+
+/* 1：整框 */
+.m1 {
+  left: 0;
+  top: 0;
+  width: $box;
+  height: $box;
+}
+
+/* 2：左竖 + 右竖 */
+.m2a {
+  left: 0;
+  top: 0;
+  width: $half;
+  height: $box;
+}
+.m2b {
+  left: $half + $gap;
+  top: 0;
+  width: $half;
+  height: $box;
+}
+
+/* 3：左竖 + 右上/右下 */
+.m3a {
+  left: 0;
+  top: 0;
+  width: $half;
+  height: $box;
+}
+.m3b {
+  left: $half + $gap;
+  top: 0;
+  width: $half;
+  height: $half;
+}
+.m3c {
+  left: $half + $gap;
+  top: $half + $gap;
+  width: $half;
+  height: $half;
+}
+
+/* 4：宫格 */
+.m4a {
+  left: 0;
+  top: 0;
+  width: $half;
+  height: $half;
+}
+.m4b {
+  left: $half + $gap;
+  top: 0;
+  width: $half;
+  height: $half;
+}
+.m4c {
+  left: 0;
+  top: $half + $gap;
+  width: $half;
+  height: $half;
+}
+.m4d {
+  left: $half + $gap;
+  top: $half + $gap;
+  width: $half;
+  height: $half;
+}
+
+.videoBadge {
+  position: absolute;
+  right: 8rpx;
+  bottom: 8rpx;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.videoBadgeTri {
+  width: 0;
+  height: 0;
+  margin-left: 3rpx;
+  border-style: solid;
+  border-width: 7rpx 0 7rpx 12rpx;
+  border-color: transparent transparent transparent $color-bg-card;
+}
+
+/* 本人今天 · 相机发帖 */
+.todayCompose {
+  width: 160rpx;
+  height: 160rpx;
+  background: $color-bg-muted;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4rpx;
+  flex-shrink: 0;
+}
+
+.todayCamera {
+  width: 56rpx;
+  height: 48rpx;
+  border: 4rpx solid #c8c8c8;
+  border-radius: 8rpx;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.todayCamera::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 20rpx;
+  height: 20rpx;
+  margin: calc(#{$spacing-xs} * -1) 0 0 calc(#{$spacing-xs} * -1);
+  border: 3rpx solid #c8c8c8;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.todayCamera::after {
+  content: '';
+  position: absolute;
+  right: 8rpx;
+  top: 6rpx;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #c8c8c8;
+}
+
+.empty {
+  padding: 80rpx $spacing-lg;
+  background: $color-bg-card;
+}
+
+/* 与社区首页一致：分割线 +「已经到底了」 */
+.endLine {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+  padding: $spacing-xl $spacing-xxl $page-bottom-safe;
+  box-sizing: border-box;
+}
+
+.endLineRule {
+  flex: 1;
+  max-width: 120rpx;
+  height: 1rpx;
+  background: $color-divider;
+}
+
+.endLineText {
+  font-size: $font-size-moments-meta;
+  color: $color-text-tertiary;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── 签名卡片弹层：略偏上，避免压键盘视觉中心 ── */
+.bioMask {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 整体上移，不贴屏幕正中 */
+  padding: 0 $spacing-xxl 22vh $spacing-xxl;
+  box-sizing: border-box;
+}
+
+.bioCard {
+  width: 100%;
+  max-width: 560rpx;
+  background: $color-bg-card;
+  border-radius: $radius-card;
+  padding: $spacing-lg $spacing-md $spacing-md;
+  box-sizing: border-box;
+  box-shadow: $shadow-popup;
+  /* 再略上提 */
+  transform: translateY(-40rpx);
+}
+
+.bioCardTitle {
+  display: block;
+  font-size: $font-size-moments-body;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  text-align: center;
+  margin-bottom: $spacing-sm;
+}
+
+/* 输入区：左对齐文字 + 框内右下角字数提示 */
+.bioField {
+  position: relative;
+  width: 100%;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  box-sizing: border-box;
+}
+
+.bioInput {
+  width: 100%;
+  height: 80rpx;
+  padding: 0 72rpx 0 $spacing-md; /* 右侧留给 x/9 */
+  box-sizing: border-box;
+  background: transparent;
+  font-size: $font-size-moments-comment;
+  color: $color-text-primary;
+  line-height: 80rpx;
+  text-align: left;
+}
+
+.bioCount {
+  position: absolute;
+  right: 16rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: $font-size-moments-meta;
+  color: $color-text-disabled; /* 弱提示，不抢眼 */
+  line-height: 1;
+  pointer-events: none;
+}
+
+.bioCardActions {
+  display: flex;
+  gap: $spacing-sm;
+  margin-top: $spacing-md;
+}
+
+.bioCardBtn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: $radius-pill;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $color-bg-muted;
+}
+
+.bioCardBtnPrimary {
+  background: $color-primary;
+}
+
+.bioCardBtnText {
+  font-size: $font-size-moments-comment;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+}
+
+.bioCardBtnPrimary .bioCardBtnText {
+  color: $color-text-white;
+}

@@ -1,0 +1,488 @@
+@use '@/styles/variables.scss' as *;
+
+.heroSection {
+  position: relative;
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+.heroBgImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+  pointer-events: none;
+}
+
+/* 无上传图：高级渐变底（小程序不用伪元素，多层渐变叠在 background） */
+.heroGradientBg {
+  display: block;
+  width: 100%;
+  height: 420rpx;
+  min-height: 360rpx;
+  pointer-events: none;
+  background-color: #2d4a7a;
+  background-image:
+    radial-gradient(
+      ellipse 90% 70% at 82% 22%,
+      rgba(255, 255, 255, 0.32) 0%,
+      rgba(255, 255, 255, 0) 55%
+    ),
+    radial-gradient(
+      ellipse 70% 60% at 12% 88%,
+      rgba(167, 193, 242, 0.55) 0%,
+      rgba(167, 193, 242, 0) 65%
+    ),
+    linear-gradient(
+      145deg,
+      #1a2744 0%,
+      #2d4a7a 24%,
+      #4a7ec4 52%,
+      #a7c1f2 78%,
+      #e8f0fa 100%
+    );
+}
+
+.heroInner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0 $page-padding 0;
+}
+
+.heroCopyBlock {
+  max-width: 620rpx;
+  padding-top: $spacing-xxl;
+}
+
+.heroEyebrow {
+  display: block;
+  margin-bottom: $spacing-sm;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 3rpx;
+}
+
+.heroTitle {
+  display: block;
+  margin-top: $spacing-sm;
+  line-height: 1.12;
+  font-weight: $font-weight-semibold;
+  letter-spacing: -1rpx;
+  white-space: normal;
+  opacity: 1;
+}
+
+.heroTitle:first-of-type {
+  margin-top: 0;
+}
+
+.heroSubtitle {
+  display: block;
+  margin-top: $spacing-sm;
+  line-height: $line-height-normal;
+  opacity: 1;
+}
+
+.quickEntryGrid {
+  display: grid;
+  /* 列数由 inline style 控制 */
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-sm;
+  margin-top: 0;
+  flex-shrink: 0;
+  /* 左右边距走组件 style */
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.quickEntryCard {
+  position: relative;
+  overflow: hidden;
+  border-radius: $radius-card;
+  min-height: 180rpx;
+  background: $color-moments-link-soft;
+}
+
+.quickEntryBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.quickEntryBody {
+  position: relative;
+  z-index: 1;
+  min-height: 180rpx;
+  padding: $spacing-lg $spacing-md 56rpx;
+  box-sizing: border-box;
+}
+
+.quickEntryTitle {
+  display: block;
+  font-weight: $font-weight-semibold;
+}
+
+.quickEntryDesc {
+  display: block;
+  margin-top: $spacing-xs;
+  line-height: $line-height-normal;
+  max-width: 200rpx;
+}
+
+.quickEntryAction {
+  position: absolute;
+  left: 20rpx;
+  bottom: 16rpx;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
+  color: rgba(28, 36, 51, 0.48);
+  font-size: $font-size-md;
+  line-height: 40rpx;
+  text-align: center;
+  box-shadow: 0 8rpx 20rpx $color-ink-08;
+}
+
+/* 待办等业务壳：水平边距写死规范 16pt，外边距仅 DIY margin */
+.sectionBlock {
+  position: relative;
+  z-index: 1;
+  padding: 0 $page-padding;
+  margin: 0;
+  border: none;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.todoSectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.sectionTitle {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.sectionHint {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.readonlyBanner {
+  @include tip-banner-warning;
+  margin-bottom: $spacing-sm;
+}
+
+.readonlyBannerText {
+  flex: 1;
+  @include tip-banner-text-warning;
+}
+
+.readonlyBannerAction {
+  @include tip-banner-action-warning;
+}
+
+.todoListCard {
+  @include fashion-card;
+  overflow: hidden;
+  border-radius: $radius-card;
+}
+
+.todoItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-lg $spacing-lg;
+  border-bottom: 1rpx solid $color-divider;
+}
+
+.todoItem:last-child {
+  border-bottom: none;
+}
+
+.todoItemDot {
+  flex-shrink: 0;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: $color-primary-light;
+  box-shadow: 0 0 0 8rpx rgba(105, 212, 243, 0.12);
+}
+
+.todoItemMain {
+  min-width: 0;
+  flex: 1;
+}
+
+.todoItemTitle {
+  display: block;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  line-height: $line-height-normal;
+  @include text-ellipsis;
+}
+
+.todoItemArrow {
+  flex-shrink: 0;
+  font-size: $font-size-xl;
+  line-height: 1;
+  color: $color-text-tertiary;
+}
+
+.emptyTodoBlock {
+  padding: $spacing-xxl $spacing-lg;
+  text-align: center;
+}
+
+.emptyTodoTitle {
+  display: block;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+}
+
+.emptyTodoDesc {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  line-height: 1.6;
+  color: $color-text-tertiary;
+}
+
+.titlesBlock {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.titlesRow {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.titlesMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.titlesTitle {
+  display: block;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.titlesSubtitle {
+  display: block;
+  margin-top: $spacing-xs;
+  color: $color-text-tertiary;
+}
+
+.titlesMore {
+  flex-shrink: 0;
+  padding-top: $spacing-xs;
+  color: $color-text-tertiary;
+}
+
+.spacer {
+  width: 100%;
+}
+
+.dividerLine {
+  width: 100%;
+  height: 0;
+  box-sizing: border-box;
+}
+
+/* 外边距/内边距/圆角/背景走外层 boxStyle，此处仅 flex 排版 */
+.noticeBar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: $spacing-sm;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.noticeIcon {
+  flex-shrink: 0;
+  width: 32rpx;
+  height: 32rpx;
+  display: block;
+}
+
+.noticeText {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  line-height: 1.5;
+}
+
+/* 外边距/内边距：外层 boxStyle；圆角：作用在图片可视区 */
+.bannerWrap {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.bannerSwiper {
+  width: 100%;
+  overflow: hidden;
+}
+
+.bannerItem {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.bannerImage {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 内边距/颜色/字号走外层 boxStyle + inline；勿再硬编码 padding */
+.richText {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  line-height: 1.6;
+}
+
+.buttonWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  /* 四周留白走外层 style.padding，避免硬编码双层边距 */
+}
+
+.diyButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 $spacing-xl;
+  font-weight: $font-weight-medium;
+  text-align: center;
+  /* 宽高/圆角/阴影由 inline style 控制 */
+}
+
+.unknownBlock {
+  margin: $spacing-xs $spacing-lg;
+  padding: $spacing-md;
+  border-radius: 12rpx;
+  background: $color-bg-muted;
+  color: $color-text-tertiary;
+  font-size: $font-size-sm;
+  text-align: center;
+}
+
+.hotspotBox {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+  /* 外边距/内边距/阴影走外层 boxStyle */
+}
+
+.hotspotImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+  pointer-events: none;
+}
+
+.hotspotArea {
+  position: absolute;
+  z-index: 2;
+  /* 透明可点区域 */
+  background: transparent;
+}
+
+/* 上下/左右边距只走外层 boxStyle */
+.menusWrap {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.menusGrid {
+  display: grid;
+  gap: $spacing-sm $spacing-xs;
+}
+
+.menusItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.menusIcon {
+  display: block;
+  border-radius: 20rpx;
+}
+
+.menusIconPlaceholder {
+  border-radius: 20rpx;
+  background: $color-border;
+}
+
+.menusTitle {
+  display: block;
+  max-width: 100%;
+  text-align: center;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 外边距/内边距只走外层 boxStyle */
+.imageGridWrap {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.imageGrid {
+  display: grid;
+}
+
+.imageGridItem {
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  background: $color-moments-link-soft;
+}
+
+.imageGridImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

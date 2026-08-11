@@ -1,0 +1,277 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  /* 与设计页底一致；下拉刷新空白区同色（page-meta / config） */
+  background: $color-bg-page;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  padding-bottom: $page-bottom-safe;
+}
+
+/* 头图在文档流定高，叠层文案/瓷片铺满；瓷片底边与背景底边对齐 */
+.heroSection {
+  position: relative;
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+.heroBgImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+  pointer-events: none;
+}
+
+.heroInner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  /* 底边 0：瓷片底与背景底线对齐 */
+  padding: 0 $page-padding 0;
+}
+
+.heroCopyBlock {
+  max-width: 620rpx;
+  /* 标题整体下移 */
+  padding-top: $spacing-xxl;
+}
+
+.heroEyebrow {
+  display: block;
+  margin-bottom: $spacing-sm;
+  font-size: $font-size-xs;
+  line-height: 1.4;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 3rpx;
+  color: $color-text-tertiary;
+}
+
+.heroTitle {
+  display: block;
+  margin-top: $spacing-sm;
+  /* 展示级标题：字号大，字重收敛到 semibold */
+  font-size: $font-size-display;
+  line-height: 1.12;
+  font-weight: $font-weight-semibold;
+  letter-spacing: -1rpx;
+  color: $color-text-primary;
+  /* 允许窄屏换行，避免裁切 */
+  white-space: normal;
+  /* 默认可见：避免动画未触发时一直 opacity:0，配置刷新后文案不显示 */
+  opacity: 1;
+}
+
+.heroTitle:first-of-type {
+  margin-top: 0;
+}
+
+.heroSubtitle {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
+  opacity: 1;
+}
+
+@keyframes heroTitleIn {
+  from {
+    opacity: 0;
+    transform: translateY(12rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sectionBlock {
+  position: relative;
+  z-index: 1;
+  padding: 0 $page-padding;
+  margin-top: $spacing-md;
+}
+
+.sectionHead,
+.todoSectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.sectionTitle {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0;
+  color: $color-text-primary;
+}
+
+.sectionHint {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.quickEntryGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-sm;
+  margin-top: 0;
+  flex-shrink: 0;
+  /* 不偏移：底边与背景底线对齐 */
+  transform: none;
+}
+
+.quickEntryCard {
+  position: relative;
+  overflow: hidden;
+  border-radius: $radius-card;
+  min-height: 180rpx;
+}
+
+.quickEntryBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.quickEntryBody {
+  position: relative;
+  z-index: 1;
+  min-height: 180rpx;
+  /* 标题略下移；底部留给圆箭头，避免与副标题贴太近 */
+  padding: $spacing-lg $spacing-md 56rpx;
+  box-sizing: border-box;
+}
+
+.quickEntryTitle {
+  display: block;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.quickEntryDesc {
+  display: block;
+  /* 标题与副标题间距略收紧 */
+  margin-top: $spacing-xs;
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
+  max-width: 200rpx;
+}
+
+.quickEntryAction {
+  position: absolute;
+  left: 20rpx;
+  /* 靠底，与副标题拉开距离 */
+  bottom: 16rpx;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
+  color: rgba(28, 36, 51, 0.48);
+  font-size: $font-size-md;
+  line-height: 40rpx;
+  text-align: center;
+  box-shadow: 0 8rpx 20rpx $color-ink-08;
+}
+
+/* 运营确认中：全站 warning tip（与「我的 · 只读浏览中」统一） */
+.readonlyBanner {
+  @include tip-banner-warning;
+  margin-bottom: $spacing-sm;
+}
+
+.readonlyBannerText {
+  flex: 1;
+  @include tip-banner-text-warning;
+}
+
+.readonlyBannerAction {
+  @include tip-banner-action-warning;
+}
+
+.todoListCard {
+  @include fashion-card;
+  overflow: hidden;
+  border-radius: $radius-card;
+}
+
+.todoItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-lg $spacing-lg;
+  border-bottom: 1rpx solid $color-divider;
+}
+
+.todoItem:last-child {
+  border-bottom: none;
+}
+
+.todoItemDot {
+  flex-shrink: 0;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: $color-primary-light;
+  box-shadow: 0 0 0 8rpx rgba(105, 212, 243, 0.12);
+}
+
+.todoItemMain {
+  min-width: 0;
+  flex: 1;
+}
+
+.todoItemTitle {
+  display: block;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  line-height: $line-height-normal;
+  @include text-ellipsis;
+}
+
+.todoItemArrow {
+  flex-shrink: 0;
+  font-size: $font-size-xl;
+  line-height: 1;
+  color: $color-text-tertiary;
+}
+
+.emptyTodoBlock {
+  padding: $spacing-xxl $spacing-lg;
+  text-align: center;
+}
+
+.emptyTodoTitle {
+  display: block;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+}
+
+.emptyTodoDesc {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  line-height: 1.6;
+  color: $color-text-tertiary;
+}

@@ -1,0 +1,483 @@
+@use '@/styles/variables.scss' as *;
+
+/**
+ * 社区首页 · YOYO-社区流
+ * - 信息架构对齐设计稿（Banner → 胶囊筛 → 动态卡）
+ * - 度量/色板对齐活动·学习页（fashion-card、页底、胶囊高度）
+ * - 内容区上方保留通栏搜索
+ */
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: $color-bg-page;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  padding-bottom: $community-feed-bottom;
+}
+
+/* ── 搜索（内容最上 · 白面描边胶囊 · 略高于旧 72rpx） ── */
+$search-bar-height: 84rpx;
+
+.searchBar {
+  padding: $spacing-sm $page-padding 0;
+}
+
+.searchInner {
+  display: flex;
+  align-items: center;
+  height: $search-bar-height;
+  padding: 0 $spacing-md;
+  border-radius: $radius-pill;
+  background: $color-bg-card;
+  border: 1rpx solid $color-border;
+  box-sizing: border-box;
+  box-shadow: $shadow-soft;
+}
+
+.searchIcon {
+  flex-shrink: 0;
+  margin-right: $spacing-xs;
+  font-size: $font-size-moments-comment; // 15pt 与输入同级
+  line-height: 1;
+  color: $color-text-tertiary;
+  font-weight: $font-weight-medium;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  height: $search-bar-height;
+  font-size: $font-size-moments-comment; // 15pt
+  font-weight: $font-weight-normal;
+  line-height: $line-height-moments-body;
+  color: $color-text-primary;
+  background: transparent;
+}
+
+.searchPlaceholder {
+  color: $color-text-placeholder;
+  font-size: $font-size-moments-comment;
+  font-weight: $font-weight-normal;
+}
+
+.searchClear {
+  /* HIG：热区 ≥44pt，视觉圆点可更小 */
+  flex-shrink: 0;
+  width: $touch-min;
+  height: $touch-min;
+  margin-left: 0;
+  border-radius: $radius-round;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+
+  &::before {
+    content: '';
+    width: 48rpx;
+    height: 48rpx;
+    border-radius: $radius-round;
+    background: $color-text-disabled;
+    position: absolute;
+  }
+}
+
+.searchClearX {
+  position: relative;
+  z-index: 1;
+  font-size: $font-size-moments-comment;
+  color: $color-text-white;
+  line-height: 1;
+}
+
+/* ── Banner（设计稿主视觉） ── */
+.heroSection {
+  padding: $spacing-md $page-padding 0;
+}
+
+.heroCard {
+  @include fashion-card;
+  position: relative;
+  overflow: hidden;
+  min-height: 300rpx;
+  padding: $spacing-lg $spacing-lg $spacing-md;
+  background: linear-gradient(
+    135deg,
+    #e8f1fc 0%,
+    #f4f8fd 42%,
+    $color-bg-card 100%
+  );
+  box-sizing: border-box;
+}
+
+.heroCopy {
+  position: relative;
+  z-index: 2;
+  max-width: 54%;
+  padding-top: $spacing-xs;
+}
+
+.heroTitle {
+  display: block;
+  // 社区正文档 17pt
+  font-size: $font-size-moments-body;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  line-height: $line-height-tight;
+  letter-spacing: 0.5rpx;
+}
+
+.heroTitleLine {
+  display: block;
+}
+
+.heroPublish {
+  @include button-reset;
+  margin-top: $spacing-md;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 64rpx;
+  padding: 0 $spacing-lg;
+  border-radius: $radius-pill;
+  background: $color-brand;
+  color: $color-text-white;
+  font-size: $font-size-moments-comment; // 15pt 操作
+  font-weight: $font-weight-medium;
+  box-shadow: 0 8rpx 20rpx rgba(126, 163, 224, 0.35);
+}
+
+.heroPublishText {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/* 右侧插画占位 · 纯色/渐变，不引大图 */
+.heroArt {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 48%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.heroArtBlob {
+  position: absolute;
+  right: 24rpx;
+  bottom: 32rpx;
+  width: 200rpx;
+  height: 220rpx;
+  border-radius: 48% 52% 44% 56% / 42% 48% 52% 58%;
+  background: linear-gradient(
+    160deg,
+    rgba(126, 163, 224, 0.55) 0%,
+    rgba(167, 193, 242, 0.35) 55%,
+    rgba(232, 241, 252, 0.2) 100%
+  );
+}
+
+.heroArtBlobSoft {
+  position: absolute;
+  right: 100rpx;
+  top: 40rpx;
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: $radius-round;
+  background: rgba(126, 163, 224, 0.18);
+}
+
+/* ── 频道筛：SegmentTabs + 话题 Chip ── */
+.filterSection {
+  padding: $spacing-md $page-padding 0;
+}
+
+/* ── 话题 · 横向滑动 Chip（与卡片同左右边距，非通栏标签） ──
+ * 规范 8.5：未选 muted；选中 brand-soft
+ * ScrollView 保证可滑；track 用 inline-flex 避免换行
+ */
+.topicScroll {
+  margin-top: $spacing-sm;
+  width: 100%;
+  white-space: nowrap;
+}
+
+.topicTrack {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  padding-right: $spacing-sm;
+}
+
+.topicChip {
+  @include button-reset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 60rpx; // 适配 15pt
+  margin-right: $spacing-sm;
+  padding: 0 $spacing-md;
+  border-radius: $radius-pill;
+  background: $color-bg-muted;
+  color: $color-text-tertiary;
+  font-size: $font-size-moments-comment; // 15pt
+  font-weight: $font-weight-normal;
+  line-height: $line-height-moments-body;
+  border: none;
+
+  &::after {
+    border: none;
+  }
+}
+
+.topicChipOn {
+  background: $color-brand-soft;
+  color: $color-brand-deep;
+  font-weight: $font-weight-medium;
+}
+
+.topicChipText {
+  font-size: $font-size-moments-comment;
+  font-weight: inherit;
+  color: inherit;
+  line-height: $line-height-moments-body;
+}
+
+/* 当前话题 · 醒目条（高对比 + 实心清除，避免看不见） */
+.topicActiveBar {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-top: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  border-radius: $radius-md;
+  background: $color-brand-soft;
+  border: 1rpx solid $color-brand-border;
+  box-sizing: border-box;
+}
+
+.topicActiveMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+}
+
+.topicActiveLabel {
+  font-size: $font-size-moments-meta; // 13pt 弱说明
+  color: $color-text-tertiary;
+  line-height: $line-height-moments-body;
+}
+
+.topicActiveHash {
+  font-size: $font-size-moments-comment; // 15pt 话题名
+  font-weight: $font-weight-semibold;
+  color: $color-brand-deep;
+  line-height: $line-height-moments-body;
+}
+
+.topicActiveClearBtn {
+  @include button-reset;
+  flex-shrink: 0;
+  height: 60rpx;
+  padding: 0 $spacing-md;
+  border-radius: $radius-pill;
+  background: $color-primary;
+  color: $color-text-white;
+
+  &::after {
+    border: none;
+  }
+}
+
+.topicActiveClearText {
+  font-size: $font-size-moments-comment; // 15pt 操作
+  font-weight: $font-weight-medium;
+  color: $color-text-white;
+  line-height: $line-height-moments-body;
+}
+
+.searchHint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: $spacing-sm;
+  padding: 0 $spacing-xs;
+}
+
+.searchHintText {
+  font-size: $font-size-moments-meta; // 13pt 提示
+  color: $color-text-tertiary;
+  line-height: $line-height-moments-body;
+}
+
+.searchHintClear {
+  font-size: $font-size-moments-comment; // 15pt 可点
+  color: $color-moments-link;
+  font-weight: $font-weight-medium;
+  padding: $spacing-xs;
+  line-height: $line-height-moments-body;
+}
+
+/* ── Feed · 朋友圈时间线（分割线在 PostCard 上） ── */
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 $page-padding;
+  background: $color-bg-page;
+}
+
+.skeletonPad {
+  padding: 0;
+}
+
+.emptyWrap {
+  padding: $spacing-xxl 0;
+}
+
+.more {
+  text-align: center;
+  padding: $spacing-md 0 $spacing-sm;
+  font-size: $font-size-moments-meta; // 13pt
+  color: $color-text-tertiary;
+  line-height: $line-height-moments-body;
+}
+
+/* FAB 根：胶囊 + 上方菜单；透明区穿透 */
+.fabRoot {
+  position: fixed;
+  right: $page-padding;
+  bottom: $community-fab-bottom;
+  z-index: 30;
+  width: $community-fab-size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.fabMask {
+  position: fixed;
+  inset: 0;
+  z-index: 29;
+  background: rgba(0, 0, 0, 0);
+  transition: background 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.fabMaskOn {
+  /* 60% 遮罩，衬白底菜单 */
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/* 向上弹出：图文 / 视频（间距加大，降低与飞机误触） */
+.fabExpand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-md; // 图文 ↔ 视频 24rpx
+  margin-bottom: $spacing-xl; // 菜单 ↔ 飞机胶囊 40rpx
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.fabExpandBtn {
+  min-width: 112rpx;
+  height: 72rpx;
+  padding: 0 $spacing-md;
+  border-radius: $radius-pill;
+  /* 白底黑字：与深色飞机胶囊主次分明 */
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10rpx 28rpx rgba(0, 0, 0, 0.22);
+  box-sizing: border-box;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(20rpx) scale(0.92);
+  transition:
+    opacity 0.26s cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.fabExpandBtnOn {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.fabExpandBtnHover {
+  opacity: 0.92;
+  background: #f5f5f7;
+}
+
+.fabExpandText {
+  font-size: $font-size-moments-comment;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  line-height: 1;
+}
+
+/* 竖胶囊 · 上发帖 / 下我的动态 · 黑底白图标 */
+.fabStack {
+  width: $community-fab-size;
+  padding: $spacing-sm 0;
+  border-radius: $radius-pill;
+  background: $color-primary; /* 操作主色 Ink */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12rpx 28rpx rgba(28, 28, 30, 0.35);
+  box-sizing: border-box;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+.fabItem {
+  width: $community-fab-size;
+  height: $community-fab-size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.fabItemActive {
+  transform: scale(0.94);
+}
+
+.fabItemHover {
+  opacity: 0.72;
+}
+
+.fabDivider {
+  width: 36rpx;
+  height: 2rpx;
+  margin: $spacing-xs 0;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 1rpx;
+  flex-shrink: 0;
+}
+
+/* 两图标强制同尺寸，避免 SVG 观感一大小 */
+.fabIcon {
+  width: 48rpx;
+  height: 48rpx;
+  display: block;
+  flex-shrink: 0;
+}

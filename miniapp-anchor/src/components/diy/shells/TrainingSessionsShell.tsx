@@ -1,10 +1,13 @@
-import { Button, Image, Text, View } from '@tarojs/components'
+import { Button, Text, View } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Modal from '@/components/Modal'
+import StatusTag from '@/components/StatusTag'
+import type { StatusTagTone } from '@/components/StatusTag'
 import StateBlock from '@/components/StateBlock'
 import { ensureAppSession } from '@/services/auth'
+import { getErrorMessage } from '@/services/request'
 import {
   cancelTrainingRegistration,
   getMyTraining,
@@ -199,100 +202,138 @@ function SessionCard({
     .filter(Boolean)
     .join(' · ')
 
-  const teacherText = item.teacher?.displayName || '待安排老师'
-
-  // —— 正在上课：海报焦点卡（P4 仪式感，最多 1–2 节）——
+  // —— 正在上课：活动主卡结构（封面氛围 + 正文元信息 + 主 CTA）——
   if (phase === 'live') {
-    // 仅状态标签，不写说明句
     const statusHint = showLateOk
-      ? '可迟到进入'
+      ? '已过开课时间，仍可进入'
       : showBlockedLate
-        ? '已超时'
+        ? '入会时间已过，请联系运营老师'
         : showNoMeeting
-          ? '会议待发'
+          ? '会议号还在准备，请稍后再试'
           : isRegistered
-            ? '进行中'
-            : '仅已报名可进'
+            ? '课堂进行中，可以进入'
+            : '报名后才能进入这节课'
+
+    const elapsed =
+      typeof item.elapsedMinutes === 'number' && item.elapsedMinutes >= 0
+        ? item.elapsedMinutes
+        : null
+    const totalMins =
+      item.scheduledStartAt && item.scheduledEndAt
+        ? Math.max(
+            0,
+            dayjs(item.scheduledEndAt).diff(
+              dayjs(item.scheduledStartAt),
+              'minute',
+            ),
+          )
+        : 0
+    const progressRatio =
+      elapsed != null && totalMins > 0
+        ? Math.min(1, Math.max(0, elapsed / totalMins))
+        : null
 
     return (
-      /* wrap 负责四周阴影；inner 负责圆角裁切（同节点 overflow+shadow 在小程序会裁成底边阴影） */
-      <View id={`session-${item.id}`} className={styles.livePosterWrap}>
-        <View className={styles.livePoster}>
-          <View className={styles.livePosterHero}>
-            <View className={styles.livePosterDecor} />
-            <View className={styles.livePosterHead}>
-              <View className={styles.liveLiveBadge}>
-                <View className={styles.liveLiveDot} />
-                <Text className={styles.liveLiveText}>LIVE</Text>
+      <View id={`session-${item.id}`} className={styles.liveCard}>
+        <View className={styles.liveCover}>
+          <View className={styles.liveCoverDecor} />
+          <View className={styles.liveCoverBadges}>
+            <View className={styles.livePhasePill}>
+              <View className={styles.livePhaseDot} />
+              <Text className={styles.livePhaseText}>进行中</Text>
+            </View>
+            {showLateOk ? (
+              <View className={styles.liveLatePill}>
+                <Text className={styles.liveLateText}>可迟到</Text>
               </View>
-              <Text className={styles.livePosterTag}>今日课堂</Text>
-            </View>
-            <Text className={styles.livePosterTitle}>{courseTitle}</Text>
-            <Text className={styles.livePosterSub}>进行中</Text>
+            ) : null}
           </View>
-
-          <View className={styles.livePosterFoot}>
-            <View className={styles.livePosterTimeRow}>
-              <Text className={styles.livePosterTime}>{schedule.timeRange}</Text>
-              <Text className={styles.livePosterDate}>{dateLine}</Text>
+          <Text className={styles.liveCoverTitle}>{courseTitle}</Text>
+          <Text className={styles.liveCoverTime}>
+            {schedule.timeRange}
+            {dateLine ? ` · ${dateLine}` : ''}
+          </Text>
+          {progressRatio != null ? (
+            <View className={styles.liveTimeline}>
+              <View className={styles.liveTimelineTrack}>
+                <View
+                  className={styles.liveTimelineFill}
+                  style={{ width: `${Math.round(progressRatio * 100)}%` }}
+                />
+                <View
+                  className={styles.liveTimelineDot}
+                  style={{ left: `${Math.round(progressRatio * 100)}%` }}
+                />
+              </View>
+              <Text className={styles.liveTimelineHint}>
+                已进行 {elapsed} 分钟
+                {totalMins > 0 ? ` · 共 ${totalMins} 分钟` : ''}
+              </Text>
             </View>
-            <Text className={styles.livePosterMeta}>
-              {teacherText}
-              {canJoinMeeting && item.meeting?.meetingCode
-                ? ` · ${item.meeting.meetingCode}`
-                : ''}
+          ) : null}
+        </View>
+
+        <View className={styles.liveBody}>
+          <View className={styles.liveChipRow}>
+            <Text className={styles.liveChip}>
+              授课老师：{item.teacher?.displayName || '待安排'}
             </Text>
-            <Text className={styles.liveStatusHint}>{statusHint}</Text>
+            {canJoinMeeting && item.meeting?.meetingCode ? (
+              <Text className={styles.liveChip}>
+                会议 {item.meeting.meetingCode}
+              </Text>
+            ) : null}
+          </View>
+          <Text className={styles.liveStatusHint}>{statusHint}</Text>
 
-            <View className={styles.liveActionRow}>
-              {canJoinMeeting ? (
-                <Button
-                  className={`primaryButton ${styles.liveJoinBtn}`}
-                  hoverClass="none"
-                  onClick={(e) => {
-                    e?.stopPropagation?.()
-                    void openTencentMeeting(item.meeting, displayName)
-                  }}
-                >
-                  {showLateOk ? '迟到进入' : '进入课堂'}
-                </Button>
-              ) : showBlockedLate ? (
-                <View className={styles.liveDisabledBar}>
-                  <Text className={styles.liveDisabledText}>已超时</Text>
-                </View>
-              ) : showNoMeeting ? (
-                <View className={styles.liveDisabledBar}>
-                  <Text className={styles.liveDisabledText}>会议待发</Text>
-                </View>
-              ) : !isRegistered ? (
-                <View className={styles.liveDisabledBar}>
-                  <Text className={styles.liveDisabledText}>未报名</Text>
-                </View>
-              ) : (
-                <View className={styles.liveDisabledBar}>
-                  <Text className={styles.liveDisabledText}>进行中</Text>
-                </View>
-              )}
-            </View>
+          <View className={styles.liveActionRow}>
+            {canJoinMeeting ? (
+              <Button
+                className={`primaryButton ${styles.liveJoinBtn}`}
+                hoverClass="none"
+                onClick={(e) => {
+                  e?.stopPropagation?.()
+                  void openTencentMeeting(item.meeting, displayName)
+                }}
+              >
+                {showLateOk ? '迟到进入课堂' : '进入课堂'}
+              </Button>
+            ) : showBlockedLate ? (
+              <View className={styles.liveDisabledBar}>
+                <Text className={styles.liveDisabledText}>入会时间已过</Text>
+              </View>
+            ) : showNoMeeting ? (
+              <View className={styles.liveDisabledBar}>
+                <Text className={styles.liveDisabledText}>会议号准备中</Text>
+              </View>
+            ) : !isRegistered ? (
+              <View className={styles.liveDisabledBar}>
+                <Text className={styles.liveDisabledText}>报名后可进入</Text>
+              </View>
+            ) : (
+              <View className={styles.liveDisabledBar}>
+                <Text className={styles.liveDisabledText}>课堂进行中</Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
     )
   }
 
-  // —— 开放课堂：时间 / 课名 / 老师结构化扫读 ——
-  const statusPill = isRegistered
-    ? { text: '已报名', tone: 'ok' as const }
+  // —— 开放课堂：时段主视觉 + 课名 + 芯片元信息 + 主操作 ——
+  const statusTag: { text: string; tone: StatusTagTone } | null = isRegistered
+    ? { text: '已报名', tone: 'success' }
     : isWaitlisted
       ? {
           text:
             item.myRegistration?.waitlistPosition != null
-              ? `候补 ${item.myRegistration.waitlistPosition}`
+              ? `候补第 ${item.myRegistration.waitlistPosition} 位`
               : '候补中',
-          tone: 'wait' as const,
+          tone: 'warning',
         }
       : showWaitStart
-        ? { text: '待开课', tone: 'idle' as const }
+        ? { text: '待开课', tone: 'neutral' }
         : null
 
   const durationMins =
@@ -314,12 +355,12 @@ function SessionCard({
         : `${durationMins} 分钟`
       : ''
 
-  const seatLabel =
+  const seatChip =
     isRegistered || isWaitlisted
       ? null
       : item.remainingSeats > 0
-        ? `余 ${item.remainingSeats} 席 · 共 ${item.capacity} 人`
-        : `已满 · 可候补（已候 ${item.waitlistCount || 0}）`
+        ? `余 ${item.remainingSeats} 席`
+        : `已满 · 可候补`
 
   const actionBusy =
     submittingId === item.id ||
@@ -332,56 +373,38 @@ function SessionCard({
         isRegistered || isWaitlisted ? styles.ocCardJoined : ''
       }`}
     >
-      {/* 时段 + 状态 */}
       <View className={styles.ocHead}>
         <View className={styles.ocTimeBlock}>
           <Text className={styles.ocTime}>{schedule.timeRange}</Text>
           {durationText ? (
-            <Text className={styles.ocDuration}>{durationText}</Text>
+            <Text className={styles.ocDurationChip}>{durationText}</Text>
           ) : null}
         </View>
-        {statusPill ? (
-          <Text
-            className={`${styles.ocPill} ${
-              statusPill.tone === 'ok'
-                ? styles.ocPillOk
-                : statusPill.tone === 'wait'
-                  ? styles.ocPillWait
-                  : styles.ocPillIdle
-            }`}
-          >
-            {statusPill.text}
-          </Text>
+        {statusTag ? (
+          <StatusTag text={statusTag.text} tone={statusTag.tone} />
         ) : null}
       </View>
 
-      <Text className={styles.ocTitle}>{courseTitle}</Text>
+      <Text className={styles.ocTitle}>课程：{courseTitle}</Text>
 
-      {/* 老师 / 名额 / 类型：标签 + 值，一眼扫完 */}
-      <View className={styles.ocInfo}>
-        <View className={styles.ocInfoRow}>
-          <Text className={styles.ocInfoLabel}>老师</Text>
-          <Text
-            className={`${styles.ocInfoValue} ${
-              item.teacher?.displayName ? '' : styles.ocInfoValueMuted
-            }`}
-          >
-            {teacherText}
-          </Text>
-        </View>
-        {seatLabel ? (
-          <View className={styles.ocInfoRow}>
-            <Text className={styles.ocInfoLabel}>名额</Text>
-            <Text className={styles.ocInfoValue}>{seatLabel}</Text>
-          </View>
-        ) : null}
+      <View className={styles.ocChipRow}>
+        <Text
+          className={`${styles.ocChipTeacher} ${
+            item.teacher?.displayName ? '' : styles.ocChipTeacherMuted
+          }`}
+        >
+          授课老师：{item.teacher?.displayName || '待安排'}
+        </Text>
+        {seatChip ? <Text className={styles.ocChip}>{seatChip}</Text> : null}
         {activeLearningType ? (
-          <View className={styles.ocInfoRow}>
-            <Text className={styles.ocInfoLabel}>类型</Text>
-            <Text className={styles.ocInfoValue}>
-              {learningTypeLabel[activeLearningType]}
-            </Text>
-          </View>
+          <Text className={styles.ocChip}>
+            {learningTypeLabel[activeLearningType]}
+          </Text>
+        ) : null}
+        {!isRegistered && !isWaitlisted && item.capacity > 0 ? (
+          <Text className={styles.ocChipMutedInline}>
+            共 {item.capacity} 人
+          </Text>
         ) : null}
       </View>
 
@@ -398,14 +421,18 @@ function SessionCard({
               }}
             >
               {actionBusy && submittingId === item.myRegistration?.id
-                ? '…'
+                ? '处理中…'
                 : !canRegister
-                  ? '待确认'
+                  ? '运营确认中'
                   : isWaitlisted
                     ? '取消候补'
                     : '取消报名'}
             </Text>
-          ) : null
+          ) : (
+            <Text className={styles.ocFootHint}>
+              {isWaitlisted ? '候补中，有名额会通知你' : '已报名，开课后可进入'}
+            </Text>
+          )
         ) : (
           <Button
             className={`primaryButton ${styles.ocBtn}`}
@@ -420,10 +447,10 @@ function SessionCard({
             onClick={() => onRegister(item)}
           >
             {!canRegister
-              ? '待确认'
+              ? '运营确认中'
               : item.remainingSeats > 0
-                ? '报名'
-                : '候补'}
+                ? '立即报名'
+                : '申请候补'}
           </Button>
         )}
       </View>
@@ -435,6 +462,7 @@ type OpenDayGroup = {
   key: string
   label: string
   isToday: boolean
+  isTomorrow: boolean
   items: TrainingSession[]
 }
 
@@ -456,6 +484,7 @@ function groupOpenByDay(list: TrainingSession[]): OpenDayGroup[] {
       key,
       label,
       isToday: d.isSame(dayjs(), 'day'),
+      isTomorrow: d.isSame(dayjs().add(1, 'day'), 'day'),
       items,
     }
   })
@@ -617,27 +646,33 @@ export default function TrainingSessionsShell({
     if (!pullDown) setLoading(true)
     setError(null)
     try {
-      await ensureAppSession()
+      // 已有登录态：后台刷 session，不阻塞列表（避免弱网卡死加载）
+      const existing = useSessionStore.getState().session
+      if (existing?.mode === 'real' && existing.token) {
+        void ensureAppSession().catch((e) => {
+          console.warn('[Training] 后台刷新登录态失败', e)
+        })
+      } else {
+        await ensureAppSession()
+      }
       const [sessionResult, trainingResult, recommendationResult] =
         await Promise.all([
           getTrainingSessions(),
           getMyTraining(),
           getTrainingRecommendations(),
         ])
-      setSessions(sessionResult.items)
-      setMyTraining(trainingResult)
-      setRecommendations(recommendationResult.items)
+      setSessions(sessionResult.items ?? [])
+      setMyTraining(
+        trainingResult ?? { registrations: [], progress: [] },
+      )
+      setRecommendations(recommendationResult?.items ?? [])
       void markTrainingRecommendationsViewed()
       if (options?.showToast) {
-        Taro.showToast({ title: '已刷新', icon: 'success' })
+        Taro.showToast({ title: '已帮你刷新课程', icon: 'success' })
       }
     } catch (requestError) {
       console.error('[Training] 学习中心加载失败', requestError)
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : '加载失败',
-      )
+      setError(getErrorMessage(requestError, '加载失败'))
     } finally {
       if (!pullDown) setLoading(false)
     }
@@ -676,7 +711,7 @@ export default function TrainingSessionsShell({
       await load()
     } catch (requestError) {
       Taro.showToast({
-        title: requestError instanceof Error ? requestError.message : '报名失败',
+        title: getErrorMessage(requestError, '报名失败'),
         icon: 'none',
       })
     } finally {
@@ -707,17 +742,16 @@ export default function TrainingSessionsShell({
 
   async function confirmCancelRegistration() {
     const registrationId = cancelTargetId
-    if (!registrationId) return
-    setCancelTargetId('')
+    if (!registrationId || submittingId) return
     setSubmittingId(registrationId)
     try {
       await cancelTrainingRegistration(registrationId)
+      setCancelTargetId('')
       Taro.showToast({ title: '已取消报名', icon: 'success' })
       await load()
     } catch (requestError) {
       Taro.showToast({
-        title:
-          requestError instanceof Error ? requestError.message : '取消失败',
+        title: getErrorMessage(requestError, '取消失败'),
         icon: 'none',
       })
     } finally {
@@ -746,9 +780,19 @@ export default function TrainingSessionsShell({
     }
   }
 
-  function renderSessionList(list: TrainingSession[], emptyTitle: string) {
+  function renderSessionList(
+    list: TrainingSession[],
+    emptyTitle: string,
+    emptyDesc?: string,
+  ) {
     if (!list.length) {
-      return <StateBlock icon="empty" title={emptyTitle} />
+      return (
+        <StateBlock
+          icon="empty"
+          title={emptyTitle}
+          description={emptyDesc}
+        />
+      )
     }
     return list.map((item) => (
       <SessionCard
@@ -771,7 +815,12 @@ export default function TrainingSessionsShell({
       return (
         <StateBlock
           icon="empty"
-          title={hasLiveJoined ? '请看「正在上课」' : '暂无开放课堂'}
+          title={hasLiveJoined ? '这会儿没有可报名的课' : '暂无开放课堂'}
+          description={
+            hasLiveJoined
+              ? '你报名的课正在上，可以切到「正在上课」进入'
+              : '有新场次开放时会出现在这里'
+          }
         />
       )
     }
@@ -779,13 +828,27 @@ export default function TrainingSessionsShell({
       <View className={styles.ocList}>
         {openDayGroups.map((group) => (
           <View key={group.key} className={styles.ocDay}>
-            <Text
+            <View
               className={`${styles.ocDayLabel} ${
-                group.isToday ? styles.ocDayLabelToday : ''
+                group.isToday
+                  ? styles.ocDayLabelToday
+                  : group.isTomorrow
+                    ? styles.ocDayLabelTomorrow
+                    : ''
               }`}
             >
-              {group.label}
-            </Text>
+              <Text
+                className={`${styles.ocDayLabelText} ${
+                  group.isToday
+                    ? styles.ocDayLabelTextToday
+                    : group.isTomorrow
+                      ? styles.ocDayLabelTextTomorrow
+                      : ''
+                }`}
+              >
+                {group.label}
+              </Text>
+            </View>
             <View className={styles.ocDayCards}>
               {group.items.map((item) => (
                 <SessionCard
@@ -808,6 +871,139 @@ export default function TrainingSessionsShell({
     )
   }
 
+  function renderCoreProgress() {
+    if (coreProgress.length === 0) {
+      return (
+        <StateBlock
+          icon="empty"
+          title="暂无基础必修"
+          description="必修课表就绪后会出现在这里"
+        />
+      )
+    }
+    return (
+      <View className={styles.coreProgressPanel}>
+        <View className={styles.coreSummary}>
+          <View className={styles.coreSummaryTop}>
+            <View className={styles.coreSummaryCopy}>
+              <Text className={styles.coreSummaryEyebrow}>学习路径</Text>
+              <Text className={styles.coreSummaryTitle}>基础必修</Text>
+            </View>
+            <View className={styles.coreSummaryMetric}>
+              <Text className={styles.coreSummaryCount}>{coreDoneCount}</Text>
+              <Text className={styles.coreSummaryTotal}>
+                /{coreProgress.length}
+              </Text>
+            </View>
+          </View>
+          <View className={styles.coreBarTrack}>
+            <View
+              className={styles.coreBarFill}
+              style={{
+                width: `${
+                  coreProgress.length
+                    ? Math.round((coreDoneCount / coreProgress.length) * 100)
+                    : 0
+                }%`,
+              }}
+            />
+          </View>
+          <Text className={styles.coreSummaryHint}>
+            {coreDoneCount >= coreProgress.length
+              ? '基础必修已全部完成，继续保持'
+              : `已完成 ${coreDoneCount} 门，还差 ${
+                  coreProgress.length - coreDoneCount
+                } 门 · 可在开放课堂报名`}
+          </Text>
+        </View>
+
+        <View className={styles.coreList}>
+          {coreProgress.map((item, index) => {
+            const state = coreProgressState(item)
+            const done = isCoreProgressDone(item)
+            const seq = item.course.sequence ?? index + 1
+            const seqText = seq < 10 ? `0${seq}` : String(seq)
+            const isLast = index === coreProgress.length - 1
+            return (
+              <View
+                key={item.course.id}
+                className={`${styles.coreRow} ${
+                  done ? styles.coreRowDone : ''
+                } ${state.tone === 'active' ? styles.coreRowActive : ''} ${
+                  state.tone === 'warn' ? styles.coreRowWarn : ''
+                }`}
+              >
+                <View className={styles.coreRail}>
+                  <View
+                    className={`${styles.coreSeq} ${
+                      state.tone === 'done'
+                        ? styles.coreSeqDone
+                        : state.tone === 'active'
+                          ? styles.coreSeqActive
+                          : state.tone === 'warn'
+                            ? styles.coreSeqWarn
+                            : styles.coreSeqIdle
+                    }`}
+                  >
+                    <Text className={styles.coreSeqText}>
+                      {done ? '✓' : seqText}
+                    </Text>
+                  </View>
+                  {!isLast ? (
+                    <View
+                      className={`${styles.coreRailLine} ${
+                        done ? styles.coreRailLineDone : ''
+                      }`}
+                    />
+                  ) : null}
+                </View>
+                <View className={styles.coreRowMain}>
+                  <View className={styles.coreRowTop}>
+                    <Text className={styles.coreRowTitle}>
+                      {item.course.title}
+                    </Text>
+                    <Text
+                      className={`${styles.coreState} ${
+                        state.tone === 'done'
+                          ? styles.coreStateDone
+                          : state.tone === 'active'
+                            ? styles.coreStateActive
+                            : state.tone === 'warn'
+                              ? styles.coreStateWarn
+                              : styles.coreStateIdle
+                      }`}
+                    >
+                      {state.label}
+                    </Text>
+                  </View>
+                  {item.course.summary ? (
+                    <Text className={styles.coreRowSub}>
+                      {item.course.summary}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            )
+          })}
+        </View>
+      </View>
+    )
+  }
+
+  /** 与活动中心一致：只渲染当前 Tab，不用并排横滑 */
+  function renderActivePanel() {
+    if (viewMode === 'live') {
+      return renderSessionList(
+        liveSessions,
+        '这会儿还没有进行中的课',
+        '开课后会出现在这里，记得提前报名',
+      )
+    }
+    if (viewMode === 'sessions') {
+      return renderOpenList()
+    }
+    return renderCoreProgress()
+  }
 
   return (
     <>
@@ -816,7 +1012,7 @@ export default function TrainingSessionsShell({
               {browseOnly ? (
                 <View className={styles.readonlyBanner}>
                   <Text className={styles.readonlyBannerText}>
-                    运营确认中 · 可先浏览
+                    运营确认中 · 可以先逛逛
                   </Text>
                 </View>
               ) : null}
@@ -852,178 +1048,65 @@ export default function TrainingSessionsShell({
                 </View>
               ) : null}
 
-              <View className={styles.tabs}>
-                <View
-                  className={`${styles.tabPill} ${
-                    viewMode === 'live'
-                      ? styles.tabPill0
-                      : viewMode === 'sessions'
-                        ? styles.tabPill1
-                        : styles.tabPill2
-                  }`}
-                />
-                <View
-                  className={styles.tab}
-                  onClick={() => setViewMode('live')}
-                >
-                  <Text
-                    className={`${styles.tabLabel} ${
-                      viewMode === 'live' ? styles.tabLabelActive : ''
-                    }`}
-                  >
-                    正在上课
-                    {liveSessions.length > 0 ? ` ${liveSessions.length}` : ''}
-                  </Text>
-                </View>
-                <View
-                  className={styles.tab}
-                  onClick={() => setViewMode('sessions')}
-                >
-                  <Text
-                    className={`${styles.tabLabel} ${
-                      viewMode === 'sessions' ? styles.tabLabelActive : ''
-                    }`}
-                  >
-                    开放课堂
-                  </Text>
-                </View>
-                <View
-                  className={styles.tab}
-                  onClick={() => setViewMode('progress')}
-                >
-                  <Text
-                    className={`${styles.tabLabel} ${
-                      viewMode === 'progress' ? styles.tabLabelActive : ''
-                    }`}
-                  >
-                    必修进度
-                  </Text>
-                </View>
-              </View>
+              {(() => {
+                const tabs: Array<{ key: ViewMode; label: string }> = [
+                  {
+                    key: 'live',
+                    label:
+                      liveSessions.length > 0
+                        ? `正在上课 ${liveSessions.length}`
+                        : '正在上课',
+                  },
+                  { key: 'sessions', label: '开放课堂' },
+                  { key: 'progress', label: '必修进度' },
+                ]
+                const idx = Math.max(
+                  0,
+                  tabs.findIndex((t) => t.key === viewMode),
+                )
+                return (
+                  <View className={styles.segBar}>
+                    <View
+                      className={styles.segPill}
+                      style={{
+                        width: `calc((100% - 16rpx) / ${tabs.length})`,
+                        transform: `translateX(${idx * 100}%)`,
+                      }}
+                    />
+                    {tabs.map((tab) => {
+                      const active = viewMode === tab.key
+                      return (
+                        <View
+                          key={tab.key}
+                          className={styles.segItem}
+                          onClick={() => setViewMode(tab.key)}
+                        >
+                          <Text
+                            className={`${styles.segLabel} ${
+                              active ? styles.segLabelActive : ''
+                            }`}
+                          >
+                            {tab.label}
+                          </Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                )
+              })()}
 
               {loading ? (
-                <StateBlock icon="loading" title="加载中" />
+                <StateBlock icon="loading" title="正在加载课程…" />
               ) : error ? (
                 <StateBlock
                   icon="error"
-                  title="加载失败"
+                  title="课程加载失败"
                   description={error}
-                  actionText="重新加载"
+                  actionText="重新加载一下"
                   onAction={() => void load()}
                 />
               ) : (
-                <View className={styles.swipeHost}>
-                  <View
-                    className={`${styles.swipeTrack} ${
-                      viewMode === 'live'
-                        ? styles.swipeTrack0
-                        : viewMode === 'sessions'
-                          ? styles.swipeTrack1
-                          : styles.swipeTrack2
-                    }`}
-                  >
-                    <View className={styles.swipePane}>
-                      {renderSessionList(liveSessions, '暂无进行中')}
-                    </View>
-                    <View className={styles.swipePane}>
-                      {renderOpenList()}
-                    </View>
-                    <View className={styles.swipePane}>
-                      <View className={styles.coreProgressPanel}>
-                        {coreProgress.length === 0 ? (
-                          <StateBlock icon="empty" title="暂无基础必修" />
-                        ) : (
-                          <>
-                            <View className={styles.coreSummary}>
-                              <View className={styles.coreSummaryTop}>
-                                <Text className={styles.coreSummaryTitle}>
-                                  基础必修
-                                </Text>
-                                <Text className={styles.coreSummaryCount}>
-                                  {coreDoneCount}/{coreProgress.length}
-                                </Text>
-                              </View>
-                              <View className={styles.coreBarTrack}>
-                                <View
-                                  className={styles.coreBarFill}
-                                  style={{
-                                    width: `${
-                                      coreProgress.length
-                                        ? Math.round(
-                                            (coreDoneCount /
-                                              coreProgress.length) *
-                                              100,
-                                          )
-                                        : 0
-                                    }%`,
-                                  }}
-                                />
-                              </View>
-                            </View>
-
-                            <View className={styles.coreList}>
-                              {coreProgress.map((item, index) => {
-                                const state = coreProgressState(item)
-                                const done = isCoreProgressDone(item)
-                                const seq =
-                                  item.course.sequence ?? index + 1
-                                const seqText =
-                                  seq < 10 ? `0${seq}` : String(seq)
-                                return (
-                                  <View
-                                    key={item.course.id}
-                                    className={`${styles.coreRow} ${
-                                      done ? styles.coreRowDone : ''
-                                    }`}
-                                  >
-                                    <View
-                                      className={`${styles.coreSeq} ${
-                                        state.tone === 'done'
-                                          ? styles.coreSeqDone
-                                          : state.tone === 'active'
-                                            ? styles.coreSeqActive
-                                            : state.tone === 'warn'
-                                              ? styles.coreSeqWarn
-                                              : styles.coreSeqIdle
-                                      }`}
-                                    >
-                                      <Text className={styles.coreSeqText}>
-                                        {done ? '✓' : seqText}
-                                      </Text>
-                                    </View>
-                                    <View className={styles.coreRowMain}>
-                                      <Text className={styles.coreRowTitle}>
-                                        {item.course.title}
-                                      </Text>
-                                      {item.course.summary ? (
-                                        <Text className={styles.coreRowSub}>
-                                          {item.course.summary}
-                                        </Text>
-                                      ) : null}
-                                    </View>
-                                    <Text
-                                      className={`${styles.coreState} ${
-                                        state.tone === 'done'
-                                          ? styles.coreStateDone
-                                          : state.tone === 'active'
-                                            ? styles.coreStateActive
-                                            : state.tone === 'warn'
-                                              ? styles.coreStateWarn
-                                              : styles.coreStateIdle
-                                      }`}
-                                    >
-                                      {state.label}
-                                    </Text>
-                                  </View>
-                                )
-                              })}
-                            </View>
-                          </>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-                </View>
+                <View className={styles.contentStack}>{renderActivePanel()}</View>
               )}
       </View>
     </View>
@@ -1034,6 +1117,9 @@ export default function TrainingSessionsShell({
         content="开课前可取消，名额会补给候补。"
         confirmText="确认取消"
         cancelText="再想想"
+        confirmLoading={Boolean(
+          cancelTargetId && submittingId === cancelTargetId,
+        )}
         onCancel={() => setCancelTargetId('')}
         onConfirm={() => void confirmCancelRegistration()}
       />

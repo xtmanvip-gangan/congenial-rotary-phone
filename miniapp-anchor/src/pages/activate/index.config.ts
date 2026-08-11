@@ -1,3 +1,6 @@
 export default definePageConfig({
-  navigationBarTitleText: '激活主播档案',
+  navigationStyle: 'custom',
+  backgroundColor: '#EEF1F6',
+  navigationBarBackgroundColor: '#3A8CE8',
+  backgroundTextStyle: 'dark',
 })

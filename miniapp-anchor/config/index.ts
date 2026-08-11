@@ -5,7 +5,7 @@ import prodConfig from './prod';
 // https://taro-docs.jd.com/docs/next/config#defineconfig-辅助函数
 export default defineConfig<'webpack5'>(async (merge) => {
   const baseConfig: UserConfigExport<'webpack5'> = {
-    projectName: '悦总统',
+    projectName: '悦动芳草地',
     date: '2025-12-10',
     designWidth: 375,
     deviceRatio: {
@@ -33,6 +33,11 @@ export default defineConfig<'webpack5'>(async (merge) => {
       enable: false, // Webpack 持久化缓存配置，建议开启。默认配置请参考：https://docs.taro.zone/docs/config-detail#cache
     },
     mini: {
+      miniCssExtractPluginOption: {
+        // 小程序端大量复用 PageNav / StateBlock / ListSkeleton 等 CSS Module，
+        // 页面组合顺序不同会触发抽离顺序告警；这里与 H5 保持一致，忽略顺序噪音。
+        ignoreOrder: true,
+      },
       postcss: {
         pxtransform: {
           enable: true,

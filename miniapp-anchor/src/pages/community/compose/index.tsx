@@ -6,6 +6,12 @@ import PageShell from '@/components/PageShell'
 import { useBrandNavScroll } from '@/hooks/useBrandNavScroll'
 import { ensureAppSession } from '@/services/auth'
 import {
+  clearComposeDraft,
+  pickWithSourceSheet,
+  readComposeDraft,
+  type ComposeMode,
+} from '@/services/community-compose-draft'
+import {
   createCommunityPost,
   getCommunityPost,
   listCommunityTags,
@@ -14,19 +20,52 @@ import {
   type CommunityMedia,
   type CommunityTag,
 } from '@/services/community'
-import { resolveAssetUrl } from '@/services/request'
+import { resolveAssetUrl, toUploadPath } from '@/services/request'
+import { COLOR_ERROR, COLOR_TEXT_TERTIARY } from '@/styles/design-tokens'
 import styles from './index.module.scss'
+
+/** 发帖草稿项：local=true 表示尚未上传 COS，发送时再传 */
+type DraftMedia = {
+  key: string
+  type: 'image' | 'video'
+  url: string
+  local: boolean
+  coverUrl?: string
+  coverLocal?: boolean
+  durationSec?: number
+  width?: number
+  height?: number
+}
+
+function displaySrc(path: string, local?: boolean) {
+  if (!path) return ''
+  if (local) return path
+  if (/^(wxfile|file):\/\//i.test(path)) return path
+  if (/^https?:\/\//i.test(path) && /tmp|__tmp__/i.test(path)) return path
+  return resolveAssetUrl(path)
+}
+
+let draftKeySeq = 0
+function nextKey(prefix: string) {
+  draftKeySeq += 1
+  return `${prefix}-${Date.now()}-${draftKeySeq}`
+}
 
 export default function CommunityComposePage() {
   const nav = useBrandNavScroll()
   const router = useRouter()
   const editId = router.params.id || ''
+  const modeParam = (router.params.mode || '') as ComposeMode | ''
 
   const [channel, setChannel] = useState<'plaza' | 'help'>('plaza')
   const [body, setBody] = useState('')
   const [tags, setTags] = useState<CommunityTag[]>([])
   const [tagIds, setTagIds] = useState<string[]>([])
-  const [media, setMedia] = useState<CommunityMedia[]>([])
+  const [media, setMedia] = useState<DraftMedia[]>([])
+  /** image | video | null（纯文或未定） */
+  const [mediaMode, setMediaMode] = useState<ComposeMode | null>(
+    modeParam === 'image' || modeParam === 'video' ? modeParam : null,
+  )
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -34,32 +73,71 @@ export default function CommunityComposePage() {
       await ensureAppSession()
       const res = await listCommunityTags()
       setTags(res.items ?? [])
+
       if (editId) {
         const detail = await getCommunityPost(editId)
         const p = detail.item
         setChannel(p.channel === 'help' ? 'help' : 'plaza')
         setBody(p.body || '')
         setTagIds((p.tags || []).map((t) => t.id))
-        // 编辑：历史若图+视频并存，按朋友圈只保留一侧（优先图）
-        {
-          const raw = p.media || []
-          const imgs = raw.filter((m) => m.type === 'image').slice(0, 9)
-          const vids = raw.filter((m) => m.type === 'video').slice(0, 1)
-          setMedia(imgs.length > 0 ? imgs : vids)
-        }
+        const raw = p.media || []
+        const imgs = raw.filter((m) => m.type === 'image').slice(0, 9)
+        const vids = raw.filter((m) => m.type === 'video').slice(0, 1)
+        const side = imgs.length > 0 ? imgs : vids
+        setMedia(
+          side.map((m) => ({
+            key: nextKey(m.type),
+            type: m.type,
+            url: m.url,
+            local: false,
+            coverUrl: m.coverUrl,
+            coverLocal: false,
+            durationSec: m.durationSec,
+            width: m.width,
+            height: m.height,
+          })),
+        )
+        setMediaMode(
+          imgs.length > 0 ? 'image' : vids.length > 0 ? 'video' : null,
+        )
+        clearComposeDraft()
+        return
+      }
+
+      // 首页 FAB 带入的本地草稿
+      const draft = readComposeDraft()
+      if (draft?.items?.length) {
+        const mode = draft.mode
+        setMediaMode(mode)
+        setMedia(
+          draft.items.map((it) => ({
+            key: nextKey(it.type),
+            type: it.type,
+            url: it.path,
+            local: true,
+            coverUrl: it.coverPath,
+            coverLocal: Boolean(it.coverPath),
+            durationSec: it.durationSec,
+            width: it.width,
+            height: it.height,
+          })),
+        )
+        clearComposeDraft()
+      } else if (modeParam === 'image' || modeParam === 'video') {
+        setMediaMode(modeParam)
       }
     })().catch((e) => {
       void Taro.showToast({
-        title: e instanceof Error ? e.message : '加载失败',
+        title: e instanceof Error ? e.message : '暂时打不开',
         icon: 'none',
       })
     })
-  }, [editId])
+  }, [editId, modeParam])
 
   const imageCount = media.filter((m) => m.type === 'image').length
   const videoCount = media.filter((m) => m.type === 'video').length
-  /** 主播帖上限，与后端 MAX_BODY_LEN_ANCHOR 一致 */
-  const MAX_BODY = 500
+  /** 主播短动态上限；官方后台发帖不限制（小程序仅主播端） */
+  const MAX_BODY = 200
   const canSubmit = useMemo(
     () =>
       body.trim().length > 0 &&
@@ -79,101 +157,151 @@ export default function CommunityComposePage() {
     })
   }
 
-  /** 朋友圈：图 / 视频二选一 */
-  const pickImages = async () => {
-    if (videoCount > 0) {
-      void Taro.showToast({
-        title: '已选视频，请先删除视频再加图',
-        icon: 'none',
+  /**
+   * 加号：仅图文模式且未满 9 可续选（本地草稿，不上传）
+   * 视频模式无加号
+   */
+  const onAddMedia = async () => {
+    if (videoCount > 0) return
+    if (imageCount >= 9) return
+
+    // 已有图或明确 image 模式 → 续图
+    if (imageCount > 0 || mediaMode === 'image') {
+      const remain = 9 - imageCount
+      const items = await pickWithSourceSheet('image', remain)
+      if (!items?.length) return
+      setMediaMode('image')
+      setMedia((prev) => {
+        const next = [
+          ...prev.filter((m) => m.type === 'image'),
+          ...items.map((it) => ({
+            key: nextKey('image'),
+            type: 'image' as const,
+            url: it.path,
+            local: true,
+          })),
+        ]
+        return next.slice(0, 9)
       })
       return
     }
-    if (imageCount >= 9) return
+
+    // 空媒体：页内也可补选（兼容资料页直接进发帖）
     try {
-      const choose = await Taro.chooseImage({
-        count: 9 - imageCount,
-        sizeType: ['compressed'],
-        sourceType: ['album', 'camera'],
+      const { tapIndex } = await Taro.showActionSheet({
+        itemList: ['图文（照片）', '视频'],
       })
-      const paths = choose.tempFilePaths || []
-      if (!paths.length) return
-      Taro.showLoading({ title: '上传中' })
-      const uploaded = await uploadCommunityFiles(paths)
-      const onlyImages = uploaded.filter((m) => m.type === 'image')
-      setMedia((prev) => [
-        ...prev.filter((m) => m.type === 'image'),
-        ...onlyImages,
-      ].slice(0, 9))
-    } catch (e) {
-      void Taro.showToast({
-        title: e instanceof Error ? e.message : '选图失败',
-        icon: 'none',
-      })
-    } finally {
-      Taro.hideLoading()
+      if (tapIndex === 0) {
+        const items = await pickWithSourceSheet('image', 9)
+        if (!items?.length) return
+        setMediaMode('image')
+        setMedia(
+          items.map((it) => ({
+            key: nextKey('image'),
+            type: 'image' as const,
+            url: it.path,
+            local: true,
+          })),
+        )
+      } else if (tapIndex === 1) {
+        const items = await pickWithSourceSheet('video', 1)
+        if (!items?.length) return
+        setMediaMode('video')
+        const it = items[0]
+        setMedia([
+          {
+            key: nextKey('video'),
+            type: 'video',
+            url: it.path,
+            local: true,
+            coverUrl: it.coverPath,
+            coverLocal: Boolean(it.coverPath),
+            durationSec: it.durationSec,
+            width: it.width,
+            height: it.height,
+          },
+        ])
+      }
+    } catch {
+      // cancel
     }
   }
 
-  const pickVideo = async () => {
-    if (imageCount > 0) {
-      void Taro.showToast({
-        title: '已选图片，请先删除图片再加视频',
-        icon: 'none',
-      })
-      return
-    }
-    if (videoCount >= 1) {
-      void Taro.showToast({ title: '最多 1 个视频', icon: 'none' })
-      return
-    }
-    try {
-      const choose = await Taro.chooseMedia({
-        count: 1,
-        mediaType: ['video'],
-        sourceType: ['album', 'camera'],
-        maxDuration: 60,
-        sizeType: ['compressed'],
-      })
-      const picked = choose.tempFiles?.[0]
-      if (!picked?.tempFilePath) return
-      if (picked.duration && picked.duration > 60) {
-        void Taro.showToast({ title: '视频需 ≤60 秒', icon: 'none' })
-        return
-      }
-      Taro.showLoading({ title: '上传中' })
-      const uploaded = await uploadCommunityFiles([picked.tempFilePath])
-      const videoItem = uploaded.find((m) => m.type === 'video') || uploaded[0]
-      if (!videoItem) return
+  /** 发送时再上传本地文件，再提交帖子 */
+  const uploadDraftMedia = async (): Promise<CommunityMedia[]> => {
+    const out: CommunityMedia[] = []
 
-      let coverUrl: string | undefined
-      const thumb = picked.thumbTempFilePath
-      if (thumb) {
+    const remote = media.filter((m) => !m.local)
+    for (const m of remote) {
+      out.push({
+        type: m.type,
+        url: toUploadPath(m.url) || m.url,
+        coverUrl: m.coverUrl
+          ? toUploadPath(m.coverUrl) || m.coverUrl
+          : undefined,
+        durationSec: m.durationSec,
+        width: m.width,
+        height: m.height,
+      })
+    }
+
+    const localImages = media.filter((m) => m.local && m.type === 'image')
+    if (localImages.length) {
+      const paths = localImages.map((m) => m.url)
+      const uploaded = await uploadCommunityFiles(paths, { kind: 'image' })
+      for (const u of uploaded.filter((x) => x.type === 'image')) {
+        out.push({
+          type: 'image',
+          url: toUploadPath(u.url) || u.url,
+        })
+      }
+    }
+
+    const localVideo = media.find((m) => m.local && m.type === 'video')
+    if (localVideo) {
+      const uploaded = await uploadCommunityFiles([localVideo.url], {
+        kind: 'video',
+      })
+      const videoItem =
+        uploaded.find((m) => m.type === 'video') || uploaded[0]
+      if (!videoItem) {
+        throw new Error('视频上传失败')
+      }
+      let width = localVideo.width
+      let height = localVideo.height
+      if (videoItem.width && videoItem.height) {
+        width = videoItem.width
+        height = videoItem.height
+      }
+      let coverUrl = videoItem.coverUrl
+        ? toUploadPath(videoItem.coverUrl) || videoItem.coverUrl
+        : undefined
+      if (localVideo.coverUrl && localVideo.coverLocal) {
         try {
-          const covers = await uploadCommunityFiles([thumb])
-          coverUrl = covers[0]?.url
+          const covers = await uploadCommunityFiles([localVideo.coverUrl], {
+            kind: 'image',
+          })
+          const c = covers[0]?.url
+          if (c) coverUrl = toUploadPath(c) || c
         } catch {
-          // 封面失败不阻断发视频
+          // 封面失败不阻断
         }
       }
-
-      const next: CommunityMedia = {
+      out.push({
         type: 'video',
-        url: videoItem.url,
+        url: toUploadPath(videoItem.url) || videoItem.url,
         coverUrl,
-        durationSec: Math.round(picked.duration || 0),
-        width: Number(picked.width) || undefined,
-        height: Number(picked.height) || undefined,
-      }
-      // 仅保留这一条视频
-      setMedia([next])
-    } catch (e) {
-      void Taro.showToast({
-        title: e instanceof Error ? e.message : '选视频失败',
-        icon: 'none',
+        durationSec:
+          videoItem.durationSec || localVideo.durationSec || undefined,
+        width,
+        height,
       })
-    } finally {
-      Taro.hideLoading()
     }
+
+    // 图优先：若误混只保留图侧（业务不应出现）
+    const imgs = out.filter((m) => m.type === 'image').slice(0, 9)
+    const vids = out.filter((m) => m.type === 'video').slice(0, 1)
+    return imgs.length > 0 ? imgs : vids
   }
 
   const submit = async () => {
@@ -181,26 +309,44 @@ export default function CommunityComposePage() {
     setSubmitting(true)
     try {
       await ensureAppSession()
+      Taro.showLoading({ title: '上传发送中', mask: true })
+      const finalMedia = await uploadDraftMedia()
       const payload = {
         channel,
         isHelp: channel === 'help',
         body: body.trim(),
-        media,
+        media: finalMedia,
         tagIds,
       }
       if (editId) {
-        await updateCommunityPost(editId, payload)
-        void Taro.showToast({ title: '已重新提交审核', icon: 'success' })
-      } else {
-        await createCommunityPost(payload)
+        const res = await updateCommunityPost(editId, payload)
+        const st = res.item?.status
         void Taro.showToast({
-          title: '已提交，通过后出现在推荐',
-          icon: 'none',
+          title:
+            st === 'approved'
+              ? '已更新并发布'
+              : st === 'rejected'
+                ? '未通过，请修改后重提'
+                : '已重新提交审核',
+          icon: st === 'approved' ? 'success' : 'none',
+          duration: 2200,
+        })
+      } else {
+        const res = await createCommunityPost(payload)
+        const st = res.item?.status
+        void Taro.showToast({
+          title:
+            st === 'approved'
+              ? '已发布'
+              : st === 'rejected'
+                ? '未通过审核，可在我的帖子查看原因'
+                : '已提交，通过后出现在全部',
+          icon: st === 'approved' ? 'success' : 'none',
           duration: 2200,
         })
       }
+      clearComposeDraft()
       setTimeout(() => {
-        // 跳「我的帖子」看审核状态，而不是 silently 返回
         void Taro.redirectTo({ url: '/pages/community/profile/index' }).catch(
           () => {
             void Taro.navigateBack()
@@ -213,29 +359,17 @@ export default function CommunityComposePage() {
         icon: 'none',
       })
     } finally {
+      Taro.hideLoading()
       setSubmitting(false)
     }
   }
 
+  const showAdd =
+    videoCount === 0 && imageCount < 9 && mediaMode !== 'video'
+
   return (
     <PageShell className={styles.page} backgroundColor="#ffffff">
-      <PageNav
-        title={editId ? '编辑动态' : '发动态'}
-        showBack
-        right={
-          <Text
-            style={{
-              fontSize: '28rpx',
-              fontWeight: 600,
-              color: canSubmit ? '#1C1C1E' : '#94A3B8',
-            }}
-            onClick={() => void submit()}
-          >
-            {submitting ? '发送中' : '发送'}
-          </Text>
-        }
-        {...nav}
-      />
+      <PageNav title={editId ? '编辑动态' : '发动态'} showBack {...nav} />
       <View className={styles.content}>
         <Textarea
           className={styles.textarea}
@@ -249,8 +383,11 @@ export default function CommunityComposePage() {
           style={{
             display: 'block',
             textAlign: 'right',
-            fontSize: '24rpx',
-            color: body.length >= MAX_BODY ? '#FF3B30' : '#94A3B8',
+            fontSize: '26rpx',
+            color:
+              body.length >= MAX_BODY
+                ? COLOR_ERROR
+                : COLOR_TEXT_TERTIARY,
             marginTop: '8rpx',
           }}
         >
@@ -270,18 +407,6 @@ export default function CommunityComposePage() {
           >
             求助
           </Text>
-          <Text
-            className={`${styles.tool} ${videoCount > 0 ? styles.toolMuted : ''}`}
-            onClick={() => void pickImages()}
-          >
-            图片
-          </Text>
-          <Text
-            className={`${styles.tool} ${imageCount > 0 ? styles.toolMuted : ''}`}
-            onClick={() => void pickVideo()}
-          >
-            视频
-          </Text>
         </View>
 
         <View className={styles.topics}>
@@ -298,11 +423,11 @@ export default function CommunityComposePage() {
 
         <View className={styles.mediaRow}>
           {media.map((m, i) => (
-            <View key={`${m.url}-${i}`} className={styles.thumbWrap}>
+            <View key={m.key} className={styles.thumbWrap}>
               {m.type === 'image' ? (
                 <Image
                   className={styles.thumb}
-                  src={resolveAssetUrl(m.url)}
+                  src={displaySrc(m.url, m.local)}
                   mode="aspectFill"
                 />
               ) : (
@@ -310,7 +435,7 @@ export default function CommunityComposePage() {
                   {m.coverUrl ? (
                     <Image
                       className={styles.thumb}
-                      src={resolveAssetUrl(m.coverUrl)}
+                      src={displaySrc(m.coverUrl, m.coverLocal)}
                       mode="aspectFill"
                     />
                   ) : (
@@ -325,32 +450,27 @@ export default function CommunityComposePage() {
               )}
               <View
                 className={styles.remove}
-                onClick={() =>
-                  setMedia((prev) => prev.filter((_, idx) => idx !== i))
-                }
+                onClick={() => {
+                  setMedia((prev) => {
+                    const next = prev.filter((_, idx) => idx !== i)
+                    if (next.length === 0 && !editId) {
+                      // 删光后保持 mode，便于继续加；视频删光则清 mode
+                      if (mediaMode === 'video') setMediaMode(null)
+                    }
+                    return next
+                  })
+                }}
               >
                 <Text>×</Text>
               </View>
             </View>
           ))}
-          {/* 朋友圈：有视频时不再出现加图；无视频且图未满可加图 */}
-          {videoCount === 0 && imageCount < 9 ? (
-            <View className={styles.add} onClick={() => void pickImages()}>
+          {showAdd ? (
+            <View className={styles.add} onClick={() => void onAddMedia()}>
               <Text className={styles.addPlus}>+</Text>
-              <Text>图片</Text>
-            </View>
-          ) : null}
-          {imageCount === 0 && videoCount === 0 ? (
-            <View className={styles.add} onClick={() => void pickVideo()}>
-              <Text className={styles.addPlus}>+</Text>
-              <Text>视频</Text>
             </View>
           ) : null}
         </View>
-
-        <Text className={styles.hint}>
-          图片与视频二选一：最多 9 张图，或 1 条 ≤60 秒视频。发送后需审核，通过后出现在信息流。
-        </Text>
 
         <View className={styles.footer}>
           <View

@@ -1,0 +1,98 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  background: $color-bg-page;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  padding: $spacing-sm $page-padding;
+  padding-bottom: $page-bottom-safe;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.tabs {
+  display: flex;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+}
+
+.tab {
+  padding: $spacing-sm $spacing-md;
+  min-height: 60rpx;
+  border-radius: $radius-pill;
+  font-size: $font-size-moments-comment; // 15pt 切换标签
+  font-weight: $font-weight-medium;
+  line-height: $line-height-moments-body;
+  color: $color-text-secondary;
+  background: rgba(255, 255, 255, 0.9);
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.tabOn {
+  color: $color-text-white;
+  background: $color-primary;
+}
+
+.card {
+  @include fashion-card;
+  padding: $spacing-md $spacing-lg;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-xs;
+}
+
+.status {
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  font-size: $font-size-moments-tag;
+  background: rgba(148, 163, 184, 0.15);
+  color: $color-text-secondary;
+}
+
+.statusPending {
+  background: rgba(245, 158, 11, 0.15);
+  color: $color-warning;
+}
+
+.statusOk {
+  background: $color-success-soft;
+  color: $color-success;
+}
+
+.statusBad {
+  background: rgba(244, 63, 94, 0.12);
+  color: $color-error;
+}
+
+.meta {
+  font-size: $font-size-moments-tag;
+  color: $color-text-tertiary;
+}
+
+.body {
+  display: block;
+  font-size: $font-size-moments-body; // 17pt 正文
+  font-weight: $font-weight-normal;
+  color: $color-text-primary;
+  line-height: $line-height-moments-body;
+  white-space: pre-wrap;
+}
+
+.reason {
+  display: block;
+  margin-top: $spacing-xs;
+  font-size: $font-size-moments-meta;
+  color: $color-error;
+}

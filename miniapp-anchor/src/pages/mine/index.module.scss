@@ -1,87 +1,444 @@
-@use 'sass:color';
 @use '@/styles/variables.scss' as *;
 
-.profilePanel {
-  padding-top: 28rpx;
+/* 我的页 · 仅 v2 配色对齐（结构不动） */
+$ice-page: $color-v2-bg;
+$ice-card: $color-v2-card;
+$ice-ink: $color-v2-ink;
+$ice-navy: $color-v2-navy;
+$ice-muted: $color-v2-muted;
+$ice-active: $color-v2-accent;
+$ice-deep: $color-v2-accent-deep;
+$ice-mid: $color-v2-accent-mid;
+$ice-soft: $color-v2-accent-soft;
+$ice-line: $color-v2-line;
+$ice-shadow: $shadow-v2-soft;
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
+  background: $ice-page;
+  padding-bottom: $page-bottom-safe;
 }
 
-.profileHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-  margin-bottom: 24rpx;
+.body {
+  position: relative;
+  z-index: 1;
+  /* 整体上移：减小导航下空白 */
+  padding: $spacing-sm $page-padding 0;
 }
 
-.sectionEyebrow {
-  font-size: $font-size-xs;
-  font-weight: $font-weight-medium;
-  color: $color-text-tertiary;
+/* —— 顶部半圆穹顶（略压缩，减少上空）—— */
+.domeSection {
+  position: relative;
+  z-index: 1;
+  width: 100%;
 }
 
-.modeBadge {
-  padding: 10rpx 18rpx;
-  border-radius: $radius-round;
-  background: color.adjust($color-primary, $alpha: -0.88);
-  font-size: $font-size-xs;
-  color: $color-primary;
+.dome {
+  position: relative;
+  width: 100%;
+  height: 28vh;
+  min-height: 300rpx;
+  max-height: 400rpx;
+  overflow: visible;
+  box-sizing: border-box;
 }
 
-.profileCard {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
+/* 半圆形色块：自顶向下，底边为弧 */
+.domeFill {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 168%;
+  height: 100%;
+  transform: translateX(-50%);
+  border-radius: 0 0 50% 50%;
+  /* v2 冰蓝顶弧，对齐 page hero token */
+  background: $gradient-v2-page-hero;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* 渐变气泡：高级感点缀 */
+.bubbleA,
+.bubbleB,
+.bubbleC,
+.bubbleD {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bubbleA {
+  width: 180rpx;
+  height: 180rpx;
+  left: 8%;
+  top: 22%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.08) 55%,
+    transparent 70%
+  );
+}
+
+.bubbleB {
+  width: 120rpx;
+  height: 120rpx;
+  right: 12%;
+  top: 18%;
+  background: radial-gradient(
+    circle at 40% 40%,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(193, 231, 254, 0.22) 50%,
+    transparent 72%
+  );
+}
+
+.bubbleC {
+  width: 220rpx;
+  height: 220rpx;
+  right: -6%;
+  bottom: 8%;
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(58, 140, 232, 0.18) 48%,
+    transparent 70%
+  );
+}
+
+.bubbleD {
+  width: 90rpx;
+  height: 90rpx;
+  left: 28%;
+  bottom: 22%;
+  background: radial-gradient(
+    circle at 40% 40%,
+    rgba(255, 255, 255, 0.5) 0%,
+    transparent 68%
+  );
+}
+
+/* 头像：垂直居中落在半圆底边线 */
+.avatarOnArc {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  z-index: 3;
+  transform: translate(-50%, 50%);
+}
+
+.avatarRing {
+  padding: $spacing-xs;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 8rpx 28rpx rgba(2, 57, 169, 0.12),
+    0 0 0 1rpx rgba(255, 255, 255, 0.85);
 }
 
 .avatar {
   @include flex-center;
-  width: 104rpx;
-  height: 104rpx;
-  border-radius: $radius-round;
-  background: linear-gradient(135deg, rgba(58, 142, 82, 0.14) 0%, rgba(89, 181, 116, 0.22) 100%);
-  font-size: $font-size-xl;
-  font-weight: $font-weight-semibold;
-  color: $color-primary;
+  width: 148rpx;
+  height: 148rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(145deg, $ice-deep 0%, $ice-active 100%);
 }
 
-.profileInfo {
+.avatarImage {
+  width: 100%;
+  height: 100%;
+}
+
+.avatarText {
+  font-size: $font-size-display;
+  font-weight: $font-weight-medium;
+  letter-spacing: -1rpx;
+  color: $color-text-white;
+}
+
+/* —— 半圆下方内容区 ——
+ * 头像圆心在弧底：半高约 80rpx 探入下方；
+ * margin-top 先让出半个头像，再与「退出」留出 24rpx 呼吸距
+ */
+.main {
+  position: relative;
+  z-index: 2;
+  padding: 0 $page-padding;
+  /* 80rpx 半头像 + 24rpx 与退出胶囊间距 */
+  margin-top: 104rpx;
   display: flex;
   flex-direction: column;
-  gap: 8rpx;
-  min-width: 0;
-  flex: 1;
+  align-items: stretch;
+  gap: $spacing-md;
 }
 
-.name {
-  font-size: $font-size-lg;
-  font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+/* 退出：与头像间距由 main.margin-top 保证，自身不再叠顶距 */
+.logoutRow {
+  display: flex;
+  justify-content: center;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.logoutTag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48rpx;
+  padding: 0 $spacing-lg;
+  border-radius: 999rpx;
+  background: $ice-card;
+  border: 1rpx solid $ice-line;
+  box-shadow: $ice-shadow;
+
+  &:active {
+    opacity: 0.88;
+    transform: scale(0.98);
+  }
+}
+
+.logoutTagText {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  letter-spacing: 1rpx;
+  color: $ice-muted;
+  line-height: 1;
+}
+
+/* 资料卡 */
+.profileCard {
+  @include fashion-card;
+  padding: $spacing-lg;
+}
+
+.nameRow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.profileName {
+  display: block;
+  text-align: center;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-medium;
+  letter-spacing: -0.6rpx;
+  line-height: $line-height-normal;
+  color: $ice-ink;
+  max-width: 100%;
   @include text-ellipsis;
 }
 
-.metaLabel {
-  font-size: $font-size-xs;
-  color: $color-text-tertiary;
+.tierBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-xs $spacing-sm $spacing-xs $spacing-xs;
+  border-radius: 999rpx;
+  background: linear-gradient(
+    135deg,
+    rgba(58, 140, 232, 0.14) 0%,
+    rgba(238, 241, 246, 0.92) 100%
+  );
+  border: 1rpx solid rgba(58, 140, 232, 0.22);
 }
 
-.metaValue {
+.tierIcon {
+  width: 36rpx;
+  height: 36rpx;
+  flex-shrink: 0;
+}
+
+.tierLabel {
   font-size: $font-size-sm;
-  color: $color-text-secondary;
-  line-height: $line-height-normal;
-  word-break: break-all;
+  font-weight: $font-weight-medium;
+  color: $ice-deep;
+  line-height: 1;
 }
 
-.buttonStack {
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: $spacing-xs;
+  margin-top: $spacing-sm;
+}
+
+.chip {
+  display: inline-flex;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: 999rpx;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+}
+
+.chipBrand {
+  background: rgba(58, 140, 232, 0.12);
+  color: $ice-deep;
+}
+
+.chipWarn {
+  background: $color-warning-soft;
+  color: $color-warning;
+}
+
+.chipNeutral {
+  background: rgba(30, 60, 90, 0.06);
+  color: $ice-muted;
+}
+
+.infoRows {
+  margin-top: $spacing-md;
+  padding-top: $spacing-md;
+  border-top: 1rpx solid $ice-line;
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
-  margin-top: 20rpx;
+  gap: $spacing-sm;
 }
 
-.shortcutHint {
-  display: block;
-  margin-top: 12rpx;
+.infoRow {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-md;
+}
+
+.infoLabel {
+  flex-shrink: 0;
+  width: 120rpx;
   font-size: $font-size-sm;
-  line-height: $line-height-loose;
-  color: $color-text-secondary;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+}
+
+.infoValue {
+  flex: 1;
+  min-width: 0;
+  font-size: $font-size-md;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $ice-ink;
+  text-align: right;
+  @include text-ellipsis-multi(2);
+}
+
+.profileActions {
+  display: flex;
+  gap: $spacing-sm;
+  margin-top: $spacing-md;
+}
+
+.actionSecondary {
+  @include secondary-button;
+  flex: 1;
+  height: $button-height-list;
+  min-height: $button-height-list;
+  font-size: $font-size-md;
+}
+
+.actionPrimary {
+  @include cta-button;
+  flex: 1;
+  height: $button-height-list;
+  min-height: $button-height-list;
+  font-size: $font-size-md;
+}
+
+/* 只读提醒：全站 warning tip */
+.alertCard {
+  @include tip-banner-warning;
+
+  &:active {
+    opacity: 0.92;
+  }
+}
+
+.alertLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.alertTitle {
+  display: block;
+  @include tip-banner-title-warning;
+}
+
+.alertDesc {
+  display: block;
+  margin-top: $spacing-xs;
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+}
+
+.alertAction {
+  @include tip-banner-action-warning;
+}
+
+/* 入口宫格：图标上、文字下 */
+.entryGrid {
+  @include fashion-card;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $spacing-sm $spacing-xs;
+  padding: $spacing-md $spacing-sm $spacing-md;
+}
+
+.entryItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: $spacing-sm;
+  padding: $spacing-sm $spacing-xs $spacing-sm;
+  border-radius: 16rpx;
+
+  &:active {
+    background: rgba(58, 140, 232, 0.06);
+  }
+}
+
+.entryIcon {
+  @include flex-center;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 22rpx;
+  background: linear-gradient(
+    145deg,
+    rgba(193, 231, 254, 0.55) 0%,
+    rgba(58, 140, 232, 0.14) 100%
+  );
+}
+
+.entryIconText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $ice-deep;
+  letter-spacing: 0;
+}
+
+.entryTitle {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: 1.3;
+  color: $ice-ink;
+  text-align: center;
+}
+
+.footerHint {
+  display: block;
+  text-align: center;
+  margin-top: $spacing-xs;
+  font-size: $font-size-xs;
+  color: $ice-muted;
+  letter-spacing: 0.5rpx;
 }

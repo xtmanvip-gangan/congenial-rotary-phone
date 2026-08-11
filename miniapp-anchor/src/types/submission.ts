@@ -18,6 +18,7 @@ export type SubmissionRecordItem = {
   activity: {
     id: string
     name: string
+    typeCode?: string
     typeName: string
   }
   anchorName: string
@@ -29,9 +30,12 @@ export type SubmissionRecordItem = {
   grantStatus: GrantStatus
   rejectReason: string | null
   createdAt: string
+  updatedAt?: string
   items: SubmissionEntryItem[]
   attachmentUrls: string[]
   rewardSummaryText: string
+  /** PK 活动时为本场 PK 值；礼物活动为 null */
+  pkValue?: number | null
 }
 
 export type MySubmissionsResponse = {
@@ -54,6 +58,8 @@ export type SubmissionDetailItem = {
   pkValue: number | null
   rewardSummaryText: string
   activity: ActivityDetailItem
+  /** 提报时间（ISO）；无则回退直播日+开播时刻 */
+  createdAt?: string
 }
 
 export type SubmissionDetailResponse = {

@@ -1,81 +1,1014 @@
-.tabs {
-  display: flex;
-  gap: 12px;
+@use '@/styles/variables.scss' as *;
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: $color-v2-bg;
 }
 
-.tab {
-  flex: 1;
+.content {
+  position: relative;
+  z-index: 1;
+  padding-bottom: $page-bottom-safe;
+}
+
+/* 头图：与活动广场同结构 */
+.heroSection {
+  position: relative;
+  overflow: visible;
+  padding-bottom: 0;
+}
+
+.heroBgImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: top;
+  pointer-events: none;
+}
+
+.heroInner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+.sectionBlock {
+  position: relative;
+  z-index: 1;
+  padding: 0;
   margin: 0;
 }
 
-.sessionHeader,
-.progressHeader,
-.metaRow,
-.actionRow {
+.listStackCard {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.mainPanel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+/* 运营确认中：全站 warning tip */
+.readonlyBanner {
+  @include tip-banner-warning;
+  margin-bottom: 0;
+}
+
+.readonlyBannerText {
+  flex: 1;
+  @include tip-banner-text-warning;
+}
+
+/* Tab：滑动胶囊指示器 */
+.tabs {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  padding: $spacing-xs;
+  background: $color-bg-muted;
+  border-radius: 16rpx;
+  box-shadow: none;
+  border: none;
+  overflow: hidden;
+}
+
+.tabPill {
+  position: absolute;
+  top: 8rpx;
+  bottom: 8rpx;
+  left: 8rpx;
+  width: calc((100% - 16rpx) / 3);
+  border-radius: $radius-md;
+  background: $color-primary;
+  box-shadow: none;
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.tabPill0 {
+  transform: translateX(0);
+}
+
+.tabPill1 {
+  transform: translateX(100%);
+}
+
+.tabPill2 {
+  transform: translateX(200%);
+}
+
+.tab {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 68rpx;
+  padding: 0 $spacing-xs;
+  border: none;
+  background: transparent;
+  transition: color 0.28s ease;
+}
+
+.tabLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: 1.2;
+  color: $color-text-tertiary;
+  transition: color 0.28s ease;
+}
+
+.tabLabelActive {
+  color: $color-text-white;
+  font-weight: $font-weight-medium;
+}
+
+/* 内容横向滑动 */
+.swipeHost {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.swipeTrack {
+  display: flex;
+  width: 300%;
+  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+}
+
+.swipeTrack0 {
+  transform: translateX(0);
+}
+
+.swipeTrack1 {
+  transform: translateX(-33.3333%);
+}
+
+.swipeTrack2 {
+  transform: translateX(-66.6667%);
+}
+
+.swipePane {
+  width: 33.3333%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  /* 裁切旋转印章，避免滑到相邻 Tab 露角 */
+  overflow: hidden;
+}
+
+/* ========== 开放课堂 ==========
+ * 白卡 + 时段主视觉 + 课名 + 结构化老师/名额
+ * 嵌在外层 swipe 内：不用重阴影（overflow 会裁影）
+ */
+.ocList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.ocDay {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+/* 日期：规范暖金（功能辅色 Gold） */
+.ocDayLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $color-warning;
+  letter-spacing: 0.5rpx;
+  padding: 0 $spacing-xs;
+}
+
+.ocDayLabelToday {
+  color: $color-live-deep;
+  font-weight: $font-weight-medium;
+}
+
+.ocDayCards {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.ocCard {
+  padding: $spacing-lg $spacing-lg $spacing-md;
+  border-radius: $radius-card;
+  background: $color-bg-card;
+  border: 1rpx solid rgba(28, 36, 51, 0.04);
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+/* 已报名：品牌浅边强调 */
+.ocCardJoined {
+  background: $color-bg-card;
+  border: 1rpx solid $color-border-brand;
+  box-shadow: none;
+}
+
+.ocCardFocus {
+  background: $color-bg-card;
+  border: 1rpx solid rgba(28, 28, 30, 0.14);
+  box-shadow: none;
+}
+
+.ocHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.ocTimeBlock {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  min-width: 0;
+}
+
+/* 时段：H2 36rpx / 500；时长贴右侧 */
+.ocTime {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5rpx;
+}
+
+.ocDuration {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
+}
+
+/* 状态软标签：最小提示 20rpx */
+.ocPill {
+  flex-shrink: 0;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+}
+
+.ocPillOk {
+  color: $color-success;
+  background: $color-success-soft;
+}
+
+.ocPillWait {
+  color: $color-warning;
+  background: $color-warning-soft;
+}
+
+.ocPillIdle {
+  color: $color-text-tertiary;
+  background: $color-bg-muted;
+}
+
+/* 课名：H3 32rpx / 500 */
+.ocTitle {
+  display: block;
+  margin-top: $spacing-md;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
+  @include text-ellipsis-multi(2);
+}
+
+/* 结构化信息区：标签 20 / 值正文 28 */
+.ocInfo {
+  margin-top: $spacing-md;
+  padding: $spacing-sm $spacing-md;
+  border-radius: $radius-md;
+  background: $color-bg-muted;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.ocInfoRow {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-md;
+  min-width: 0;
+}
+
+.ocInfoLabel {
+  flex-shrink: 0;
+  width: 56rpx;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
+}
+
+.ocInfoValue {
+  flex: 1;
+  min-width: 0;
+  font-size: $font-size-md;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
+  @include text-ellipsis;
+}
+
+.ocInfoValueMuted {
+  color: $color-text-tertiary;
+}
+
+.ocFoot {
+  margin-top: $spacing-md;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 40rpx;
+}
+
+.ocBtn {
+  width: 100% !important;
+  margin: 0 !important;
+  height: 72rpx !important;
+  line-height: 72rpx !important;
+  min-height: 72rpx !important;
+  border-radius: $radius-pill !important;
+  font-size: $font-size-md !important;
+  font-weight: $font-weight-medium !important;
+  box-shadow: none !important;
+}
+
+.ocLink {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
+  padding: $spacing-xs 0;
+}
+
+.ocLinkMuted {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
+  padding: $spacing-xs 0;
+}
+
+/* ========== 正在上课 ==========
+ * 嵌在外层白卡内：不用阴影（小程序 overflow 会裁成怪影）
+ * 用品牌浅线框 + 头图雾蓝底与外层白底区分
+ */
+.livePosterWrap {
+  position: relative;
+  border-radius: $radius-card;
+  background: $color-bg-card;
+  border: 1rpx solid $color-border-brand;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.livePoster {
+  position: relative;
+  overflow: hidden;
+  border-radius: $radius-card;
+  background: $color-bg-card;
+  border: none;
+  box-shadow: none;
+}
+
+.livePosterHero {
+  position: relative;
+  padding: $spacing-xl $spacing-lg $spacing-xxl;
+  min-height: 280rpx;
+  box-sizing: border-box;
+  background: $gradient-live-hero;
+  overflow: hidden;
+}
+
+.livePosterDecor {
+  position: absolute;
+  right: -48rpx;
+  top: -60rpx;
+  width: 220rpx;
+  height: 220rpx;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  pointer-events: none;
+}
+
+.livePosterDecor::after {
+  content: '';
+  position: absolute;
+  left: -120rpx;
+  bottom: -40rpx;
+  width: 180rpx;
+  height: 180rpx;
+  border-radius: 50%;
+  background: $color-white-22;
+}
+
+.livePosterHead {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: $spacing-sm;
 }
 
-.sessionHeader,
+.liveLiveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: rgba(255, 255, 255, 0.94);
+  border: none;
+  box-shadow: 0 2rpx 8rpx rgba(15, 23, 42, 0.06);
+}
+
+.liveLiveDot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: $color-success;
+  box-shadow: 0 0 0 6rpx rgba(90, 155, 110, 0.22);
+  animation: livePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.88);
+    opacity: 0.72;
+  }
+}
+
+.liveLiveText {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  letter-spacing: 2rpx;
+  color: $color-success;
+  line-height: 1;
+}
+
+.livePosterTag {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: rgba(28, 36, 51, 0.55);
+  letter-spacing: 2rpx;
+}
+
+.livePosterTitle {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: $spacing-xl;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
+  letter-spacing: -0.5rpx;
+  text-align: center;
+}
+
+.livePosterSub {
+  position: relative;
+  z-index: 1;
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  color: $color-text-tertiary;
+  text-align: center;
+  letter-spacing: 1rpx;
+}
+
+.livePosterFoot {
+  padding: $spacing-lg $spacing-lg $spacing-lg;
+  background: $color-bg-card;
+  border: none;
+  border-top: none;
+}
+
+.livePosterTimeRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.livePosterTime {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5rpx;
+}
+
+.livePosterDate {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-text-tertiary;
+  line-height: 1.3;
+  text-align: right;
+}
+
+.livePosterMeta {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
+}
+
+.liveStatusHint {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+  color: $color-success;
+  font-weight: $font-weight-medium;
+}
+
+.liveActionRow {
+  margin-top: $spacing-lg;
+}
+
+.liveJoinBtn {
+  width: 100% !important;
+  margin: 0 !important;
+  height: $button-height-md !important;
+  line-height: $button-height-md !important;
+  border-radius: $radius-pill !important;
+  background: $color-primary !important;
+  color: $color-text-white !important;
+  font-weight: $font-weight-medium !important;
+  font-size: $font-size-lg !important;
+  border: none !important;
+  box-shadow: $shadow-button !important;
+  letter-spacing: 1rpx;
+}
+
+.liveDisabledBar {
+  @include flex-center;
+  height: $button-height-md;
+  border-radius: $radius-pill;
+  background: $color-bg-muted;
+  border: none;
+}
+
+.liveDisabledText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-tertiary;
+}
+
+/* ========== 必修进度：清单路径 ========== */
+.coreProgressPanel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.coreSummary {
+  padding: $spacing-md $spacing-md $spacing-md;
+  border-radius: $radius-card;
+  background: linear-gradient(
+    135deg,
+    rgba(167, 193, 242, 0.18) 0%,
+    rgba(245, 247, 250, 1) 100%
+  );
+  border: none;
+}
+
+.coreSummaryTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.coreSummaryTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  letter-spacing: -0.3rpx;
+}
+
+.coreSummaryCount {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-primary-dark;
+  font-variant-numeric: tabular-nums;
+}
+
+.coreBarTrack {
+  margin-top: $spacing-sm;
+  height: 10rpx;
+  border-radius: $radius-pill;
+  background: $color-ink-06;
+  overflow: hidden;
+}
+
+.coreBarFill {
+  height: 100%;
+  border-radius: $radius-pill;
+  background: $gradient-progress-ink;
+  min-width: 0;
+  transition: width 0.28s ease;
+}
+
+.coreSummaryHint {
+  display: block;
+  margin-top: $spacing-sm;
+  font-size: $font-size-xs;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
+}
+
+/* 必修课表：浅底区分白面板，无阴影 */
+.coreList {
+  background: $color-bg-input;
+  border-radius: $radius-card;
+  border: none;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.coreRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-md $spacing-md;
+  border-bottom: 1rpx solid rgba(28, 36, 51, 0.05);
+}
+
+.coreRow:last-child {
+  border-bottom: none;
+}
+
+.coreRowDone {
+  background: rgba(90, 155, 110, 0.04);
+}
+
+.coreSeq {
+  flex-shrink: 0;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  @include flex-center;
+}
+
+.coreSeqDone {
+  background: $color-success-soft;
+}
+
+.coreSeqActive {
+  background: $color-primary-soft;
+}
+
+.coreSeqWarn {
+  background: $color-warning-soft;
+}
+
+.coreSeqIdle {
+  background: $color-bg-muted;
+}
+
+.coreSeqText {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1;
+  color: $color-text-tertiary;
+}
+
+.coreSeqDone .coreSeqText {
+  color: $color-success;
+  font-size: $font-size-sm;
+}
+
+.coreSeqActive .coreSeqText {
+  color: $color-primary-dark;
+}
+
+.coreSeqWarn .coreSeqText {
+  color: $color-warning;
+}
+
+.coreRowMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.coreRowTitle {
+  display: block;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
+  @include text-ellipsis;
+}
+
+.coreRowDone .coreRowTitle {
+  color: $color-text-tertiary;
+}
+
+.coreRowSub {
+  display: block;
+  margin-top: $spacing-xs;
+  font-size: $font-size-xs;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
+  @include text-ellipsis;
+}
+
+.coreState {
+  flex-shrink: 0;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: 1.2;
+}
+
+.coreStateDone {
+  color: $color-success;
+}
+
+.coreStateActive {
+  color: $color-primary-dark;
+}
+
+.coreStateWarn {
+  color: $color-warning;
+}
+
+.coreStateIdle {
+  color: $color-text-tertiary;
+}
+
+/* 推荐定位：蓝 + 运营橙 + 腮红粉 流动光边 */
+.highlightWrap {
+  position: relative;
+  border-radius: $radius-lg;
+  padding: $spacing-xs;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.highlightSpin {
+  position: absolute;
+  left: -55%;
+  top: -55%;
+  width: 210%;
+  height: 210%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(28, 28, 30, 0) 0deg,
+    $color-primary 80deg,
+    $color-primary-light 160deg,
+    $color-primary 240deg,
+    rgba(28, 28, 30, 0) 320deg
+  );
+  animation: highlightSpin 1.25s linear infinite;
+  pointer-events: none;
+}
+
+.highlightInner {
+  position: relative;
+  z-index: 1;
+  margin: 0 !important;
+  background: $color-bg-card !important;
+}
+
+@keyframes highlightSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 运营推荐消息条 */
+.recNotice {
+  position: relative;
+  z-index: 1;
+  padding: $spacing-md $spacing-md;
+  border-radius: $radius-lg;
+  background: $color-selected-bg;
+  border: 1rpx solid $color-border-brand;
+  box-shadow: none;
+}
+
+.recNoticeTitle {
+  display: block;
+  margin-bottom: $spacing-sm;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $color-primary;
+  letter-spacing: 0;
+}
+
+.recNoticeRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm 0;
+}
+
+.recNoticeRow + .recNoticeRow {
+  border-top: 1px solid rgba(255, 159, 10, 0.15);
+}
+
+.recNoticeDot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: $color-warning;
+}
+
+.recNoticeBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.recNoticeCourse {
+  display: block;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  @include text-ellipsis;
+}
+
+.recNoticeReason {
+  display: block;
+  margin-top: $spacing-xs;
+  font-size: $font-size-sm;
+  line-height: $line-height-normal;
+  color: $color-text-tertiary;
+  @include text-ellipsis;
+}
+
+.recNoticeGo {
+  flex-shrink: 0;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-warning;
+}
+
 .progressHeader {
+  display: flex;
   align-items: flex-start;
+  justify-content: space-between;
+  gap: $spacing-md;
+}
+
+.tagStack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: $spacing-xs;
+  flex-shrink: 0;
 }
 
 .title {
   display: block;
-  color: #1d2129;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.4;
+  margin-top: $spacing-xs;
+  color: $color-text-primary;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  letter-spacing: -0.3rpx;
 }
 
-.eyebrow {
+.summary {
   display: block;
-  color: #3a8e52;
-  font-size: 24px;
-  font-weight: 600;
+  margin-top: $spacing-sm;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+  color: $color-text-tertiary;
+  @include text-ellipsis-multi(2);
 }
 
-.metaRow {
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  margin-top: 20px;
+/* 进行中提示：不用 disabled 按钮（灰底白字看不清） */
+.liveHint {
+  @include flex-center;
+  height: $button-height-md;
+  border-radius: $radius-button;
+  background: $color-success-soft;
+  border: none;
 }
 
-.actionRow {
-  margin-top: 24px;
+.liveHintText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-success;
+}
+
+/* 开课超 20 分钟：不可入会 */
+.lateHint {
+  @include flex-center;
+  height: $button-height-md;
+  border-radius: $radius-button;
+  background: $color-warning-soft;
+  border: none;
+  pointer-events: none;
+}
+
+.lateHintText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-warning;
+}
+
+/* 后台未点「开始上课」 */
+.waitHint {
+  @include flex-center;
+  height: $button-height-md;
+  border-radius: $radius-button;
+  background: $color-primary-soft;
+  border: none;
+  pointer-events: none;
+}
+
+.waitHintText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-primary-dark;
 }
 
 .progressList {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: $spacing-md;
 }
 
 .progressStatus {
   flex-shrink: 0;
-  border-radius: 999px;
-  padding: 8px 16px;
-  background: #edf5ee;
-  color: #3a8e52;
-  font-size: 22px;
+  border-radius: 999rpx;
+  padding: $spacing-xs $spacing-sm;
+  background: $color-primary-soft;
+  color: $color-primary-dark;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
 }
 
 .taskList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 18px;
+  gap: $spacing-xs;
+  margin-top: $spacing-sm;
 }
 
 .task {
-  color: #4e5969;
-  font-size: 25px;
-  line-height: 1.6;
+  color: $color-text-tertiary;
+  font-size: $font-size-sm;
+  line-height: $line-height-loose;
 }
 
 .materialButton {
-  margin: 16px 0 0;
+  margin: $spacing-sm 0 0;
 }

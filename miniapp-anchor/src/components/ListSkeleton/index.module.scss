@@ -1,0 +1,67 @@
+@use '@/styles/variables.scss' as *;
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: $card-stack-gap;
+  width: 100%;
+}
+
+.card {
+  padding: $card-padding-sm;
+  border-radius: $radius-card;
+  background: $color-bg-card;
+  border: none;
+  box-shadow: $shadow-card;
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@mixin skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(167, 193, 242, 0.1) 0%,
+    rgba(167, 193, 242, 0.22) 45%,
+    rgba(167, 193, 242, 0.1) 90%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.2s ease-in-out infinite;
+}
+
+.cover {
+  width: 100%;
+  height: 160rpx;
+  margin-bottom: $spacing-md;
+  border-radius: $radius-md;
+  @include skeleton-shimmer;
+}
+
+.lineLg,
+.lineMd,
+.lineSm {
+  height: 24rpx;
+  border-radius: $radius-xs;
+  margin-bottom: $spacing-sm;
+  @include skeleton-shimmer;
+}
+
+.lineLg {
+  width: 72%;
+  height: 32rpx;
+}
+
+.lineMd {
+  width: 92%;
+}
+
+.lineSm {
+  width: 48%;
+  margin-bottom: 0;
+}

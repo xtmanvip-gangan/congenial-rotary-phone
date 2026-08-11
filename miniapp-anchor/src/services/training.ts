@@ -70,7 +70,7 @@ function mockSessions(): TrainingSession[] {
 
 export async function getTrainingSessions() {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') {
+  if (session?.mode === 'mock') {
     return { items: mockSessions() }
   }
   return requestJson<{ items: TrainingSession[] }>('/training/sessions')
@@ -78,7 +78,7 @@ export async function getTrainingSessions() {
 
 export async function getMyTraining() {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') {
+  if (session?.mode === 'mock') {
     return {
       registrations: mockRegistration
         ? [{ ...mockRegistration, session: mockSessions()[0] }]
@@ -98,9 +98,33 @@ export async function getMyTraining() {
   return requestJson<MyTrainingResponse>('/training/me')
 }
 
+/** 主播侧课后应用反馈列表 */
+export type ApplicationFeedbackItem = {
+  id: string
+  weekStart?: string
+  status: string
+  observationNote: string | null
+  replayIssue?: string | null
+  interventionNeeded?: boolean
+  course: { id: string; title: string } | null
+  nextCourse?: { id: string; title: string } | null
+  operator?: { id: string; displayName: string } | null
+  updatedAt: string
+}
+
+export async function listMyApplicationFeedback() {
+  const session = useSessionStore.getState().session
+  if (session?.mode === 'mock') {
+    return { items: [] as ApplicationFeedbackItem[] }
+  }
+  return requestJson<{ items: ApplicationFeedbackItem[] }>(
+    '/training/me/application-feedback',
+  )
+}
+
 export async function registerTrainingSession(sessionId: string) {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') {
+  if (session?.mode === 'mock') {
     mockRegistration = {
       id: 'registration-mock-1',
       status: 'registered',
@@ -117,7 +141,7 @@ export async function registerTrainingSession(sessionId: string) {
 
 export async function cancelTrainingRegistration(registrationId: string) {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') {
+  if (session?.mode === 'mock') {
     mockRegistration = null
     return { ok: true }
   }
@@ -129,7 +153,7 @@ export async function cancelTrainingRegistration(registrationId: string) {
 
 export async function getTrainingRecommendations() {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') {
+  if (session?.mode === 'mock') {
     return {
       items: mockCourses.slice(0, 3).map(
         (course, index) =>
@@ -156,7 +180,7 @@ export async function getTrainingRecommendations() {
 
 export async function markTrainingRecommendationsViewed() {
   const session = useSessionStore.getState().session
-  if (!session || session.mode === 'mock') return { ok: true as const }
+  if (session?.mode === 'mock') return { ok: true as const }
   return requestJson<{ ok: true }>(
     '/training/recommendations/me/viewed',
     { method: 'POST' },

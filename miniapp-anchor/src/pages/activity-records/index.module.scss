@@ -1,77 +1,435 @@
 @use '@/styles/variables.scss' as *;
 
+/**
+ * 本场提报记录 · 社区化视觉 v2
+ * 与 pages/records 同系：冰蓝 Soft UI · 有温度文案
+ */
+
+$ice-page: $color-v2-bg;
+$ice-card: $color-v2-card;
+$ice-ink: $color-v2-ink;
+$ice-navy: $color-v2-navy;
+$ice-muted: $color-v2-muted;
+$ice-active: $color-v2-accent;
+$ice-deep: $color-v2-accent-deep;
+$ice-mid: $color-v2-accent-mid;
+$ice-soft: $color-v2-accent-soft;
+$ice-success: $color-v2-success;
+$ice-success-soft: $color-v2-success-soft;
+$ice-line: $color-v2-line;
+$ice-warm: $color-v2-warm;
+$ice-shadow: $shadow-v2-soft;
+$ice-shadow-press: 0 2rpx 8rpx rgba(30, 60, 90, 0.08);
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: $ice-page;
+}
+
+.pageWash {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 480rpx;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    165deg,
+    rgba(58, 140, 232, 0.16) 0%,
+    rgba(193, 231, 254, 0.28) 36%,
+    rgba(238, 241, 246, 0) 100%
+  );
+}
+
+.pageWash::after {
+  content: '';
+  position: absolute;
+  right: -$spacing-xxl;
+  top: $spacing-lg;
+  width: 260rpx;
+  height: 260rpx;
+  border-radius: $radius-round;
+  background: radial-gradient(
+    circle,
+    rgba(120, 200, 248, 0.28) 0%,
+    transparent 70%
+  );
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  padding: 0 $page-padding;
+  padding-bottom: $page-bottom-safe;
+  box-sizing: border-box;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: $card-stack-gap;
+}
+
+/* —— Hero（封面 / 无封面） —— */
 .heroCover {
   position: relative;
   width: 100%;
-  height: 400rpx;
+  height: 280rpx;
   overflow: hidden;
-  border-bottom-left-radius: 40rpx;
-  border-bottom-right-radius: 40rpx;
-  margin-bottom: 24rpx;
+  border-radius: $radius-card;
+  box-shadow: $ice-shadow;
 }
 
 .heroCoverImage {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  display: block;
 }
 
-.heroCoverOverlay {
+.heroCoverFade {
   position: absolute;
-  bottom: 0;
   left: 0;
   right: 0;
-  padding: 80rpx 40rpx 40rpx;
-  background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
-  display: flex;
-  align-items: flex-end;
+  bottom: 0;
+  height: 140rpx;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(2, 57, 169, 0.55) 100%
+  );
+  pointer-events: none;
 }
 
 .heroCoverTitle {
-  color: #ffffff;
-  font-size: 44rpx;
-  font-weight: 600;
-  line-height: 1.4;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-}
-
-.recordCard {
-  display: flex;
-  flex-direction: column;
-  gap: 24rpx;
-}
-
-.titleRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-}
-
-.title {
-  max-width: 100%;
+  position: absolute;
+  left: $card-padding;
+  right: $card-padding;
+  bottom: $spacing-md;
+  z-index: 1;
   font-size: $font-size-lg;
   font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+  line-height: $line-height-tight;
+  color: #ffffff;
+  @include text-ellipsis-multi(2);
+  text-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.22);
+}
+
+.heroCard {
+  position: relative;
+  overflow: hidden;
+  padding: $card-padding;
+  border-radius: $radius-card;
+  background: linear-gradient(
+    135deg,
+    $ice-deep 0%,
+    $ice-active 48%,
+    $ice-mid 100%
+  );
+  box-shadow: $ice-shadow;
+}
+
+.heroCard::before {
+  content: '';
+  position: absolute;
+  inset: $spacing-xs;
+  border: 1rpx solid rgba(255, 255, 255, 0.22);
+  border-radius: $radius-xl;
+  pointer-events: none;
+}
+
+.heroTitle {
+  position: relative;
+  z-index: 1;
+  display: block;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+  color: #ffffff;
+}
+
+/* 状态嵌在 Hero 内 */
+.statusBlock {
+  position: relative;
+  z-index: 1;
+  margin-top: $spacing-md;
+  padding: $card-padding-sm $card-padding;
+  border-radius: $radius-xl;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1rpx solid rgba(255, 255, 255, 0.55);
+  box-sizing: border-box;
+}
+
+.statusBlockTodo {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 247, 237, 0.98) 0%,
+    rgba(255, 255, 255, 0.96) 55%,
+    rgba(239, 246, 255, 0.96) 100%
+  );
+}
+
+.statusBlockOk {
+  background: linear-gradient(
+    145deg,
+    rgba(240, 253, 244, 0.96) 0%,
+    rgba(255, 255, 255, 0.96) 55%,
+    rgba(239, 246, 255, 0.96) 100%
+  );
+}
+
+.statusTitle {
+  display: block;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $ice-ink;
+  line-height: $line-height-tight;
+}
+
+.statusBlockTodo .statusTitle {
+  color: $ice-warm;
+}
+
+.statusBlockOk .statusTitle {
+  color: $ice-success;
+}
+
+.statusChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  margin-top: $spacing-sm;
+}
+
+.statusChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40rpx;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-pill;
+  background: rgba(58, 140, 232, 0.1);
+  color: $ice-navy;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  box-sizing: border-box;
+}
+
+.statusChipWarn {
+  background: rgba(249, 115, 22, 0.12);
+  color: $ice-warm;
+}
+
+.statusChipError {
+  background: rgba(255, 59, 48, 0.1);
+  color: $color-error;
+}
+
+.statusChipOk {
+  background: $ice-success-soft;
+  color: $ice-success;
+}
+
+/* 封面时状态单独成卡 */
+.statusCard {
+  padding: $card-padding-sm $card-padding;
+  border-radius: $radius-xl;
+  background: $ice-card;
+  border: 1rpx solid $ice-line;
+  box-shadow: $ice-shadow;
+  box-sizing: border-box;
+}
+
+.statusCardTodo {
+  border-color: rgba(249, 115, 22, 0.22);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 247, 237, 0.9) 0%,
+    #ffffff 60%
+  );
+}
+
+.statusCardOk {
+  border-color: rgba(34, 197, 94, 0.22);
+  background: linear-gradient(
+    145deg,
+    rgba(240, 253, 244, 0.9) 0%,
+    #ffffff 60%
+  );
+}
+
+/**
+ * 按日分组：一天一张 Soft 白卡 + 扁平行
+ * 一天最多约 2 场，不做卡片套卡片
+ */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: $card-stack-gap;
+}
+
+.dayGroup {
+  border-radius: $radius-card;
+  background: $ice-card;
+  border: 1rpx solid $ice-line;
+  overflow: hidden;
+  box-shadow: $ice-shadow;
+}
+
+.dayHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $spacing-sm;
+  padding: $spacing-md $card-padding $spacing-sm;
+  box-sizing: border-box;
+}
+
+.dayDate {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  line-height: $line-height-tight;
+  color: $ice-ink;
+}
+
+.dayCount {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+}
+
+.dayList {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 扁平行：时间前色条，无内嵌卡 */
+.row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-md $card-padding;
+  border-top: 1rpx solid $ice-line;
+  box-sizing: border-box;
+  min-height: $touch-min;
+
+  &:active {
+    background: rgba(58, 140, 232, 0.04);
+  }
+}
+
+.rowReject {
+  background: rgba(255, 59, 48, 0.04);
+}
+
+.rowMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.rowTop {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+/* 色条贴在时间前 */
+.timeMark {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.timeBar {
+  width: 6rpx;
+  height: 28rpx;
+  border-radius: $radius-pill;
+  background: linear-gradient(180deg, $ice-mid 0%, $ice-active 100%);
+  flex-shrink: 0;
+}
+
+.timeBarPending {
+  background: linear-gradient(180deg, #fdba74 0%, $ice-warm 100%);
+}
+
+.timeBarReject {
+  background: linear-gradient(180deg, #fca5a5 0%, $color-error 100%);
+}
+
+.rowTime {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $ice-ink;
+  font-variant-numeric: tabular-nums;
+}
+
+.rowSummary {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  line-height: $line-height-normal;
+  color: $ice-ink;
   @include text-ellipsis;
 }
 
-.infoBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-}
-
-.infoLine {
+.rowSub {
   font-size: $font-size-sm;
-  line-height: $line-height-loose;
-  color: $color-text-secondary;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $ice-muted;
+  @include text-ellipsis;
 }
 
-.actionRow {
+.rowRejectText {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-normal;
+  color: $color-error;
+  @include text-ellipsis;
+}
+
+.rowSide {
+  flex-shrink: 0;
   display: flex;
-  gap: 16rpx;
+  align-items: center;
 }
 
-.actionButton {
-  flex: 1;
+.rowEdit {
+  @include button-reset;
+  height: $button-height-sm;
+  min-height: $button-height-sm;
+  min-width: 120rpx;
+  padding: 0 $spacing-md;
+  border-radius: $radius-pill;
+  background: linear-gradient(135deg, $ice-deep 0%, $ice-active 100%);
+  color: #ffffff;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  border: none;
+  box-shadow: $ice-shadow-press;
+  box-sizing: border-box;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    opacity: 0.88;
+  }
+}
+
+.rowArrow {
+  width: 40rpx;
+  text-align: center;
+  font-size: $font-size-xl;
+  font-weight: 300;
+  color: $ice-active;
+  line-height: 1;
+  opacity: 0.85;
 }

@@ -1,0 +1,78 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: $color-bg-page;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  padding: $spacing-sm $page-padding;
+  padding-bottom: $page-bottom-safe;
+  box-sizing: border-box;
+}
+
+.card {
+  @include fashion-card;
+  padding: $spacing-lg $spacing-lg $spacing-xl;
+}
+
+.version {
+  display: block;
+  margin-bottom: $spacing-md;
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.h1 {
+  display: block;
+  margin: $spacing-xs 0 $spacing-md;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  line-height: 1.35;
+}
+
+.h2 {
+  display: block;
+  margin: $spacing-lg 0 $spacing-sm;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  line-height: 1.35;
+}
+
+.p {
+  display: block;
+  margin-bottom: $spacing-sm;
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.li {
+  display: block;
+  margin-bottom: $spacing-xs;
+  padding-left: $spacing-xs;
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  line-height: 1.55;
+}
+
+.backBtn {
+  margin-top: $spacing-xl;
+  height: 88rpx;
+  border-radius: 999rpx;
+  background: $color-text-primary;
+  @include flex-center;
+}
+
+.backBtnText {
+  color: $color-text-white;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+}

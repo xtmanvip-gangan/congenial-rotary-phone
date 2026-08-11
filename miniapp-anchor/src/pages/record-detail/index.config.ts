@@ -1,3 +1,7 @@
 export default definePageConfig({
-  navigationBarTitleText: '记录详情',
+  navigationStyle: 'custom',
+  backgroundColor: '#EEF1F6',
+  backgroundTextStyle: 'dark',
+  navigationBarBackgroundColor: '#EEF1F6',
+  navigationBarTextStyle: 'black',
 })

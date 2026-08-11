@@ -1,0 +1,559 @@
+@use '@/styles/variables.scss' as *;
+
+/* 朋友圈详情 · 对齐 xxxxx/oo.jpg */
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  background: $color-bg-card;
+}
+
+.bodyWrap {
+  padding: $spacing-md $page-padding;
+  padding-bottom: $page-bottom-safe;
+}
+
+/* 头像 + 昵称 + 正文 + 媒体 */
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-sm;
+}
+
+.avatar {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 10rpx;
+  background: $color-brand-soft;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.avatarImg {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 10rpx;
+  display: block;
+}
+
+.mainCol {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  display: block;
+  font-size: $font-size-moments-body;
+  font-weight: $font-weight-medium;
+  color: $color-moments-link;
+  line-height: $line-height-moments-body;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-flex;
+  margin-left: $spacing-xs;
+  padding: 2rpx $spacing-xs;
+  border-radius: $radius-pill;
+  font-size: $font-size-moments-tag;
+  background: $color-brand;
+  color: $color-text-white;
+  font-weight: $font-weight-medium;
+  vertical-align: middle;
+}
+
+.body {
+  display: block;
+  margin-top: $spacing-xs;
+  @include text-moments-body;
+  white-space: pre-wrap;
+}
+
+.mediaWrap {
+  margin-top: $spacing-sm;
+  line-height: 0;
+  font-size: 0;
+}
+
+.topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs $spacing-sm;
+  margin-top: $spacing-sm;
+}
+
+.topic {
+  font-size: $font-size-moments-body;
+  color: $color-moments-link;
+  font-weight: $font-weight-medium;
+}
+
+/* 时间 + 删除 | ·· */
+.metaRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: $spacing-sm;
+  min-height: 48rpx;
+}
+
+.metaLeft {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.metaTime {
+  font-size: $font-size-moments-meta;
+  color: $color-moments-meta;
+  line-height: $line-height-moments-body;
+}
+
+.metaTrash {
+  width: 32rpx;
+  height: 32rpx;
+  display: block;
+  opacity: 0.55;
+}
+
+.metaRight {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  z-index: 60;
+}
+
+.moreBtn {
+  width: 64rpx;
+  height: 40rpx;
+  border-radius: 8rpx;
+  background: $color-divider;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-xs;
+  box-sizing: border-box;
+}
+
+.moreDot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: $color-moments-link;
+  flex-shrink: 0;
+}
+
+/**
+ * ·· 菜单：与首页 PostCard 一致，从两点向左抽屉滑出
+ */
+.actionMenu {
+  position: absolute;
+  right: 68rpx;
+  top: 50%;
+  z-index: 70;
+  display: flex;
+  align-items: stretch;
+  height: $touch-min;
+  min-width: 340rpx;
+  border-radius: $moments-panel-radius;
+  background: #3a3a3a;
+  box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  transform: translateY(-50%) scaleX(0.12);
+  transform-origin: right center;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.actionMenuOpen {
+  transform: translateY(-50%) scaleX(1);
+  opacity: 1;
+  pointer-events: auto;
+  transition:
+    transform 0.22s cubic-bezier(0.22, 0.9, 0.3, 1),
+    opacity 0.18s ease;
+}
+
+.actionMenuClose {
+  transform: translateY(-50%) scaleX(0.12);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.2s cubic-bezier(0.4, 0, 0.7, 0.2),
+    opacity 0.16s ease;
+}
+
+.actionMenuItem {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+  padding: 0 $moments-menu-item-pad-x;
+  white-space: nowrap;
+}
+
+.actionMenuDivider {
+  width: 1rpx;
+  align-self: stretch;
+  margin: $moments-menu-divider-inset 0;
+  background: rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.actionMenuText {
+  font-size: $font-size-moments-comment;
+  color: $color-text-white;
+  font-weight: $font-weight-medium;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.actionMenuIcon {
+  width: 32rpx;
+  height: 32rpx;
+  flex-shrink: 0;
+  display: block;
+}
+
+/* 点空白收起 ·· 菜单 */
+.menuMask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 50;
+  background: transparent;
+}
+
+/* 赞评通栏 · 对齐 oo：与页面内容同宽（不缩在头像右侧栏） */
+.panel {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: $spacing-sm;
+  padding: 0;
+  border-radius: $moments-panel-radius;
+  background: $color-moments-panel;
+  overflow: hidden;
+}
+
+.likeBar {
+  display: flex;
+  align-items: center;
+  gap: $moments-comment-gap;
+  margin: 0 $spacing-sm;
+  padding: $spacing-sm 0 $spacing-sm;
+  border-bottom: 1rpx solid $color-moments-divider;
+}
+
+.likeBarOnly {
+  display: flex;
+  align-items: center;
+  gap: $moments-comment-gap;
+  margin: 0 $spacing-sm;
+  padding: $spacing-sm 0;
+}
+
+/* 点赞/评论区图标：空心与消息同尺寸同色（#8E8E93 资源） */
+$panel-icon-size: 36rpx;
+
+.likeHeartIcon {
+  width: $panel-icon-size;
+  height: $panel-icon-size;
+  flex-shrink: 0;
+  display: block;
+}
+
+.likeAvatars {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-xs;
+  flex: 1;
+  min-width: 0;
+}
+
+.likeAvatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 8rpx;
+  background: $color-divider;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.likeAvatarImg {
+  width: 56rpx;
+  height: 56rpx;
+  display: block;
+}
+
+.likeAvatarLetter {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-moments-meta;
+  color: $color-moments-link;
+  font-weight: $font-weight-medium;
+  background: $color-moments-link-soft;
+}
+
+/* 评论：通栏 + 行间分割线；字号与正文 token 一致 */
+.commentList {
+  display: flex;
+  flex-direction: column;
+}
+
+.commentBlock {
+  display: flex;
+  flex-direction: column;
+}
+
+.commentRow {
+  display: flex;
+  align-items: flex-start;
+  gap: $moments-comment-gap;
+  /* 左右 margin 让分割线与内容同宽、不贴灰底边 */
+  margin: 0 $spacing-sm;
+  padding: $moments-comment-row-pad-y 0; // 行距收紧
+  box-sizing: border-box;
+  border-bottom: 1rpx solid $color-moments-divider;
+}
+
+/* 最后一条不画线 */
+.commentList > .commentBlock:last-child > .commentRow:last-child {
+  border-bottom: none;
+}
+
+.commentIconCol {
+  width: $panel-icon-size;
+  flex-shrink: 0;
+  padding-top: $spacing-sm;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.commentBubbleIcon {
+  width: $panel-icon-size;
+  height: $panel-icon-size;
+  display: block;
+  /* 与 likeHeartIcon 同色资源，不再降透明度 */
+  opacity: 1;
+}
+
+.commentAvatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 10rpx;
+  background: $color-divider;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.commentAvatarImg {
+  width: 64rpx;
+  height: 64rpx;
+  display: block;
+}
+
+.commentAvatarLetter {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-moments-meta;
+  color: $color-moments-link;
+  font-weight: $font-weight-medium;
+  background: $color-moments-link-soft;
+}
+
+.commentBodyCol {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2rpx;
+}
+
+.commentHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: $spacing-sm;
+}
+
+.commentName {
+  font-size: $font-size-moments-comment;
+  font-weight: $font-weight-medium;
+  color: $color-moments-link;
+  line-height: $line-height-moments-comment;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 68%;
+}
+
+.commentTime {
+  font-size: $font-size-moments-meta;
+  color: $color-moments-meta;
+  flex-shrink: 0;
+  line-height: $line-height-moments-comment;
+}
+
+.commentText {
+  display: block;
+  margin-top: 2rpx;
+  font-size: $font-size-moments-comment;
+  font-weight: $font-weight-normal;
+  color: $color-text-primary;
+  line-height: $line-height-moments-comment;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.commentReplyHint {
+  font-size: $font-size-moments-comment;
+  font-weight: $font-weight-normal;
+  line-height: $line-height-moments-comment;
+  color: $color-moments-link;
+}
+
+.loadMore {
+  margin: 0 $spacing-sm;
+  padding: $spacing-sm 0;
+  text-align: center;
+  border-top: 1rpx solid $color-moments-divider;
+}
+
+.loadMoreText {
+  font-size: $font-size-moments-meta;
+  color: $color-moments-meta;
+}
+
+
+
+.statusBar {
+  margin-bottom: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  border-radius: $moments-panel-radius;
+  background: rgba(245, 158, 11, 0.12);
+  color: $color-warning;
+  font-size: $font-size-moments-meta;
+}
+
+/* 底部弹出评论条 · 与首页 PostCard 一致（表情 + 输入 + 发送） */
+.composeMask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 10050;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.composeSheet {
+  background: $color-bg-muted;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-radius: 16rpx 16rpx 0 0;
+  overflow: hidden;
+}
+
+.composeReplyHint {
+  display: block;
+  padding: $spacing-sm $page-padding 0;
+  font-size: $font-size-moments-meta;
+  color: $color-text-tertiary;
+}
+
+.composeReplyCancel {
+  color: $color-moments-link;
+}
+
+.emojiPanel {
+  display: flex;
+  flex-wrap: wrap;
+  padding: $spacing-sm $spacing-sm 0;
+  max-height: 280rpx;
+  overflow-y: auto;
+}
+
+.emojiItem {
+  width: 12.5%;
+  text-align: center;
+  font-size: $font-size-moments-body;
+  line-height: $touch-min;
+}
+
+.composeBar {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm $page-padding;
+  background: $color-bg-muted;
+}
+
+.emojiToggle {
+  flex-shrink: 0;
+  width: $touch-min;
+  min-height: $touch-min;
+  text-align: center;
+  font-size: $font-size-moments-body;
+  line-height: 1;
+  padding: $spacing-xs 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.composeInput {
+  flex: 1;
+  min-width: 0;
+  height: $touch-min;
+  min-height: $touch-min;
+  padding: 0 $spacing-sm;
+  border-radius: $radius-md;
+  background: $color-bg-card;
+  font-size: $font-size-moments-comment;
+  color: $color-text-primary;
+  box-sizing: border-box;
+}
+
+.composeSend {
+  flex-shrink: 0;
+  min-height: $touch-min;
+  display: flex;
+  align-items: center;
+  font-size: $font-size-moments-comment;
+  font-weight: $font-weight-medium;
+  color: $color-success;
+  padding: 0 $spacing-sm;
+  box-sizing: border-box;
+}
+
+.composeSendOff {
+  flex-shrink: 0;
+  min-height: $touch-min;
+  display: flex;
+  align-items: center;
+  font-size: $font-size-moments-comment;
+  color: $color-text-disabled;
+  padding: 0 $spacing-sm;
+  box-sizing: border-box;
+}
